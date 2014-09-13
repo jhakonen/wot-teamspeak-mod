@@ -1,10 +1,11 @@
 import py_compile, zipfile, os, fnmatch
 
 WOT_VERSION = "0.9.2"
+MOD_VERSION = "0.1.0"
 CLIENT_PACKAGE_DIR = os.path.join("res_mods", WOT_VERSION, "scripts", "client")
 BUILD_DIR = "build"
 SRC_DIR = "src"
-PACKAGE_NAME = "TessuMod.zip"
+PACKAGE_NAME = "TessuMod-{0}.zip".format(MOD_VERSION)
 
 for root, dirs, files in os.walk(SRC_DIR):
 	src_dir = root
