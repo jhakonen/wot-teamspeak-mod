@@ -23,6 +23,7 @@ if os.path.exists(PACKAGE_NAME):
 	os.remove(PACKAGE_NAME)
 
 fZip = zipfile.ZipFile(PACKAGE_NAME, "w")
+fZip.write("TessuMod.txt", "TessuMod.txt")
 for root, dirs, files in os.walk(BUILD_DIR):
 	source_dir = root
 	root2 = root[len(BUILD_DIR)+1:]

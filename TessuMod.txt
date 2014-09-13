@@ -1,0 +1,7 @@
+JHakonen's mod for integrating TeamSpeak into World of Tanks.
+
+Installation:
+ - extract the archive to your world of Tanks folder, e.g: E:\Games\World_of_Tanks
+
+For more information, see:
+   https://github.com/jhakonen/wot-teamspeak-mod
