@@ -1,3 +1,4 @@
+from debug_utils import LOG_CURRENT_EXCEPTION
 
 class Event(object):
 
@@ -10,4 +11,7 @@ class Event(object):
 
 	def __call__(self, *args, **kwargs):
 		for callback in self.callbacks:
-			callback(*args, **kwargs)
+			try:
+				callback(*args, **kwargs)
+			except:
+				LOG_CURRENT_EXCEPTION()

@@ -1,5 +1,8 @@
 import traceback
 
+def LOG_DEBUG(*args):
+	print args
+
 def LOG_NOTE(*args):
 	print args
 
