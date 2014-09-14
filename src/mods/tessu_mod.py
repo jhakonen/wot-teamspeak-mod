@@ -45,6 +45,7 @@ def on_talk_status_changed(user, talking):
 
 def get_account_dbid_by_player_name(player_name):
 	player_name = player_name.lower()
+	dbid = None
 	if get_my_name().lower() == player_name:
 		dbid = get_my_dbid()
 	if dbid:
