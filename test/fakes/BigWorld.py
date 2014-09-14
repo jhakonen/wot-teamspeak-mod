@@ -1,21 +1,31 @@
 import time
 from debug_utils import LOG_CURRENT_EXCEPTION
 
-g_callback_events = []
+g_callback_events = {}
+g_next_handle = 0
 
 class UserDataObject(object):
 	pass
 
 def callback(secs, func):
-	g_callback_events.append((time.time()+secs, func))
+	global g_next_handle
+	g_callback_events[g_next_handle] = (time.time()+secs, func)
+	g_next_handle += 1
+
+def cancelCallback(handle):
+	try:
+		del g_callback_events[handle]
+	except:
+		pass
 
 def loop():
 	while True:
 		try:
 			t = time.time()
-			for event in g_callback_events:
+			for handle in g_callback_events.keys():
+				event = g_callback_events[handle]
 				if t > event[0]:
-					g_callback_events.remove(event)
+					cancelCallback(handle)
 					event[1]()
 			time.sleep(0.1)
 		except KeyboardInterrupt:
