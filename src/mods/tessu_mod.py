@@ -90,15 +90,8 @@ def VOIPManager_isParticipantTalking(orig_method):
 		return orig_method(self, dbid)
 	return wrapper
 
-def game_fini(orig_func):
-	def wrapper():
-		g_ts.disconnect()
-		orig_func()
-	return wrapper
-
 Avatar.Avatar.onBecomePlayer = Avatar_onBecomePlayer(Avatar.Avatar.onBecomePlayer)
 VOIP.VOIPManager.isParticipantTalking = VOIPManager_isParticipantTalking(VOIP.VOIPManager.isParticipantTalking)
-game.fini = game_fini(game.fini)
 
 g_talk_states = {}
 g_ts = TS3Client()
