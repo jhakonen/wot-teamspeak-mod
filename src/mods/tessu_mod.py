@@ -31,11 +31,10 @@ def on_talk_status_changed(user, talking):
 		talking: True if talking, False otherwise
 	'''
 	if user["wot"]:
-		vehicle = get_vehicle_by_player_name(user["wot"])
+		dbid = get_account_dbid_by_player_name(user["wot"])
 	else:
-		vehicle = get_vehicle_by_player_name(user["ts"])
-	if vehicle is not None:
-		dbid = vehicle["accountDBID"]
+		dbid = get_account_dbid_by_player_name(user["ts"])
+	if dbid is not None:
 		g_talk_states[dbid] = talking
 		if talking:
 			# set talking state immediately
@@ -44,15 +43,50 @@ def on_talk_status_changed(user, talking):
 			# keep talking state for a little longer
 			BigWorld.callback(1, utils.with_args(update_player_speak_status, dbid))
 
+def get_account_dbid_by_player_name(player_name):
+	player_name = player_name.lower()
+	if get_my_name().lower() == player_name:
+		dbid = get_my_dbid()
+	if dbid:
+		return dbid
+	vehicle = get_vehicle_by_player_name(player_name)
+	if vehicle:
+		return vehicle["accountDBID"]
+	info = get_prebattle_account_info_by_player_name(player_name)
+	if info:
+		return info["dbID"]
+
+def get_my_name():
+	try:
+		return BigWorld.player().name
+	except AttributeError:
+		pass
+
+def get_my_dbid():
+	try:
+		return BigWorld.player().databaseID
+	except AttributeError:
+		pass
+
 def get_vehicle_by_player_name(player_name):
 	'''Searches vehicle which has given 'player_name' and returns it.
 	Returns None if matching vehicle was not found.
 	'''
-	player_name = player_name.lower()
 	try:
 		for vehicle in BigWorld.player().arena.vehicles.values():
 			if player_name == vehicle["name"].lower():
 				return vehicle
+	except AttributeError:
+		pass
+
+def get_prebattle_account_info_by_player_name(player_name):
+	try:
+		rosters = BigWorld.player().prebattle.rosters
+		for roster in rosters:
+			for id in rosters[roster]:
+				info = rosters[roster][id]
+				if player_name == info["name"].lower():
+					return info
 	except AttributeError:
 		pass
 
