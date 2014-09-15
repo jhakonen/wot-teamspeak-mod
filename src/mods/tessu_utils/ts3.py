@@ -101,14 +101,14 @@ class TS3Client(object):
 					raise ConnectionError("Error in socket")
 				if read:
 					data = self.socket.recv(1024)
-					LOG_NOTE("<<", data)
+					LOG_DEBUG("<<", data)
 					if len(data) == 0:
 						raise ConnectionError("Unable to recv data")
 					self.handler.handle_in_data(data)
 				if write:
 					if self.handler.has_out_data():
 						count = self.socket.send(self.handler.get_out_data())
-						LOG_NOTE(">>", self.handler.get_out_data())
+						LOG_DEBUG(">>", self.handler.get_out_data())
 						if count == 0:
 							raise ConnectionError("Unable to send data")
 						self.handler.reduce_out_data(count)
