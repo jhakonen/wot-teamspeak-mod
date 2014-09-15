@@ -46,3 +46,18 @@ To build the mod, you will need:
 Easy one liner (using 7-zip's command line tool 7za.exe) to compile and install to WOT, e.g:
 
     package.py && 7za x TessuMod*.zip -oE:\Games\World_of_Tanks -y
+
+Changelog
+---------
+Version 0.1.2, 15.9.2014:
+- Fixed battle failing to start if TS client wasn't running.
+- Fixed WOT hanging a second every time the mod tried to (re)connect to TS.
+- Improved CameraNode.pyc so that it is more compatible with other mods.
+- Reduced amount of logging spam in python.log.
+
+Version 0.1.1, 14.9.2014:
+- Fixed speak indicators in garage either not shown, or after battle stuck always on
+
+Version 0.1.0, 14.9.2014:
+- first version
+
