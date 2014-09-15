@@ -21,6 +21,7 @@ from tessu_utils import utils
 from debug_utils import LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
 import BigWorld
 import Avatar
+import Account
 import VOIP
 from gui import SystemMessages
 
@@ -110,7 +111,7 @@ def push_system_message(message, type):
         LOG_CURRENT_EXCEPTION()
         return
 
-def Avatar_onBecomePlayer(orig_method):
+def Player_onBecomePlayer(orig_method):
 	def wrapper(self):
 		orig_method(self)
 		# save my WOT nickname to TeamSpeak's meta data so that other TeamSpeak
@@ -125,7 +126,8 @@ def VOIPManager_isParticipantTalking(orig_method):
 		return orig_method(self, dbid)
 	return wrapper
 
-Avatar.Avatar.onBecomePlayer = Avatar_onBecomePlayer(Avatar.Avatar.onBecomePlayer)
+Avatar.Avatar.onBecomePlayer = Player_onBecomePlayer(Avatar.Avatar.onBecomePlayer)
+Account.PlayerAccount.onBecomePlayer = Player_onBecomePlayer(Account.PlayerAccount.onBecomePlayer)
 VOIP.VOIPManager.isParticipantTalking = VOIPManager_isParticipantTalking(VOIP.VOIPManager.isParticipantTalking)
 
 g_talk_states = {}
