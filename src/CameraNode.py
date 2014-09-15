@@ -1,5 +1,6 @@
 # File uncompiled from CameraNode.pyc from Aslain's ModPack.
 # License unknown.
+# Limited searched paths to 2 as done in several other mods/mod packs.
 
 import BigWorld
 
@@ -13,7 +14,7 @@ def load_mods():
     import ResMgr, os, glob
     sec = ResMgr.openSection('../paths.xml')
     subsec = sec['Paths']
-    vals = subsec.values()
+    vals = subsec.values()[0:2]
     for val in vals:
         mp = val.asString + '/scripts/client/mods/*.pyc'
         for fp in glob.iglob(mp):
