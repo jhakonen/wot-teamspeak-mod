@@ -142,7 +142,12 @@ class TS3Client(object):
 			try:
 				func()
 			finally:
-				self.callback_handles.remove(handle)
+				try:
+					self.callback_handles.remove(handle)
+				except ValueError:
+					# protect against 'handle' not being in the list anymore
+					# due of cancel_all_call_laters()
+					pass
 		handle = BigWorld.callback(secs, wrapper)
 		self.callback_handles.append(handle)
 
