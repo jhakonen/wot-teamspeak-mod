@@ -15,7 +15,6 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from Queue import Empty, Queue
 import socket
 import clientquery
 import time
@@ -23,7 +22,7 @@ import re
 from debug_utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
 import Event
 import select
-from utils import with_args
+from utils import with_args, ThreadCaller
 import BigWorld
 
 RETRY_TIMEOUT = 10
@@ -55,17 +54,21 @@ class TS3Client(object):
 		self.socket = None
 		self.handler = None
 		self.clientuidfromclid_cache = {}
+		self.thread_caller = ThreadCaller()
 
 		self.on_connected = Event.Event()
 		self.on_disconnected = Event.Event()
 		self.on_talk_status_changed = Event.Event()
 
 	def connect(self):
-		self.connected = False
-		self.socket = None
-		self.handler = ClientQueryHandler(self)
-
-		self.cancel_all_call_laters()
+		def on_connect_to_ts(err, socket):
+			if err:
+				LOG_DEBUG(err)
+				LOG_ERROR("Failed to connect TeamSpeak clientquery interface at {0}:{1}".format(self.HOST, self.PORT))
+				self.call_later(RETRY_TIMEOUT, self.connect)
+			else:
+				LOG_NOTE("Connected to TeamSpeak clientquery interface")
+				self.socket = socket
 
 		def set_connected():
 			self.connected = True
@@ -87,14 +90,19 @@ class TS3Client(object):
 			self.get_my_client_id()
 			self.call_later(300, ping)
 
-		self.socket = self.connect_to_ts()
-
+		self.connected = False
+		self.socket = None
+		self.handler = ClientQueryHandler(self)
+		self.cancel_all_call_laters()
 		self.handler.on_ready += set_connected
 		self.handler.on_ready += register_notifications
 		self.handler.on_ready += ping
+		self.connect_to_ts(on_connect_to_ts)
 
 	def check_events(self):
 		try:
+			self.thread_caller.tick()
+
 			if self.socket is not None:
 				read, write, err = select.select([self.socket], [self.socket], [self.socket], 0)
 				if err:
@@ -124,15 +132,13 @@ class TS3Client(object):
 				self.on_disconnected()
 			self.call_later(RETRY_TIMEOUT, self.connect)
 
-	def connect_to_ts(self):
-		# create TCP socket and connect to clientquery on localhost:25639
-		try:
+	def connect_to_ts(self, callback):
+		def create_socket():
+			# executed in another thread
 			s = socket.create_connection((self.HOST, self.PORT))
 			s.setblocking(0)
 			return s
-		except socket.error:
-			LOG_ERROR("Failed to connect TeamSpeak clientquery interface at {0}:{1}".format(self.HOST, self.PORT))
-			raise
+		self.thread_caller.call(create_socket, callback)
 
 	def call_later(self, secs, func):
 		'''Enhanced version of BigWorld.callback() which keeps track of

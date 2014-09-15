@@ -16,6 +16,8 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 import BigWorld
+import threading
+from debug_utils import LOG_CURRENT_EXCEPTION
 
 def call_in_loop(secs, func):
 	def wrapper(*args, **kwargs):
@@ -27,3 +29,47 @@ def with_args(func, *args, **kwargs):
 	def wrapper():
 		return func(*args, **kwargs)
 	return wrapper
+
+class ThreadCaller(object):
+
+	def __init__(self):
+		self.calls = []
+
+	def call(self, func, callback):
+		call = ThreadCall(func, callback)
+		self.calls.append(call)
+		call.start()
+
+	def tick(self):
+		for call in self.calls:
+			done = call.check()
+			if done:
+				self.calls.remove(call)
+
+class ThreadCall(object):
+	def __init__(self, func, callback):
+		self._finished = threading.Event()
+		self._func = func
+		self._result_callback = callback
+		self._error = None
+		self._result = None
+		self._thread = threading.Thread(target=self._target)
+
+	def start(self):
+		self._thread.start()
+
+	def check(self):
+		if self._finished.is_set():
+			try:
+				self._result_callback(self._error, self._result)
+			except:
+				LOG_CURRENT_EXCEPTION()
+			return True
+		return False
+
+	def _target(self):
+		try:
+			self._result = self._func()
+		except Exception as e:
+			self._error = e
+		self._finished.set()
