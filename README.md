@@ -9,7 +9,7 @@ Compatible with WOT version 0.9.2.
 
 Installation
 ------------
-1. [Download the mod](https://dl.dropboxusercontent.com/u/37902077/wot/tessu_mod/TessuMod-0.1.1.zip) and extract it to your WOT folder.
+1. [Download the mod](http://db.orangedox.com/OK9gTmNzSWICsZAFVG/TessuMod-0.1.2.zip) and extract it to your WOT folder.
 2. Download and install TS 3 client from http://www.teamspeak.com/?page=downloads
 
 Usage
@@ -52,6 +52,7 @@ Changelog
 Version 0.1.2, 15.9.2014:
 - Fixed battle failing to start if TS client wasn't running.
 - Fixed WOT hanging a second every time the mod tried to (re)connect to TS.
+- Fixed speak indicators not working on first run (with the mod) in garage before joining a battle.
 - Improved CameraNode.pyc so that it is more compatible with other mods.
 - Reduced amount of logging spam in python.log.
 
