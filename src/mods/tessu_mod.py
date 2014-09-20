@@ -50,21 +50,27 @@ def on_connected_to_ts3():
 	'''Called when TessuMod manages to connect TeamSpeak client. However, this
 	doesn't mean that the client is connected to any TeamSpeak server.
 	'''
+	LOG_NOTE("Connected to TeamSpeak client")
 	utils.push_system_message("Connected to TeamSpeak client", SystemMessages.SM_TYPE.Warning)
 
 def on_disconnected_from_ts3():
 	'''Called when TessuMod loses connection to TeamSpeak client.'''
+	LOG_NOTE("Disconnected from TeamSpeak client")
 	g_marker_repeater.stop_all()
 	utils.push_system_message("Disconnected from TeamSpeak client", SystemMessages.SM_TYPE.Warning)
+
+def on_connected_to_ts3_server():
+	LOG_NOTE("Connected to TeamSpeak server")
+	g_ts.set_wot_nickname(utils.get_my_name())
+
+def on_disconnected_from_ts3_server():
+	LOG_NOTE("Disconnected from TeamSpeak server")
 
 def Player_onBecomePlayer(orig_method):
 	def wrapper(self):
 		'''Called when BigWorld.player() is available.'''
 		orig_method(self)
-		# save my WOT nickname to TeamSpeak's meta data so that other TeamSpeak
-		# users can match the name to vehicles in battle when I'm speaking
-		g_ts.set_wot_nickname(BigWorld.player().name)
-
+		g_ts.set_wot_nickname(utils.get_my_name())
 	return wrapper
 
 def VOIPManager_isParticipantTalking(orig_method):
@@ -95,6 +101,8 @@ try:
 	g_ts.connect()
 	g_ts.on_connected += on_connected_to_ts3
 	g_ts.on_disconnected += on_disconnected_from_ts3
+	g_ts.on_connected_to_server += on_connected_to_ts3_server
+	g_ts.on_disconnected_from_server += on_disconnected_from_ts3_server
 	g_ts.on_talk_status_changed += on_talk_status_changed
 	utils.call_in_loop(0.1, g_ts.check_events)
 

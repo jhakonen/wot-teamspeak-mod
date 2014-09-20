@@ -61,12 +61,15 @@ class TS3Client(object):
 		self.connected = False
 		self.socket = None
 		self.handler = None
+		self.connected_to_server = False
 		self.clientuidfromclid_cache = {}
 		self.thread_caller = ThreadCaller()
 
 		self.on_connected = Event.Event()
 		self.on_disconnected = Event.Event()
 		self.on_talk_status_changed = Event.Event()
+		self.on_connected_to_server = Event.Event()
+		self.on_disconnected_from_server = Event.Event()
 
 	def connect(self):
 		def on_connect_to_ts(err, socket):
@@ -95,8 +98,18 @@ class TS3Client(object):
 
 		def ping():
 			'''Ping TS client with some command to keep connection alive.'''
-			self.get_my_client_id()
-			self.call_later(300, ping)
+			def on_finish(err, result):
+				if err:
+					if err[0] == API_NOT_CONNECTED_TO_SERVER and self.connected_to_server:
+						self.connected_to_server = False
+						self.on_disconnected_from_server()
+				else:
+					if not self.connected_to_server:
+						self.connected_to_server = True
+						self.on_connected_to_server()
+				self.call_later(RETRY_TIMEOUT, ping)
+
+			self.get_my_client_id(on_finish)
 
 		self.connected = False
 		self.socket = None
@@ -213,6 +226,9 @@ class TS3Client(object):
 		self.get_client_meta_data(client_id, on_finish)
 
 	def set_wot_nickname(self, name):
+		if name is None:
+			return
+
 		def on_get_my_client_id(err, client_id):
 			def on_get_client_meta_data(err, data):
 				if data is not None:
