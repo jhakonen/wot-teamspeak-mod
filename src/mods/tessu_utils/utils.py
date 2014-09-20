@@ -113,7 +113,7 @@ def get_my_dbid():
 	except AttributeError:
 		pass
 
-def find_prebattle_account_info(player_name, matcher):
+def find_prebattle_account_info(matcher):
 	'''Finds player information from prebattle rosters (e.g. in practise room
 	when you assign players to teams). Given 'matcher' function is used pick
 	desired info. Returns None if nothing found.
