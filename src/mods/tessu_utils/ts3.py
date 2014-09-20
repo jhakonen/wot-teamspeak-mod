@@ -26,6 +26,14 @@ from utils import with_args, ThreadCaller
 import BigWorld
 
 RETRY_TIMEOUT = 10
+API_NOT_CONNECTED_TO_SERVER = 1794
+
+def LOG_API_ERROR(message, err):
+	if err:
+		if err[0] == API_NOT_CONNECTED_TO_SERVER:
+			LOG_DEBUG(message, err)
+		else:
+			LOG_ERROR(message, err)
 
 def noop(*args, **kwargs):
 	pass
@@ -82,7 +90,7 @@ class TS3Client(object):
 
 		def on_command_finish(err, data):
 			if err:
-				LOG_ERROR("command failed:", err)
+				LOG_API_ERROR("command failed:", err)
 				raise ClientQueryError(*err)
 
 		def ping():
@@ -171,7 +179,7 @@ class TS3Client(object):
 	def get_my_client_id(self, callback=noop):
 		def on_whoami(err, lines):
 			if err:
-				LOG_ERROR("get_my_client_id() failed, error:", err)
+				LOG_API_ERROR("get_my_client_id() failed, error:", err)
 				callback(err, None)
 			else:
 				client_id = int(clientquery.getParamValue(lines[0], 'clid'))
@@ -181,7 +189,7 @@ class TS3Client(object):
 	def get_client_meta_data(self, client_id, callback=noop):
 		def on_finish(err, lines):
 			if err:
-				LOG_ERROR("get_client_meta_data failed:", err)
+				LOG_API_ERROR("get_client_meta_data failed:", err)
 				callback(err, "")
 			else:
 				data = clientquery.getParamValue(lines[0], "client_meta_data")
@@ -247,7 +255,7 @@ class TS3Client(object):
 	def get_clientlist(self, callback=noop):
 		def on_clientlist(err, lines):
 			if err:
-				LOG_ERROR("get_clientlist() failed, error:", err)
+				LOG_API_ERROR("get_clientlist() failed, error:", err)
 				callback(err, None)
 			else:
 				clientlist = []
@@ -291,7 +299,7 @@ class TS3Client(object):
 
 		def on_clientgetuidfromclid(err, lines):
 			if err:
-				LOG_ERROR("clientgetuidfromclid failed, error:", err)
+				LOG_API_ERROR("clientgetuidfromclid failed, error:", err)
 				callback(err, None)
 			else:
 				wait_notify()
