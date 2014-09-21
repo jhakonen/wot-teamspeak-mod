@@ -40,9 +40,9 @@ def update_player_speak_status(player_name):
 		pass
 	try:
 		if g_talk_states[player_name] and utils.get_vehicle(info["vehicle_id"])["isAlive"]:
-			g_marker_repeater.start(info["vehicle_id"])
+			g_minimap_ctrl.start(info["vehicle_id"])
 		else:
-			g_marker_repeater.stop(info["vehicle_id"])
+			g_minimap_ctrl.stop(info["vehicle_id"])
 	except:
 		pass
 
@@ -56,7 +56,7 @@ def on_connected_to_ts3():
 def on_disconnected_from_ts3():
 	'''Called when TessuMod loses connection to TeamSpeak client.'''
 	LOG_NOTE("Disconnected from TeamSpeak client")
-	g_marker_repeater.stop_all()
+	g_minimap_ctrl.stop_all()
 	utils.push_system_message("Disconnected from TeamSpeak client", SystemMessages.SM_TYPE.Warning)
 
 def on_connected_to_ts3_server():
@@ -96,7 +96,7 @@ try:
 
 	# do all intializations here
 	g_talk_states = {}
-	g_marker_repeater = utils.MarkerRepeater(interval=3.5, action="attackSender")
+	g_minimap_ctrl = utils.MinimapMarkersController(interval=3.5, action="attackSender")
 	g_ts = TS3Client()
 	g_ts.connect()
 	g_ts.on_connected += on_connected_to_ts3

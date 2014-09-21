@@ -188,8 +188,8 @@ def push_system_message(message, type):
 
 import time
 
-class MarkerRepeater(object):
-	'''MarkerRepeater class repeatably starts given marker 'action' every
+class MinimapMarkersController(object):
+	'''MinimapMarkersController class repeatably starts given marker 'action' every
 	'interval' seconds in minimap over given 'vehicle_id', effectively creating
 	continuous animation until the marker action is stopped.
 	'''
@@ -197,29 +197,56 @@ class MarkerRepeater(object):
 	def __init__(self, interval, action):
 		self._interval = interval
 		self._action = action
-		self._running_ids = set()
+		self._running_animations = {}
 
 	def start(self, vehicle_id):
 		'''Starts playing action marker for given 'vehicle_id'.'''
-		if vehicle_id not in self._running_ids:
-			self._running_ids.add(vehicle_id)
-			self._repeat(vehicle_id)
+		if vehicle_id not in self._running_animations:
+			self._running_animations[vehicle_id] = MinimapMarkerAnimation(
+				vehicle_id, self._interval, self._action, self._on_done)
+		self._running_animations[vehicle_id].start()
 
 	def stop(self, vehicle_id):
 		'''Stops playing action marker for given 'vehicle_id'.'''
-		try:
-			self._running_ids.remove(vehicle_id)
-		except KeyError:
-			pass
+		if vehicle_id in self._running_animations:
+			self._running_animations[vehicle_id].stop()
 
 	def stop_all(self):
 		'''Stops all marker animations.'''
-		self._running_ids.clear()
+		for vehicle_id in self._running_animations:
+			self._running_animations[vehicle_id].stop()
 
-	def _repeat(self, vehicle_id):
+	def _on_done(self, vehicle_id):
+		del self._running_animations[vehicle_id]
+
+class MinimapMarkerAnimation(object):
+
+	def __init__(self, vehicle_id, interval, action, on_done):
+		self._interval   = interval
+		self._action     = action
+		self._vehicle_id = vehicle_id
+		self._on_done    = on_done
+		self._is_started = False
+		self._is_running = False
+
+	def start(self):
+		self._is_started = True
+		if not self._is_running:
+			self._repeat()
+
+	def stop(self):
+		self._is_started = False
+
+	def _repeat(self):
+		self._is_running = self._is_started
+		if self._is_started:
+			self._updateMinimap()
+			BigWorld.callback(self._interval, self._repeat)
+		else:
+			self._on_done(self._vehicle_id)
+
+	def _updateMinimap(self):
 		try:
-			if vehicle_id in self._running_ids:
-				g_windowsManager.battleWindow.minimap.showActionMarker(vehicle_id, self._action)
-				BigWorld.callback(self._interval, with_args(self._repeat, vehicle_id))
+			g_windowsManager.battleWindow.minimap.showActionMarker(self._vehicle_id, self._action)
 		except AttributeError:
 			pass
