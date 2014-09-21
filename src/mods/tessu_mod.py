@@ -39,7 +39,7 @@ def update_player_speak_status(player_name):
 	except:
 		pass
 	try:
-		if g_talk_states[player_name]:
+		if g_talk_states[player_name] and utils.get_vehicle(info["vehicle_id"])["isAlive"]:
 			g_marker_repeater.start(info["vehicle_id"])
 		else:
 			g_marker_repeater.stop(info["vehicle_id"])
