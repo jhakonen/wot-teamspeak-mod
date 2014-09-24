@@ -54,8 +54,9 @@ Easy one liner (using 7-zip's command line tool 7za.exe) to compile and install 
 
 TODO
 ----
-- Add configuration options, at least possiblity to disable voice chat notifications, minimap notifcations
-- Add 3D positional audio support
+- Add configuration options, at least possiblity to disable voice chat and minimap notifications
+- Add settings ui using ModSettingsAPI
+- Add 3D positional audio support (need a new TS plugin for this)
 
 Changelog
 ---------
