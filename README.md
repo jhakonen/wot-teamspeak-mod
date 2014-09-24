@@ -3,7 +3,12 @@ TessuMod
 
 JHakonen's mod for integrating TeamSpeak(TS) into World of Tanks (WOT).
 
-WOT has already a support for voice communication which can be enabled from settings. When a player speaks his name in battle's player list has a green wave animation which shows current speaker. There is also a green speaker icon above the speaking player's tank. This mod enables those functionalities for TS as well.
+This mod enables ingame notifications when a player speaks in TS. The notifications include:
+- Normal ingame voice chat notifications:
+  - green wave animations under player's name at garage in e.g. training room, platoon, etc. views,
+  - green wave animations at battle in the player panels,
+  - speaker icon on top of a tank in battle
+- Notication in minimap around speaking player's tank marker
 
 Compatible with WOT version 0.9.3. 
 
@@ -46,6 +51,11 @@ To build the mod, you will need:
 Easy one liner (using 7-zip's command line tool 7za.exe) to compile and install to WOT, e.g:
 
     package.py && 7za x TessuMod*.zip -oE:\Games\World_of_Tanks -y
+
+TODO
+----
+- Add configuration options, at least possiblity to disable voice chat notifications, minimap notifcations
+- Add 3D positional audio support
 
 Changelog
 ---------
