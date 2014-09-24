@@ -5,7 +5,7 @@ JHakonen's mod for integrating TeamSpeak(TS) into World of Tanks (WOT).
 
 WOT has already a support for voice communication which can be enabled from settings. When a player speaks his name in battle's player list has a green wave animation which shows current speaker. There is also a green speaker icon above the speaking player's tank. This mod enables those functionalities for TS as well.
 
-Compatible with WOT version 0.9.2. 
+Compatible with WOT version 0.9.3. 
 
 Installation
 ------------
@@ -49,6 +49,11 @@ Easy one liner (using 7-zip's command line tool 7za.exe) to compile and install 
 
 Changelog
 ---------
+Version 0.2.0, 25.9.2014:
+- Added notification to minimap when player is speaking.
+- Reduced amount of logging spam in python.log.
+- Fixed wot nickname not updating to teamspeak client if the client wasn't connect to teamspeak server before entering garage or battle.
+
 Version 0.1.2, 15.9.2014:
 - Fixed battle failing to start if TS client wasn't running.
 - Fixed WOT hanging a second every time the mod tried to (re)connect to TS.
