@@ -63,7 +63,7 @@ Changelog
 Version 0.2.0, 25.9.2014:
 - Added notification to minimap when player is speaking.
 - Reduced amount of logging spam in python.log.
-- Fixed wot nickname not updating to teamspeak client if the client wasn't connect to teamspeak server before entering garage or battle.
+- Fixed wot nickname not updating to teamspeak client if the client wasn't connected to teamspeak server before entering garage or battle.
 
 Version 0.1.2, 15.9.2014:
 - Fixed battle failing to start if TS client wasn't running.
