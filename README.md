@@ -14,7 +14,7 @@ Compatible with WOT version 0.9.3.
 
 Installation
 ------------
-1. [Download the mod](http://db.orangedox.com/OK9gTmNzSWICsZAFVG/TessuMod-0.1.2.zip) and extract it to your WOT folder.
+1. [Download the mod](http://db.orangedox.com/8l7QaCJfd3apFp3KrA/TessuMod-0.2.0.zip) and extract it to your WOT folder.
 2. Download and install TS 3 client from http://www.teamspeak.com/?page=downloads
 
 Usage
