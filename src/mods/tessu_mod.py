@@ -46,6 +46,19 @@ def update_player_speak_status(player_name):
 	except:
 		pass
 
+def clear_speak_statuses():
+	'''Clears speak status of all players.'''
+	players_speaking = [name for name in g_talk_states if g_talk_states[name]]
+	g_talk_states.clear()
+	g_minimap_ctrl.stop_all()
+
+	for name in players_speaking:
+		try:
+			info = utils.get_player_info_by_name(name)
+			VOIP.getVOIPManager().setPlayerTalking(info["dbid"], False)
+		except:
+			pass
+
 def on_connected_to_ts3():
 	'''Called when TessuMod manages to connect TeamSpeak client. However, this
 	doesn't mean that the client is connected to any TeamSpeak server.
@@ -56,7 +69,7 @@ def on_connected_to_ts3():
 def on_disconnected_from_ts3():
 	'''Called when TessuMod loses connection to TeamSpeak client.'''
 	LOG_NOTE("Disconnected from TeamSpeak client")
-	g_minimap_ctrl.stop_all()
+	clear_speak_statuses()
 	utils.push_system_message("Disconnected from TeamSpeak client", SystemMessages.SM_TYPE.Warning)
 
 def on_connected_to_ts3_server():
@@ -65,6 +78,7 @@ def on_connected_to_ts3_server():
 
 def on_disconnected_from_ts3_server():
 	LOG_NOTE("Disconnected from TeamSpeak server")
+	clear_speak_statuses()
 
 def Player_onBecomePlayer(orig_method):
 	def wrapper(self):
