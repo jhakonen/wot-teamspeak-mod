@@ -21,30 +21,59 @@ def on_talk_status_changed(user, talking):
 		user: a dict with WOT nickname (empty if not available) and TeamSpeak nickname 
 		talking: True if talking, False otherwise
 	'''
-	player_name = (user["wot"] if user["wot"] else user["ts"]).lower()
-	g_talk_states[player_name] = talking
+	player_name = user["wot"] if user["wot"] else user["ts"]
+	talk_status(player_name, talking)
 	if talking:
 		# set talking state immediately
 		update_player_speak_status(player_name)
 	else:
 		# keep talking state for a little longer
-		BigWorld.callback(1, utils.with_args(update_player_speak_status, player_name))
+		BigWorld.callback(settings().get_speak_stop_delay(), utils.with_args(update_player_speak_status, player_name))
+
+def talk_status(player_name, talking=None):
+	player_name = player_name.lower()
+	if talking is not None:
+		g_talk_states[player_name] = talking
+	try:
+		return g_talk_states[player_name]
+	except:
+		return False
 
 def update_player_speak_status(player_name):
 	'''Updates given 'player_name's talking status to VOIP system and minimap.''' 
 	player_name = player_name.lower()
 	info = utils.get_player_info_by_name(player_name)
 	try:
-		VOIP.getVOIPManager().setPlayerTalking(info["dbid"], g_talk_states[player_name])
+		talking = is_voice_chat_speak_allowed(player_name) and talk_status(player_name)
+		VOIP.getVOIPManager().setPlayerTalking(info["dbid"], talking)
 	except:
-		pass
+		LOG_CURRENT_EXCEPTION()
 	try:
-		if g_talk_states[player_name] and utils.get_vehicle(info["vehicle_id"])["isAlive"]:
-			g_minimap_ctrl.start(info["vehicle_id"])
+		talking = (
+			talk_status(player_name) and
+			is_minimap_speak_allowed(player_name) and
+			utils.get_vehicle(info["vehicle_id"])["isAlive"]
+		)
+		if talking:
+			g_minimap_ctrl.start(info["vehicle_id"], settings().get_minimap_action(), settings().get_minimap_action_interval())
 		else:
 			g_minimap_ctrl.stop(info["vehicle_id"])
 	except:
-		pass
+		LOG_CURRENT_EXCEPTION()
+
+def is_voice_chat_speak_allowed(player_name):
+	if not settings().is_voice_chat_notifications_enabled():
+		return False
+	if not settings().is_self_voice_chat_notifications_enabled() and utils.get_my_name().lower() == player_name.lower():
+		return False
+	return True
+
+def is_minimap_speak_allowed(player_name):
+	if not settings().is_minimap_notifications_enabled():
+		return False
+	if not settings().is_self_minimap_notifications_enabled() and utils.get_my_name().lower() == player_name.lower():
+		return False
+	return True
 
 def clear_speak_statuses():
 	'''Clears speak status of all players.'''
@@ -80,6 +109,12 @@ def on_disconnected_from_ts3_server():
 	LOG_NOTE("Disconnected from TeamSpeak server")
 	clear_speak_statuses()
 
+def load_settings():
+	LOG_NOTE("Settings loaded from ini file")
+	utils.CURRENT_LOG_LEVEL = settings().get_log_level()
+	g_ts.HOST = settings().get_client_query_host()
+	g_ts.PORT = settings().get_client_query_port()
+
 def Player_onBecomePlayer(orig_method):
 	def wrapper(self):
 		'''Called when BigWorld.player() is available.'''
@@ -89,19 +124,23 @@ def Player_onBecomePlayer(orig_method):
 
 def VOIPManager_isParticipantTalking(orig_method):
 	def wrapper(self, dbid):
-		'''Called by other game modules to determine current speaking status.'''
+		'''Called by other game modules (but not by minimap) to determine
+		current speaking status.
+		'''
 		try:
-			return g_talk_states[utils.get_player_info_by_dbid(dbid)["player_name"].lower()]
+			player_name = utils.get_player_info_by_dbid(dbid)["player_name"]
+			return is_voice_chat_speak_allowed(player_name) and talk_status(player_name)
 		except:
-			pass
+			LOG_CURRENT_EXCEPTION()
 		return orig_method(self, dbid)
 	return wrapper
 
 try:
 	import game
 	from tessu_utils.ts3 import TS3Client
+	from tessu_utils.utils import LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
 	from tessu_utils import utils
-	from debug_utils import LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
+	from tessu_utils.settings import settings
 	import BigWorld
 	import Avatar
 	import Account
@@ -109,16 +148,21 @@ try:
 	from gui import SystemMessages
 
 	# do all intializations here
+	settings(utils.get_mods_path() + "/tessu_mod.ini").on_reloaded += load_settings
+
 	g_talk_states = {}
-	g_minimap_ctrl = utils.MinimapMarkersController(interval=3.5, action="attackSender")
+	g_minimap_ctrl = utils.MinimapMarkersController()
 	g_ts = TS3Client()
+
+	load_settings()
+
 	g_ts.connect()
 	g_ts.on_connected += on_connected_to_ts3
 	g_ts.on_disconnected += on_disconnected_from_ts3
 	g_ts.on_connected_to_server += on_connected_to_ts3_server
 	g_ts.on_disconnected_from_server += on_disconnected_from_ts3_server
 	g_ts.on_talk_status_changed += on_talk_status_changed
-	utils.call_in_loop(0.1, g_ts.check_events)
+	utils.call_in_loop(settings().get_client_query_interval(), g_ts.check_events)
 
 	# if nothing broke so far then it should be safe to patch the needed
 	# functions (modified functions have dependencies to g_* global variables)

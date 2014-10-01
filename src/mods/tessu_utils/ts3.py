@@ -19,11 +19,17 @@ import socket
 import clientquery
 import time
 import re
-from debug_utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
 import Event
 import select
-from utils import with_args, ThreadCaller
 import BigWorld
+from utils import (
+	with_args,
+	ThreadCaller,
+	LOG_DEBUG,
+	LOG_NOTE,
+	LOG_ERROR,
+	LOG_CURRENT_EXCEPTION
+)
 
 RETRY_TIMEOUT = 10
 API_NOT_CONNECTED_TO_SERVER = 1794

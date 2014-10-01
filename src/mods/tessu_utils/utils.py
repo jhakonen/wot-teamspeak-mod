@@ -17,10 +17,13 @@
 
 import BigWorld
 import threading
-from debug_utils import LOG_CURRENT_EXCEPTION
+import debug_utils
 from gui import SystemMessages
 from gui.WindowsManager import g_windowsManager
-	
+import ResMgr
+import time
+import os
+
 def call_in_loop(secs, func):
 	def wrapper(*args, **kwargs):
 		func(*args, **kwargs)
@@ -186,7 +189,15 @@ def push_system_message(message, type):
 		LOG_CURRENT_EXCEPTION()
 		return
 
-import time
+def get_mods_path():
+	res = ResMgr.openSection('../paths.xml')
+	sb = res['Paths']
+	vals = sb.values()
+	for vl in vals:
+		path = vl.asString + "/scripts/client/mods/"
+		if os.path.isdir(path):
+			return path
+	return ""
 
 class MinimapMarkersController(object):
 	'''MinimapMarkersController class repeatably starts given marker 'action' every
@@ -194,16 +205,14 @@ class MinimapMarkersController(object):
 	continuous animation until the marker action is stopped.
 	'''
 
-	def __init__(self, interval, action):
-		self._interval = interval
-		self._action = action
+	def __init__(self):
 		self._running_animations = {}
 
-	def start(self, vehicle_id):
+	def start(self, vehicle_id, action, interval):
 		'''Starts playing action marker for given 'vehicle_id'.'''
 		if vehicle_id not in self._running_animations:
 			self._running_animations[vehicle_id] = MinimapMarkerAnimation(
-				vehicle_id, self._interval, self._action, self._on_done)
+				vehicle_id, interval, action, self._on_done)
 		self._running_animations[vehicle_id].start()
 
 	def stop(self, vehicle_id):
@@ -250,3 +259,29 @@ class MinimapMarkerAnimation(object):
 			g_windowsManager.battleWindow.minimap.showActionMarker(self._vehicle_id, self._action)
 		except AttributeError:
 			pass
+
+class LOG_LEVEL(object):
+	DEBUG = 0
+	NOTE = 1
+	WARNING = 2
+	ERROR = 3
+
+CURRENT_LOG_LEVEL = LOG_LEVEL.NOTE
+
+def LOG_DEBUG(msg, *args):
+	if CURRENT_LOG_LEVEL <= LOG_LEVEL.DEBUG:
+		debug_utils._doLog('DEBUG', msg, args)
+
+def LOG_NOTE(msg, *args):
+	if CURRENT_LOG_LEVEL <= LOG_LEVEL.NOTE:
+		debug_utils._doLog('NOTE', msg, args)
+
+def LOG_WARNING(msg, *args):
+	if CURRENT_LOG_LEVEL <= LOG_LEVEL.WARNING:
+		debug_utils._doLog('WARNING', msg, args)
+
+def LOG_ERROR(msg, *args):
+	if CURRENT_LOG_LEVEL <= LOG_LEVEL.ERROR:
+		debug_utils._doLog('ERROR', msg, args)
+
+LOG_CURRENT_EXCEPTION = debug_utils.LOG_CURRENT_EXCEPTION
