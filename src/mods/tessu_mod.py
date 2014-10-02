@@ -21,7 +21,9 @@ def on_talk_status_changed(user, talking):
 		user: a dict with WOT nickname (empty if not available) and TeamSpeak nickname 
 		talking: True if talking, False otherwise
 	'''
-	player_name = user["wot"] if user["wot"] else user["ts"]
+	if not settings().get_wot_nick_from_ts_metadata():
+		user["wot"] = ""
+	player_name = user["wot"] if user["wot"] else map_nick_to_wot_nick(extract_nick(user["ts"]))
 	talk_status(player_name, talking)
 	if talking:
 		# set talking state immediately
@@ -29,6 +31,32 @@ def on_talk_status_changed(user, talking):
 	else:
 		# keep talking state for a little longer
 		BigWorld.callback(settings().get_speak_stop_delay(), utils.with_args(update_player_speak_status, player_name))
+
+def extract_nick(ts_nickname):
+	'''Extracts WOT nickname (or something that can be passed to mapping
+	rules) from 'ts_nickname' using regexp patterns defined in ini-file's
+	'nick_extract_patterns'-key.
+	Returns 'ts_nickname' if none of the patterns matched.
+	'''
+	for pattern in settings().get_nick_extract_patterns():
+		matches = pattern.match(ts_nickname)
+		if matches is not None:
+			LOG_DEBUG("TS nickname '{0}' matched to regexp pattern '{1}'".format(ts_nickname, pattern.pattern))
+			return matches.group(1)
+	return ts_nickname
+
+def map_nick_to_wot_nick(ts_nickname):
+	'''Returns 'ts_nickname's matching WOT nickname using values from
+	ini-file's [NameMappings] section.
+	Returns 'ts_nickname' if mapping didn't exist for it.
+	'''
+	mapping = settings().get_name_mappings()
+	try:
+		wot_nickname = mapping[ts_nickname.lower()]
+		LOG_DEBUG("TS nickname '{0}' mapped to WOT nickname '{1}'".format(ts_nickname, wot_nickname))
+		return wot_nickname
+	except:
+		return ts_nickname
 
 def talk_status(player_name, talking=None):
 	player_name = player_name.lower()
@@ -43,6 +71,8 @@ def update_player_speak_status(player_name):
 	'''Updates given 'player_name's talking status to VOIP system and minimap.''' 
 	player_name = player_name.lower()
 	info = utils.get_player_info_by_name(player_name)
+	if not info:
+		return
 	try:
 		talking = is_voice_chat_speak_allowed(player_name) and talk_status(player_name)
 		VOIP.getVOIPManager().setPlayerTalking(info["dbid"], talking)
@@ -138,7 +168,7 @@ def VOIPManager_isParticipantTalking(orig_method):
 try:
 	import game
 	from tessu_utils.ts3 import TS3Client
-	from tessu_utils.utils import LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
+	from tessu_utils.utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
 	from tessu_utils import utils
 	from tessu_utils.settings import settings
 	import BigWorld
