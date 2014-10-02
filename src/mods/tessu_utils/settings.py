@@ -17,13 +17,14 @@
 
 import ConfigParser
 import os
+import csv
+import re
 from utils import LOG_ERROR
 import BigWorld
 import Event
 
 DEFAULT_INI = """
-; Defines configuration options for TessuMod. Uncomment and change value of
-; options below to take them into use.
+; Defines configuration options for TessuMod.
 
 [General]
 ; Defines minimum level of logging to python.log, possible values includes:
@@ -40,7 +41,22 @@ ini_check_interval: 5
 ; Delay (in seconds) stopping of speak feedback after users has stopped speaking
 speak_stop_delay: 1
 
-; Defines regular expression for extracting WOT nickname from user's
+; Enables or disables WOT nickname fetching from speaking TS user's meta data.
+; If disabled, matching TS user to WOT nickname relies only either TS nickname
+; to be same as WOT nickname or extract patterns and name mappings to be able
+; to convert TS nickname to WOT nickname.
+; Useful for testing different extract patterns and name mappings.
+; Use as follows:
+;  1. Start one of your replays (from game's replays-folder)
+;  2. Connect to TeamSpeak
+;  3. Change your TS nickname to form you wish to test
+;  4. Change this option to 'off'
+;  5. Try talking and see if the speak notifications appear in-game.
+;  6. If nothing happens, adjust 'nick_extract_patterns' and [NameMappings] options.
+;  7. Jump back to step 5
+get_wot_nick_from_ts_metadata: on
+
+; Defines regular expressions for extracting WOT nickname from user's
 ; TS nickname, e.g. if TS nickname is:
 ;   "wot_nickname | real name"
 ; Following expression will extract the wot_nickname:
@@ -48,6 +64,17 @@ speak_stop_delay: 1
 ; For more info, see: https://docs.python.org/2/library/re.html
 ; The captured nickname is also stripped of any surrounding white space and
 ; compared case insensitive manner to seen WOT players.
+; You can also define multiple patterns separated with commas (,). First
+; pattern that matches will be used.
+; As a more complex example, if you need to extract 'nick' from following
+; TS nicknames:
+;   nick [tag]
+;   nick (tag)
+;   nick (real name) [tag]
+;   nick/real name [tag]
+;   [tag] nick
+; Use patterns:
+;   nick_extract_patterns: ([a-z0-9_]+),\[[^\]]+\]\s*([a-z0-9_]+)
 nick_extract_patterns:
 
 [NameMappings]
@@ -86,31 +113,33 @@ self_enabled: on
 
 ; Define notification animation's appearance
 ; Can be one of the following:
-;  - firstEnemy
-;  - enemySPG
-;  - help_me
-;  - help_meSPG
-;  - follow_me
-;  - follow_meSPG
 ;  - attack
 ;  - attackSPG
 ;  - attackSender
 ;  - attackSenderSPG
-;  - reloading_gun
-;  - reloading_gunSPG
+;  - enemySPG
+;  - firstEnemy
+;  - follow_me
+;  - follow_meSPG
+;  - help_me
+;  - help_meSPG
+;  - help_me_ex
+;  - help_me_exSPG
 ;  - negative
 ;  - negativeSPG
 ;  - positive
 ;  - positiveSPG
+;  - reloading_gun
+;  - reloading_gunSPG
 ;  - stop
 ;  - stopSPG
-;  - help_me_ex
-;  - help_me_exSPG
 ;  - turn_back
 ;  - turn_backSPG
 action: attackSender
 
-; Define repeat interval (in seconds) of the notification animation
+; Define repeat interval (in seconds) of the notification animation.
+; Adjust this until the animation animates continuously while someone is
+; speaking.
 repeat_interval: 3.5
 """
 
@@ -148,6 +177,7 @@ class Settings(object):
 		self._parser.set("General", "log_level", "1")
 		self._parser.set("General", "ini_check_interval", "5")
 		self._parser.set("General", "speak_stop_delay", "1")
+		self._parser.set("General", "get_wot_nick_from_ts_metadata", "on")
 		self._parser.set("General", "nick_extract_patterns", "")
 		self._parser.add_section("NameMappings")
 		self._parser.add_section("TSClientQueryService")
@@ -190,11 +220,14 @@ class Settings(object):
 	def get_speak_stop_delay(self):
 		return self._parser.getfloat("General", "speak_stop_delay")
 
+	def get_wot_nick_from_ts_metadata(self):
+		return self._parser.getboolean("General", "get_wot_nick_from_ts_metadata")
+
 	def get_nick_extract_patterns(self):
 		patterns = []
 		for row in csv.reader([self._parser.get("General", "nick_extract_patterns")]):
 			for pattern in row:
-				patterns.append(pattern)
+				patterns.append(re.compile(pattern, re.IGNORECASE))
 		return patterns
 
 	def get_name_mappings(self):
