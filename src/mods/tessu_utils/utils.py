@@ -16,13 +16,14 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 import BigWorld
-import threading
 import debug_utils
 from gui import SystemMessages
 from gui.WindowsManager import g_windowsManager
 import ResMgr
-import time
 import os
+import functools
+import inspect
+import time
 
 def call_in_loop(secs, func):
 	def wrapper(*args, **kwargs):
@@ -35,49 +36,16 @@ def with_args(func, *args, **kwargs):
 		return func(*args, **kwargs)
 	return wrapper
 
-class ThreadCaller(object):
-
-	def __init__(self):
-		self.calls = []
-
-	def call(self, func, callback):
-		call = ThreadCall(func, callback)
-		self.calls.append(call)
-		call.start()
-
-	def tick(self):
-		for call in self.calls:
-			done = call.check()
-			if done:
-				self.calls.remove(call)
-
-class ThreadCall(object):
-	def __init__(self, func, callback):
-		self._finished = threading.Event()
-		self._func = func
-		self._result_callback = callback
-		self._error = None
-		self._result = None
-		self._thread = threading.Thread(target=self._target)
-
-	def start(self):
-		self._thread.start()
-
-	def check(self):
-		if self._finished.is_set():
-			try:
-				self._result_callback(self._error, self._result)
-			except:
-				LOG_CURRENT_EXCEPTION()
-			return True
-		return False
-
-	def _target(self):
+def benchmark(func):
+	def wrapper(*args, **kwargs):
+		LOG_DEBUG("Function {0}() START".format(func.__name__))
+		start_t = time.time()
 		try:
-			self._result = self._func()
-		except Exception as e:
-			self._error = e
-		self._finished.set()
+			return func(*args, **kwargs)
+		finally:
+			LOG_DEBUG("Function function {0}() END: {1} s".format(func.__name__, time.time() - start_t))
+	functools.update_wrapper(wrapper, func)
+	return wrapper
 
 def find_vehicle_id(matcher):
 	'''Finds 'vehicle_id' using given 'matcher' function.'''
@@ -285,3 +253,18 @@ def LOG_ERROR(msg, *args):
 		debug_utils._doLog('ERROR', msg, args)
 
 LOG_CURRENT_EXCEPTION = debug_utils.LOG_CURRENT_EXCEPTION
+
+def LOG_CALL(msg=""):
+	def wrap(func):
+		def wrapper(*args, **kwargs):
+			try:
+				if CURRENT_LOG_LEVEL <= LOG_LEVEL.DEBUG:
+					callargs = inspect.getcallargs(func, *args, **kwargs)
+					callargs = { key: repr(callargs[key]) for key in callargs }
+					debug_utils._doLog('DEBUG', func.__name__ + "():", msg.format(**callargs))
+			except:
+				pass
+			return func(*args, **kwargs)
+		functools.update_wrapper(wrapper, func)
+		return wrapper
+	return wrap
