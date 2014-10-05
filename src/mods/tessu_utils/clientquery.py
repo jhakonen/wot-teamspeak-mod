@@ -13,8 +13,14 @@ def getParamValue(data, key):
 	for data in datas:
 		s = data.split('=', 1)
 		if s[0] == key:
-			return s[1] if len(s) > 1 else ""
+			return unescape(s[1]) if len(s) > 1 else ""
 	return None
+
+def unescape(data):
+	'''Tries to unescape any escapes that client query might return.
+	Only tested with very limited amount of special characters.
+	''' 
+	return data.decode('string-escape').replace('\s', ' ').replace('\/', '/')
 
 #
 # Check received data for error message
@@ -27,5 +33,5 @@ def checkError(data):
 	id = int(getParamValue(e[1], 'id'))
 	if id == 0:  # ERROR_ok == 0
 		return None
-	msg = getParamValue(e[2], 'msg').replace('\s', ' ')
+	msg = getParamValue(e[2], 'msg')
 	return (id, msg)
