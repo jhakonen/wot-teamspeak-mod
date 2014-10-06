@@ -14,7 +14,7 @@ Compatible with WOT version 0.9.3.
 
 Installation
 ------------
-1. [Download the mod](http://db.orangedox.com/41DjR8A510J93AttT3/TessuMod-0.3.0.zip) and extract it to your WOT folder.
+1. [Download the mod](http://db.orangedox.com/jB354PlMzKqOid5XyF/TessuMod-0.3.1.zip) and extract it to your WOT folder.
 2. Download and install TS 3 client from http://www.teamspeak.com/?page=downloads
 
 Usage
@@ -61,6 +61,13 @@ TODO
 
 Changelog
 ---------
+Version 0.3.1, 6.10.2014:
+- Refactored client query handling to use asynchat.
+- Client query connection is now closed and reconnected if an API error occurs.
+- Fixed mapping rules not working for TS nick with space in name.
+- Fixed client query handling breaking if recv() didn't return full line.
+- Fixed client query commands sent before welcome message was fully received.
+
 Version 0.3.0, 3.10.2014:
 - Fixed speak indicators left active if TS was closed while someone was speaking.
 - Added configuration options.
