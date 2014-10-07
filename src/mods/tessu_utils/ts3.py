@@ -93,6 +93,7 @@ class _ClientQueryProtocol(asynchat.async_chat):
 		self.on_closed = Event.Event()
 		self.on_ready = Event.Event()
 
+		self._data_in_handler = _noop
 		self._event_handlers = {}
 		for attr in dir(event_receiver):
 			matches = re.match("on_(.+)_ts3_event", attr)
@@ -193,7 +194,8 @@ class _ClientQueryProtocol(asynchat.async_chat):
 
 	def send_command(self, command, callback=_noop):
 		'''Queues command for sending to client query.'''
-		self._commands.append(_ClientQueryCommand(command, callback))
+		if self._data_in_handler == self._handle_in_data_actions:
+			self._commands.append(_ClientQueryCommand(command, callback))
 
 class _ClientQueryCommand(object):
 	'''Container for a single command, handles receiving response lines and
@@ -307,9 +309,10 @@ class TS3Client(object):
 		LOG_NOTE("Connected to TeamSpeak clientquery interface")
 
 	def _on_protocol_closed(self):
-		LOG_ERROR("Failed to connect TeamSpeak clientquery interface at {0}:{1}".format(self.HOST, self.PORT))
-		self._connected = False
-		self.on_disconnected()
+		if self._connected:
+			LOG_ERROR("Failed to connect TeamSpeak clientquery interface at {0}:{1}".format(self.HOST, self.PORT))
+			self._connected = False
+			self.on_disconnected()
 		self._call_later(_RETRY_TIMEOUT, self.connect)
 
 	def _call_later(self, secs, func):

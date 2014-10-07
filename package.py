@@ -2,7 +2,7 @@ import py_compile, zipfile, os, fnmatch
 
 # configuration
 WOT_VERSION = "0.9.3"
-MOD_VERSION = "0.3.1"
+MOD_VERSION = "0.3.2"
 CLIENT_PACKAGE_DIR = os.path.join("res_mods", WOT_VERSION, "scripts", "client")
 BUILD_DIR = "build"
 SRC_DIR = "src"
