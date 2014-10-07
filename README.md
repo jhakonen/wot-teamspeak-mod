@@ -14,7 +14,7 @@ Compatible with WOT version 0.9.3.
 
 Installation
 ------------
-1. [Download the mod](http://db.orangedox.com/jB354PlMzKqOid5XyF/TessuMod-0.3.1.zip) and extract it to your WOT folder.
+1. [Download the mod](http://db.orangedox.com/36iKVKwI5PdBAjVQwJ/TessuMod-0.3.2.zip) and extract it to your WOT folder.
 2. Download and install TS 3 client from http://www.teamspeak.com/?page=downloads
 
 Usage
@@ -61,6 +61,9 @@ TODO
 
 Changelog
 ---------
+Version 0.3.2, 7.10.2014:
+- Fixed regression: 'not connected' -spam in system notification center.
+
 Version 0.3.1, 6.10.2014:
 - Refactored client query handling to use asynchat.
 - Client query connection is now closed and reconnected if an API error occurs.
