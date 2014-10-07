@@ -88,6 +88,10 @@ def update_player_speak_status(player_name):
 			g_minimap_ctrl.start(info["vehicle_id"], settings().get_minimap_action(), settings().get_minimap_action_interval())
 		else:
 			g_minimap_ctrl.stop(info["vehicle_id"])
+	except KeyError:
+		# not an error, occurs in garage where there are no vehicles and
+		# such no "vehicle_id"
+		pass
 	except:
 		LOG_CURRENT_EXCEPTION()
 
