@@ -1,4 +1,7 @@
 import time
+import os
+import sys
+import importlib
 from multiprocessing import Process, Queue
 
 class GameRunner(object):
@@ -45,7 +48,28 @@ class MethodStub(object):
 
 def game_main(from_runner_queue, to_runner_queue, mod_path):
 	service = GameService(from_runner_queue, to_runner_queue)
-	while service.tick():
+
+	base_path = os.path.dirname(os.path.realpath(__file__))
+	root_path = os.path.realpath(os.path.join(base_path, "..", ".."))
+	test_tmp_path = os.path.join(root_path, "tmp")
+
+	sys.path.append(os.path.dirname(mod_path))
+	sys.path.append(os.path.join(base_path, "fakes"))
+
+	import ResMgr
+	ResMgr.RES_MODS_VERSION_PATH = test_tmp_path
+	try:
+		os.makedirs(os.path.join(test_tmp_path, "scripts", "client", "mods"))
+	except:
+		pass
+
+	importlib.import_module(os.path.basename(mod_path).replace(".py", ""))
+	import BigWorld
+
+	while True:
+		if not service.tick():
+			break
+		BigWorld.tick()
 		time.sleep(0.01)
 
 class GameService(object):
@@ -73,7 +97,21 @@ class GameService(object):
 		self._quit = True
 
 	def login(self):
-		raise NotImplementedError("Login() not implemented")
+		import BigWorld
+		import Account
+		BigWorld.player(Account.PlayerAccount())
 
 	def notification_center_has_message(self, message):
-		raise NotImplementedError("notification_center_has_message() not implemented")
+		import BigWorld
+		import gui.SystemMessages
+		end_t = time.time() + 20
+		while time.time() < end_t:
+			if message in gui.SystemMessages.messages:
+				return True
+			BigWorld.tick()
+			time.sleep(0.01)
+		return False
+
+	def get_logs(self):
+		import debug_utils
+		return debug_utils.logs

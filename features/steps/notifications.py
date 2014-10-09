@@ -18,6 +18,12 @@ def step_impl(context):
 	context.game.start()
 	context.game.login()
 
-@then("\"Connected to TeamSpeak client\" is shown in notification center")
+@then("\"{message}\" is shown in notification center")
+def step_impl(context, message):
+	assert context.game.notification_center_has_message(message)
+
+@then("no errors occurred")
 def step_impl(context):
-	context.game.notification_center_has_message("Connected to TeamSpeak client")
+	for log in context.game.get_logs():
+		assert log[0] != "ERROR", "Error in log output: {0}".format(log)
+		assert log[0] != "EXCEPTION", "Exception in log output: {0}".format(log)

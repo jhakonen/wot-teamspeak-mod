@@ -7,3 +7,4 @@ Feature: Notifications in garage
 		Given TS is running
 		When user starts and logins to WOT
 		Then "Connected to TeamSpeak client" is shown in notification center
+		And no errors occurred

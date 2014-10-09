@@ -20,7 +20,7 @@ class TSClientQueryService(object):
 		self._stop = False
 		self._thread.start()
 		while not self._server:
-			time.sleep(0.1)
+			time.sleep(0.01)
 
 	def stop(self):
 		self._stop = True
@@ -61,7 +61,6 @@ class TSClientQueryServer(asyncore.dispatcher):
 		select_result = self.accept()
 		if select_result is not None:
 			socket, address = select_result
-			print "Incoming connection from {0}".format(address)
 			self.handler = TSClientQueryHandler(socket, self._sock_map, self._data_source)
 
 class TSClientQueryHandler(asynchat.async_chat):

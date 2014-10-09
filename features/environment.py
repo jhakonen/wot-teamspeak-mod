@@ -1,5 +1,5 @@
 from helpers.ts_client_query import TSClientQueryService
-from helpers.game import GameRunner
+from helpers.game_runner import GameRunner
 import os
 
 def before_scenario(context, scenario):
