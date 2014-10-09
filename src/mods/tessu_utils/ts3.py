@@ -310,7 +310,7 @@ class TS3Client(object):
 
 	def _on_protocol_closed(self):
 		if self._connected:
-			LOG_ERROR("Failed to connect TeamSpeak clientquery interface at {0}:{1}".format(self.HOST, self.PORT))
+			LOG_WARNING("TeamSpeak clientquery connection closed")
 			self._connected = False
 			self.on_disconnected()
 		self._call_later(_RETRY_TIMEOUT, self.connect)
