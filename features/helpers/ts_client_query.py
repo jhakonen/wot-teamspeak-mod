@@ -23,8 +23,9 @@ class TSClientQueryService(object):
 			time.sleep(0.01)
 
 	def stop(self):
-		self._stop = True
-		self._thread.join()
+		if self._thread.is_alive():
+			self._stop = True
+			self._thread.join()
 
 	def insert_connect_message(self, index, message):
 		self._data.connect_messages[index] = message
@@ -41,6 +42,8 @@ class TSClientQueryService(object):
 				asyncore.loop(0.1, map=sock_map, count=1)
 		finally:
 			self._server = None
+			for socket in sock_map.values():
+				socket.close()
 
 class Data(object):
 	def __init__(self):
@@ -67,7 +70,7 @@ class TSClientQueryHandler(asynchat.async_chat):
 	def __init__(self, socket, socket_map, data_source):
 		asynchat.async_chat.__init__(self, sock=socket, map=socket_map)
 		self._data_source = data_source
- 		self.set_terminator("\n\r")
+ 		self.set_terminator("\n")
 		self._buffer = ""
 		self._data_source = data_source
 		for message in data_source.connect_messages:
@@ -77,15 +80,21 @@ class TSClientQueryHandler(asynchat.async_chat):
 		self._buffer += data
  
 	def found_terminator(self):
-		command = self._buffer
+		command = self._buffer.strip()
 		self._buffer = ""
+
+		def send_status(code=0, message="ok"):
+			message = message.replace(" ", "\\s")
+			self.push("error id={0} msg={1}\n\r".format(code, message))
 
 		if command in self._data_source.cmd_responses:
 			response, error = self._data_source.cmd_responses[command]
 			if response:
 				self.push(response + "\n\r")
-			code, message = error if error else (0, "ok")
-			message = message.replace(" ", "\\s")
-			self.push("error id={0} msg={1}\n\r".format(code, message))
+			if error:
+				send_status(*error)
+			else:
+				send_status()
 		else:
-			print "ERROR: Response missing for command:", message
+			send_status(256, "command not found")
+			print "ERROR: Response missing for command:", repr(command)
