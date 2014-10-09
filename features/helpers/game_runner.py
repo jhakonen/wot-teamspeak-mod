@@ -64,6 +64,10 @@ def game_main(from_runner_queue, to_runner_queue, mod_path):
 		pass
 
 	importlib.import_module(os.path.basename(mod_path).replace(".py", ""))
+	
+	import tessu_utils.ts3
+	tessu_utils.ts3._RETRY_TIMEOUT = 1
+
 	import BigWorld
 
 	while True:
