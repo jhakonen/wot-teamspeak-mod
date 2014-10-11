@@ -12,6 +12,7 @@ Feature: Feedback in battle
 		And player "TuhoajaErkki" TS name is "Erkki Meikalainen" and has TessuMod installed
 		When TS user "Erkki Meikalainen" starts speaking
 		Then I see speak feedback start for player "TuhoajaErkki"
+		And no errors occurred
 
 	Scenario: Player stops speaking
 		Given WOT is running and in battle
@@ -22,3 +23,4 @@ Feature: Feedback in battle
 		And TS user "Erkki Meikalainen" is speaking
 		When TS user "Erkki Meikalainen" stops speaking
 		Then I see speak feedback end for player "TuhoajaErkki"
+		And no errors occurred

@@ -11,3 +11,6 @@ class VOIPManager(object):
 
 	def isParticipantTalking(self, dbid):
 		return True
+
+	def setPlayerTalking(self, dbid, state):
+		pass
