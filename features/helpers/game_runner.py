@@ -2,7 +2,9 @@ import time
 import os
 import sys
 import importlib
+from Queue import Empty
 from multiprocessing import Process, Queue
+from test_events import process_events
 
 class GameRunner(object):
 
@@ -40,7 +42,13 @@ class MethodStub(object):
 
 	def __call__(self, *args, **kwargs):
 		self._to_queue.put((self._method_name, args, kwargs))
-		result = self._from_queue.get(timeout=600)
+		while True:
+			process_events()
+			try:
+				result = self._from_queue.get(block=False)
+				break
+			except Empty:
+				pass
 		if issubclass(result.__class__, Exception):
 			raise result
 		return result
@@ -105,17 +113,52 @@ class GameService(object):
 		import Account
 		BigWorld.player(Account.PlayerAccount())
 
-	def notification_center_has_message(self, message):
+	def enter_battle(self):
 		import BigWorld
+		import Avatar
+		BigWorld.player(Avatar.Avatar())
+
+	def notification_center_has_message(self, message):
 		import gui.SystemMessages
-		end_t = time.time() + 20
-		while time.time() < end_t:
+		for _ in self._processing_events():
 			if message in gui.SystemMessages.messages:
 				return True
+		return False
+
+	def _processing_events(self, timeout=20):
+		import BigWorld
+		end_t = time.time() + timeout
+		while time.time() < end_t:
+			yield
 			BigWorld.tick()
 			time.sleep(0.01)
-		return False
 
 	def get_logs(self):
 		import debug_utils
 		return debug_utils.logs
+
+	def add_player(self, player_name):
+		import BigWorld
+		BigWorld.player().arena.add_vehicle(player_name)
+
+	def is_player_speaking(self, player_name):
+		import VOIP
+		for _ in self._processing_events():
+			if VOIP.getVOIPManager().isParticipantTalking(self._get_player_dbid(player_name)):
+				return True
+		return False
+
+	def is_player_not_speaking(self, player_name):
+		import VOIP
+		for _ in self._processing_events():
+			if not VOIP.getVOIPManager().isParticipantTalking(self._get_player_dbid(player_name)):
+				return True
+		return False
+
+	def _get_player_dbid(self, player_name):
+		import BigWorld
+		for vehicle_id in BigWorld.player().arena.vehicles:
+			vehicle = BigWorld.player().arena.vehicles[vehicle_id]
+			if player_name == vehicle["name"]:
+				return vehicle["accountDBID"]
+		raise RuntimeError("Player {0} doesn't exist".format(player_name))
