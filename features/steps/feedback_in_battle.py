@@ -30,6 +30,10 @@ def step_impl(context, ts_name):
 def step_impl(context, pattern):
 	context.set_ini_variable("General", "nick_extract_patterns", pattern)
 
+@given("name mapping with TS name \"{ts_name}\" to player name \"{player_name}\" is set")
+def step_impl(context, ts_name, player_name):
+	context.set_ini_variable("NameMappings", ts_name, player_name)
+
 @when("TS user \"{ts_name}\" starts speaking")
 def step_impl(context, ts_name):
 	assert context.game.wait_for_log("Connected to TeamSpeak server", once=False)

@@ -38,3 +38,11 @@ Feature: Feedback in battle
 		 When TS user "[T-BAD] TuhoajaERKKI / Erkki Meikalainen" starts speaking
 		 Then I see speak feedback start for player "TuhoajaErkki"
 		  And no errors occurred
+
+	Scenario: TS user with matching name mapping rule starts speaking
+		Given player "TuhoajaErkki" is in battle
+		  And name mapping with TS name "erkki meikalainen" to player name "tuhoajaerkki" is set
+		  And user "Erkki Meikalainen" is in TS
+		 When TS user "Erkki Meikalainen" starts speaking
+		 Then I see speak feedback start for player "TuhoajaErkki"
+		  And no errors occurred
