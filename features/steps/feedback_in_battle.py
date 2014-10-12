@@ -16,6 +16,10 @@ def step_impl(context, player_name):
 def step_impl(context, player_name, ts_name):
 	context.ts_client.add_user(ts_name, metadata="client_meta_data=<wot_nickname_start>{0}<wot_nickname_end>".format(player_name))
 
+@given("user \"{ts_name}\" is in TS")
+def step_impl(context, ts_name):
+	context.ts_client.add_user(ts_name)
+
 @given("TS user \"{ts_name}\" is speaking")
 def step_impl(context, ts_name):
 	assert context.game.wait_for_log("Connected to TeamSpeak server", once=False)

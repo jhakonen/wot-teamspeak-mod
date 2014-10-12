@@ -24,3 +24,13 @@ Feature: Feedback in battle
 		When TS user "Erkki Meikalainen" stops speaking
 		Then I see speak feedback end for player "TuhoajaErkki"
 		And no errors occurred
+
+	Scenario: TS user with matching name starts speaking
+		Given WOT is running and in battle
+		And TS is running
+		And TS is connected to server
+		And player "TuhoajaErkki" is in battle
+		And user "tuhoajaerkki" is in TS
+		When TS user "tuhoajaerkki" starts speaking
+		Then I see speak feedback start for player "TuhoajaErkki"
+		And no errors occurred
