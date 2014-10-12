@@ -1,3 +1,4 @@
+from debug_utils import LOG_NOTE
 
 g_instance = None
 
@@ -13,4 +14,4 @@ class VOIPManager(object):
 		return True
 
 	def setPlayerTalking(self, dbid, state):
-		pass
+		LOG_NOTE("TEST_SUITE: setPlayerTalking() called")

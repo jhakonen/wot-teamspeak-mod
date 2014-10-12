@@ -90,6 +90,7 @@ class GameService(object):
 		self._from_queue = from_queue
 		self._to_queue = to_queue
 		self._quit = False
+		self._found_log_indexes = []
 
 	def tick(self):
 		try:
@@ -154,6 +155,18 @@ class GameService(object):
 			if not VOIP.getVOIPManager().isParticipantTalking(self._get_player_dbid(player_name)):
 				return True
 		return False
+
+	def wait_for_log(self, log_message, once=True):
+		import debug_utils
+		for _ in self._processing_events():
+			for index in range(len(debug_utils.logs)):
+				if once and index in self._found_log_indexes:
+					continue
+				log = debug_utils.logs[index]
+				if log_message.lower() in log[1].lower():
+					self._found_log_indexes.append(index)
+					return True
+		return False	
 
 	def _get_player_dbid(self, player_name):
 		import BigWorld

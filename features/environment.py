@@ -35,7 +35,6 @@ def before_scenario(context, scenario):
 				"..", "src", "mods", "tessu_mod.py")
 	)
 	test_events.add_callback(context.ts_client.check)
-	context.ts_to_player_name = {}
 
 def after_scenario(context, scenario):
 	context.ts_client.stop()
