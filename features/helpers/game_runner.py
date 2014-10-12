@@ -1,15 +1,15 @@
 import time
 import os
 import sys
-import importlib
 from Queue import Empty
 from multiprocessing import Process, Queue
 from test_events import process_events
 
 class GameRunner(object):
 
-	def __init__(self, mod_path):
+	def __init__(self, mod_path, ini_path):
 		self._mod_path = mod_path
+		self._ini_path = ini_path
 		self._to_proc_queue = Queue()
 		self._from_proc_queue = Queue()
 		self._process = None
@@ -23,7 +23,7 @@ class GameRunner(object):
 	def start(self):
 		self._process = Process(
 			target=game_main,
-			args=(self._to_proc_queue, self._from_proc_queue, self._mod_path)
+			args=(self._to_proc_queue, self._from_proc_queue, self._mod_path, self._ini_path)
 		)
 		self._process.start()
 
@@ -54,30 +54,33 @@ class MethodStub(object):
 		return result
 
 
-def game_main(from_runner_queue, to_runner_queue, mod_path):
+def game_main(from_runner_queue, to_runner_queue, mod_path, ini_path):
 	service = GameService(from_runner_queue, to_runner_queue)
 
 	base_path = os.path.dirname(os.path.realpath(__file__))
-	root_path = os.path.realpath(os.path.join(base_path, "..", ".."))
-	test_tmp_path = os.path.join(root_path, "tmp")
 
 	sys.path.append(os.path.dirname(mod_path))
 	sys.path.append(os.path.join(base_path, "fakes"))
 
-	import ResMgr
-	ResMgr.RES_MODS_VERSION_PATH = test_tmp_path
+	# create directory structure for ini-file
 	try:
-		os.makedirs(os.path.join(test_tmp_path, "scripts", "client", "mods"))
+		os.makedirs(os.path.dirname(ini_path))
 	except:
 		pass
-
-	importlib.import_module(os.path.basename(mod_path).replace(".py", ""))
-	
+	# remove previous ini-file (if one exists)
+	try:
+		os.remove(ini_path)
+	except:
+		pass
+	import tessu_mod
 	import tessu_utils.ts3
+	import tessu_utils.settings
 	tessu_utils.ts3._RETRY_TIMEOUT = 1
+	tessu_utils.settings.settings(ini_path)
+
+	tessu_mod.load_mod()
 
 	import BigWorld
-
 	while True:
 		if not service.tick():
 			break
@@ -167,6 +170,10 @@ class GameService(object):
 					self._found_log_indexes.append(index)
 					return True
 		return False	
+
+	def reload_ini_file(self):
+		from tessu_utils.settings import settings
+		settings().reload()
 
 	def _get_player_dbid(self, player_name):
 		import BigWorld

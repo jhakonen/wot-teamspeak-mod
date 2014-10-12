@@ -169,17 +169,12 @@ def VOIPManager_isParticipantTalking(orig_method):
 		return orig_method(self, dbid)
 	return wrapper
 
-try:
-	import game
-	from tessu_utils.ts3 import TS3Client
-	from tessu_utils.utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
-	from tessu_utils import utils
-	from tessu_utils.settings import settings
-	import BigWorld
-	import Avatar
-	import Account
-	import VOIP
-	from gui import SystemMessages
+def in_test_suite():
+	import sys
+	return "behave" in sys.argv[0]
+
+def load_mod():
+	global g_ts, g_talk_states, g_minimap_ctrl
 
 	# do all intializations here
 	settings(utils.get_mods_path() + "/tessu_mod.ini").on_reloaded += load_settings
@@ -203,5 +198,20 @@ try:
 	Avatar.Avatar.onBecomePlayer = Player_onBecomePlayer(Avatar.Avatar.onBecomePlayer)
 	Account.PlayerAccount.onBecomePlayer = Player_onBecomePlayer(Account.PlayerAccount.onBecomePlayer)
 	VOIP.VOIPManager.isParticipantTalking = VOIPManager_isParticipantTalking(VOIP.VOIPManager.isParticipantTalking)
+
+try:
+	import game
+	from tessu_utils.ts3 import TS3Client
+	from tessu_utils.utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
+	from tessu_utils import utils
+	from tessu_utils.settings import settings
+	import BigWorld
+	import Avatar
+	import Account
+	import VOIP
+	from gui import SystemMessages
+
+	if not in_test_suite():
+		load_mod()
 except:
 	LOG_CURRENT_EXCEPTION()

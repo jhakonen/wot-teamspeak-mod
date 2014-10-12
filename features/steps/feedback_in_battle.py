@@ -26,6 +26,10 @@ def step_impl(context, ts_name):
 	context.ts_client.set_user_speaking(ts_name, True)
 	assert context.game.wait_for_log("TEST_SUITE: setPlayerTalking() called")
 
+@given("nick extract pattern \"{pattern}\" is set")
+def step_impl(context, pattern):
+	context.set_ini_variable("General", "nick_extract_patterns", pattern)
+
 @when("TS user \"{ts_name}\" starts speaking")
 def step_impl(context, ts_name):
 	assert context.game.wait_for_log("Connected to TeamSpeak server", once=False)

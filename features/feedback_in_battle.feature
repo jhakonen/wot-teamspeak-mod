@@ -30,3 +30,11 @@ Feature: Feedback in battle
 		 When TS user "TuhoajaERKKI" starts speaking
 		 Then I see speak feedback start for player "TuhoajaErkki"
 		  And no errors occurred
+
+	Scenario: TS user with matching extract rule starts speaking
+		Given player "TuhoajaErkki" is in battle
+		  And nick extract pattern "\[.+\] ([\S]+)" is set
+		  And user "[T-BAD] TuhoajaERKKI / Erkki Meikalainen" is in TS
+		 When TS user "[T-BAD] TuhoajaERKKI / Erkki Meikalainen" starts speaking
+		 Then I see speak feedback start for player "TuhoajaErkki"
+		  And no errors occurred

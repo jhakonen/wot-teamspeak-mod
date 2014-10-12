@@ -4,6 +4,7 @@ from helpers import test_events
 import os
 import sys
 import inspect
+from ConfigParser import SafeConfigParser
 
 # hack to get non-english error messages from e.g. socket
 # not to screw up the test suite
@@ -27,13 +28,25 @@ from helpers.ts_client_query import TSClientQueryHandler
 TSClientQueryHandler.push = print_call(TSClientQueryHandler.push)
 TSClientQueryHandler.handle_command = print_call(TSClientQueryHandler.handle_command)
 
+def set_ini_variable(context, section, key, value):
+	config = SafeConfigParser()
+	config.read([context.ini_path])
+	config.set(section, key, value)
+	with open(context.ini_path, "w") as f:
+		config.write(f)
+	context.game.reload_ini_file()
+
 def before_scenario(context, scenario):
 	context.ts_client = TSClientQueryService()
+	context.ini_path = os.path.join(os.path.dirname(
+		os.path.realpath(__file__)), "..", "tmp", "tessu_mod.ini")
 	context.game = GameRunner(
 		mod_path=os.path.join(
 			os.path.dirname(os.path.realpath(__file__)),
-				"..", "src", "mods", "tessu_mod.py")
+				"..", "src", "mods", "tessu_mod.py"),
+		ini_path=context.ini_path
 	)
+	context.set_ini_variable = set_ini_variable.__get__(context)
 	test_events.add_callback(context.ts_client.check)
 
 def after_scenario(context, scenario):

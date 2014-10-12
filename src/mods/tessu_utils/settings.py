@@ -200,13 +200,14 @@ class Settings(object):
 	def _get_modified_time(self):
 		return os.path.getmtime(self._ini_path)
 
+	def reload(self):
+		if self._is_modified():
+			self._load_parser()
+			self.on_reloaded()
+		self._delayed_reload()
+
 	def _delayed_reload(self):
-		def reload():
-			if self._is_modified():
-				self._load_parser()
-				self.on_reloaded()
-			self._delayed_reload()
-		BigWorld.callback(self.get_ini_check_interval(), reload)
+		BigWorld.callback(self.get_ini_check_interval(), self.reload)
 
 	def _is_modified(self):
 		return self._load_time < self._get_modified_time()
