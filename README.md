@@ -47,12 +47,29 @@ To build the mod, you will need:
  * Command Prompt
  * Python 2.7
 
-1. Run package.py
-2. Extract generated zip-archive to your WOT folder
+Execute in command prompt:
+
+    package.py
+
+Extract generated zip-archive to your WOT folder.
 
 Easy one liner (using 7-zip's command line tool 7za.exe) to compile and install to WOT, e.g:
 
     package.py && 7za x TessuMod*.zip -oE:\Games\World_of_Tanks -y
+
+Tests
+-----
+TessuMod has a battery of behaviour tests.
+
+To execute them you need:
+ * Windows
+ * Command Prompt
+ * Python 2.7
+ * [Behave](http://pythonhosted.org/behave/install.html) test runner
+
+Execute in command prompt:
+
+    behave
 
 TODO
 ----
@@ -61,6 +78,9 @@ TODO
 
 Changelog
 ---------
+Version 0.4.0, master:
+- Added behaviour test suite.
+
 Version 0.3.3, 12.10.2004:
 - Removed logging spam while speaking in garage.
 
