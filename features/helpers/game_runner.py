@@ -4,6 +4,7 @@ import sys
 from Queue import Empty
 from multiprocessing import Process, Queue
 from test_events import process_events
+import coverage
 
 class GameRunner(object):
 
@@ -55,37 +56,49 @@ class MethodStub(object):
 
 
 def game_main(from_runner_queue, to_runner_queue, mod_path, ini_path):
-	service = GameService(from_runner_queue, to_runner_queue)
+	cov = coverage.coverage(
+		auto_data=True,
+		branch=True,
+		source=["src"],
+		omit=["*CameraNode.py", "*__init__.py"]
+	)
+	cov.start()
 
-	base_path = os.path.dirname(os.path.realpath(__file__))
-
-	sys.path.append(os.path.dirname(mod_path))
-	sys.path.append(os.path.join(base_path, "fakes"))
-
-	# create directory structure for ini-file
 	try:
-		os.makedirs(os.path.dirname(ini_path))
-	except:
-		pass
-	# remove previous ini-file (if one exists)
-	try:
-		os.remove(ini_path)
-	except:
-		pass
-	import tessu_mod
-	import tessu_utils.ts3
-	import tessu_utils.settings
-	tessu_utils.ts3._RETRY_TIMEOUT = 1
-	tessu_utils.settings.settings(ini_path)
+		service = GameService(from_runner_queue, to_runner_queue)
 
-	tessu_mod.load_mod()
+		base_path = os.path.dirname(os.path.realpath(__file__))
 
-	import BigWorld
-	while True:
-		if not service.tick():
-			break
-		BigWorld.tick()
-		time.sleep(0.01)
+		sys.path.append(os.path.dirname(mod_path))
+		sys.path.append(os.path.join(base_path, "fakes"))
+
+		# create directory structure for ini-file
+		try:
+			os.makedirs(os.path.dirname(ini_path))
+		except:
+			pass
+		# remove previous ini-file (if one exists)
+		try:
+			os.remove(ini_path)
+		except:
+			pass
+		import tessu_mod
+		import tessu_utils.ts3
+		import tessu_utils.settings
+		tessu_utils.ts3._RETRY_TIMEOUT = 1
+		tessu_utils.settings.settings(ini_path)
+
+		tessu_mod.load_mod()
+
+		import BigWorld
+		while True:
+			if not service.tick():
+				break
+			BigWorld.tick()
+			time.sleep(0.01)
+	finally:
+		cov.stop()
+		cov.save()
 
 class GameService(object):
 

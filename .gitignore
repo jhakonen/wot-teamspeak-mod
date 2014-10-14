@@ -55,3 +55,4 @@ target/
 
 *.zip
 tmp
+coverage_report

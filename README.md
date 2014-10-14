@@ -66,10 +66,13 @@ To execute them you need:
  * Command Prompt
  * Python 2.7
  * [Behave](http://pythonhosted.org/behave/install.html) test runner
+ * [Coverage.py](https://pypi.python.org/pypi/coverage)
 
 Execute in command prompt:
 
     behave
+
+Coverage report is shown at end of the execution and is also generated in html form to coverage_report subfolder.
 
 TODO
 ----
@@ -79,7 +82,8 @@ TODO
 Changelog
 ---------
 Version 0.4.0, master:
-- Added behaviour test suite.
+- Added behavior test suite.
+- Added coverage reporting for behavior tests.
 
 Version 0.3.3, 12.10.2004:
 - Removed logging spam while speaking in garage.

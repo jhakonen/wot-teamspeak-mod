@@ -5,6 +5,7 @@ import os
 import sys
 import inspect
 from ConfigParser import SafeConfigParser
+import coverage
 
 # hack to get non-english error messages from e.g. socket
 # not to screw up the test suite
@@ -35,6 +36,15 @@ def set_ini_variable(context, section, key, value):
 	with open(context.ini_path, "w") as f:
 		config.write(f)
 	context.game.reload_ini_file()
+
+def before_all(context):
+	context.coverage = coverage.coverage()
+	context.coverage.erase()
+
+def after_all(context):
+	context.coverage.load()
+	context.coverage.html_report(directory="coverage_report")
+	context.coverage.report()
 
 def before_scenario(context, scenario):
 	context.ts_client = TSClientQueryService()
