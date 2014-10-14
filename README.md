@@ -85,7 +85,7 @@ Version 0.4.0, master:
 - Added behavior test suite.
 - Added coverage reporting for behavior tests.
 
-Version 0.3.3, 12.10.2004:
+Version 0.3.3, 12.10.2014:
 - Removed logging spam while speaking in garage.
 
 Version 0.3.2, 7.10.2014:
