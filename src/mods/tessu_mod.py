@@ -105,7 +105,28 @@ def on_connected_to_ts3():
 	doesn't mean that the client is connected to any TeamSpeak server.
 	'''
 	LOG_NOTE("Connected to TeamSpeak client")
+
+	import mmap, struct, time
+	TAG_NAME = "TessuModTSPlugin3dAudio"
+	MAX_SUPPORTED_VERSION = 1
+
+	plugin_connected = False
+	mod_out_of_date  = False
+	try:
+		shmem = mmap.mmap(0, 2, TAG_NAME, mmap.ACCESS_READ)
+		version = struct.unpack("H", shmem.read(2))[0]
+		plugin_connected = version != 0
+		mod_out_of_date  = version > MAX_SUPPORTED_VERSION
+	finally:
+		if shmem:
+			shmem.close()
+
 	utils.push_system_message("Connected to TeamSpeak client", SystemMessages.SM_TYPE.Information)
+	if settings().is_3daudio_enabled():
+		if not plugin_connected:
+			utils.push_system_message("TessuMod TS plugin is not installed, 3D audio is disabled", SystemMessages.SM_TYPE.Warning)
+		elif mod_out_of_date:
+			utils.push_system_message("TessuMod is out of date, 3D audio is disabled", SystemMessages.SM_TYPE.Warning)
 
 def on_disconnected_from_ts3():
 	'''Called when TessuMod loses connection to TeamSpeak client.'''
@@ -224,6 +245,13 @@ def load_mod():
 	g_ts.users_in_my_channel.on_added += on_ts3_user_in_my_channel_added
 	utils.call_in_loop(settings().get_client_query_interval(), g_ts.check_events)
 
+	positional_audio.init(
+		big_world     = BigWorld,
+		player_events = g_playerEvents,
+		ts_users      = g_ts.users_in_my_channel,
+		user_cache    = g_user_cache
+	)
+
 	# if nothing broke so far then it should be safe to patch the needed
 	# functions (modified functions have dependencies to g_* global variables)
 	Avatar.Avatar.onBecomePlayer = Player_onBecomePlayer(Avatar.Avatar.onBecomePlayer)
@@ -242,6 +270,7 @@ try:
 	from tessu_utils import utils
 	from tessu_utils.settings import settings
 	from tessu_utils.user_cache import UserCache
+	import tessu_utils.positional_audio as positional_audio
 	import BigWorld
 	import Avatar
 	import Account
@@ -249,6 +278,7 @@ try:
 	import BattleReplay
 	from gui import SystemMessages
 	from messenger.proto.events import g_messengerEvents
+	from PlayerEvents import g_playerEvents
 	import os
 
 	if not in_test_suite():

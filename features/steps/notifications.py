@@ -29,8 +29,28 @@ def step_impl(context):
 def step_impl(context, message):
 	assert context.game.notification_center_has_message(message)
 
+@then("\"{message}\" is not shown in notification center")
+def step_impl(context, message):
+	assert context.game.notification_center_has_not_message(message)
+
 @then("no errors occurred")
 def step_impl(context):
 	for log in context.game.get_logs():
 		assert log[0] != "ERROR", "Error in log output: {0}".format(log)
 		assert log[0] != "EXCEPTION", "Exception in log output: {0}".format(log)
+
+@given("TS plugin is installed")
+def step_impl(context):
+	context.ts_plugin.enabled()
+
+@given("TS plugin is not installed")
+def step_impl(context):
+	context.ts_plugin.disabled()
+
+@given("3D audio is {state}")
+def step_impl(context, state):
+	context.set_ini_variable("3DAudio", "enabled", "on" if state == "enabled" else "off")
+
+@given("TS plugin version is newer than mod version")
+def step_impl(context):
+	context.ts_plugin.set_version_as_newer()

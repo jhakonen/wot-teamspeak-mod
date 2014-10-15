@@ -157,6 +157,9 @@ action: attackSender
 ; Adjust this until the animation animates continuously while someone is
 ; speaking.
 repeat_interval: 3.5
+
+[3DAudio]
+enabled: on
 """
 
 _g_settings = None
@@ -209,6 +212,8 @@ class Settings(object):
 		self._parser.set("MinimapNotifications", "self_enabled", "on")
 		self._parser.set("MinimapNotifications", "action", "attackSender")
 		self._parser.set("MinimapNotifications", "repeat_interval", "3.5")
+		self._parser.add_section("3DAudio")
+		self._parser.set("3DAudio", "enabled", "on")
 		if self._parser.read(self._ini_path):
 			self._load_time = self._get_modified_time()
 		else:
@@ -276,6 +281,9 @@ class Settings(object):
 
 	def is_self_minimap_notifications_enabled(self):
 		return self._parser.getboolean("MinimapNotifications", "self_enabled")
+
+	def is_3daudio_enabled(self):
+		return self._parser.getboolean("3DAudio", "enabled")
 
 	def get_minimap_action(self):
 		return self._parser.get("MinimapNotifications", "action")

@@ -391,7 +391,10 @@ class TS3Client(object):
 		channel_id = int(entry.get("ctid"))
 		if client_id not in self.users:
 			return
-		self.users.add(client_id=client_id, channel_id=channel_id)
+		self.users.add(
+			client_id  = client_id,
+			channel_id = channel_id
+		)
 
 	def on_notifyconnectstatuschange_ts3_event(self, line):
 		status = parse_client_query_parameter(line, "status")
@@ -679,6 +682,9 @@ class UserModel(object):
 		for client_id in self._users:
 			yield client_id
 
+	def __len__(self):
+		return len(self._users)
+
 class UserFilterProxy(object):
 
 	def __init__(self, source, filter_func):
@@ -689,8 +695,8 @@ class UserFilterProxy(object):
 		self._source = source
 		self._filter_func = filter_func
 		self._source.on_added += self._on_source_added
-		self._source.on_added += self._on_source_removed
-		self._source.on_added += self._on_source_modified
+		self._source.on_removed += self._on_source_removed
+		self._source.on_modified += self._on_source_modified
 
 		self._client_ids = set()
 
@@ -701,12 +707,19 @@ class UserFilterProxy(object):
 		for client_id in self._source:
 			self._on_source_added(client_id)
 
+	def itervalues(self):
+		for client_id in self._client_ids:
+			yield self._source[client_id]
+
 	def __getitem__(self, client_id):
 		return self._source[client_id]
 
 	def __iter__(self):
 		for client_id in self._client_ids:
 			yield client_id
+
+	def __len__(self):
+		return len(self._client_ids)
 
 	def _on_source_added(self, client_id):
 		if self._filter_func(self._source[client_id]):

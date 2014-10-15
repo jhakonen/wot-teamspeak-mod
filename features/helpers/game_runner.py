@@ -70,23 +70,10 @@ def game_main(from_runner_queue, to_runner_queue, mod_path, ini_dir_path):
 
 	try:
 		service = GameService(from_runner_queue, to_runner_queue)
-
 		base_path = os.path.dirname(os.path.realpath(__file__))
-
 		sys.path.append(os.path.dirname(mod_path))
 		sys.path.append(os.path.join(base_path, "fakes"))
 
-		# create directory structure for ini-file
-		try:
-			os.makedirs(ini_dir_path)
-		except:
-			pass
-		# remove previous ini-file (if one exists)
-		try:
-			for file_name in os.listdir(ini_dir_path):
-				os.remove(os.path.join(ini_dir_path, file_name))
-		except:
-			pass
 		import tessu_mod
 		import tessu_utils.ts3
 		import tessu_utils.settings
@@ -145,7 +132,19 @@ class GameService(object):
 	def notification_center_has_message(self, message):
 		import gui.SystemMessages
 		for _ in self._processing_events():
-			if message in gui.SystemMessages.messages:
+			for message_entry in gui.SystemMessages.messages:
+				if message.lower() in message_entry.lower():
+					return True
+		return False
+
+	def notification_center_has_not_message(self, message):
+		import gui.SystemMessages
+		for _ in self._processing_events():
+			found = False
+			for message_entry in gui.SystemMessages.messages:
+				if message.lower() in message_entry.lower():
+					found = True
+			if not found:
 				return True
 		return False
 

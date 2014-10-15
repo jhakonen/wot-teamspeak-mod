@@ -78,6 +78,7 @@ _PAIRINGS_HELP = """
 class UserCache(object):
 
 	def __init__(self, ini_path):
+		self.on_updated = Event.Event()
 		self.on_read_error = Event.Event()
 		self._ts_users = {}
 		self._players = {}
@@ -118,6 +119,7 @@ class UserCache(object):
 			self._pairings = id_pairings
 			self._read_error = False
 			self._update_write_allowed()
+			self.on_updated()
 		except Exception as error:
 			self._read_error = True
 			self._update_write_allowed()
@@ -139,6 +141,8 @@ class UserCache(object):
 			del self._ts_users[id]
 		for id in cleanup_player_ids:
 			del self._players[id]
+		if cleanup_ts_ids or cleanup_player_ids:
+			self.on_updated()
 
 	def _on_write(self, parser):
 		parser.add_section("TeamSpeakUsers")
@@ -182,22 +186,24 @@ class UserCache(object):
 		if id not in self._ts_users:
 			self._ts_users[id] = name.lower()
 			self._ini_cache.write_needed()
+			self.on_updated()
 
 	def add_player(self, name, id):
 		id = str(id)
 		if id not in self._players:
 			self._players[id] = name.lower()
 			self._ini_cache.write_needed()
+			self.on_updated()
 
 	def pair(self, player_id, ts_user_id):
 		player_id = str(player_id)
 		ts_user_id = str(ts_user_id)
 		if ts_user_id not in self._pairings:
 			self._pairings[ts_user_id] = []
-			self._ini_cache.write_needed()
 		if player_id not in self._pairings[ts_user_id]:
 			self._pairings[ts_user_id].append(player_id)
 			self._ini_cache.write_needed()
+			self.on_updated()
 
 	def get_paired_player_ids(self, ts_user_id):
 		ts_user_id = str(ts_user_id)

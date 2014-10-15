@@ -56,3 +56,6 @@ target/
 *.zip
 tmp
 coverage_report
+*.opensdf
+*.sdf
+*.pro.user
