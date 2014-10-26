@@ -227,6 +227,124 @@ class _ClientQueryCommand(object):
 		else:
 			self._response_lines.append(line)
 
+class User(object):
+
+	def __init__(self):
+		self.nick = None
+		self.wot_nick = None
+		self.clientid = None
+		self.uniqueid = None
+		self.channelid = None
+
+	def __hash__(self):
+		return (
+			hash(self.clientid) ^
+			hash(self.nick) ^
+			hash(self.wot_nick) ^
+			hash(self.uniqueid) ^
+			hash(self.channelid)
+		)
+
+	def __eq__(self, other):
+		return hash(self) == hash(other)
+
+	def __repr__(self):
+		return "User (clientid={0}, nick={1}, wot_nick={2}, uniqueid={3}, channelid={4})".format(
+			repr(self.clientid), repr(self.nick), repr(self.wot_nick), repr(self.uniqueid), repr(self.channelid))
+
+class UserModel(object):
+
+	def __init__(self):
+		self._users = {}
+		self.on_added = Event.Event()
+		self.on_removed = Event.Event()
+		self.on_modified = Event.Event()
+
+	def add(self, clientid, nick=None, wot_nick=None, uniqueid=None, channelid=None):
+		if clientid is None:
+			return
+
+		is_new = clientid not in self._users
+		if is_new:
+			self._users[clientid] = User()
+		user = self._users[clientid]
+		old_hash = hash(user)
+
+		user.clientid = clientid
+		if nick is not None:
+			user.nick = nick
+		if wot_nick is not None:
+			user.wot_nick = wot_nick
+		if uniqueid is not None:
+			user.uniqueid = uniqueid
+		if channelid is not None:
+			user.channelid = channelid
+
+		if is_new:
+			self.on_added(clientid)
+		elif old_hash == hash(user):
+			self.on_modified(clientid)
+
+	def remove(self, clientid):
+		del self._users[clientid]
+		self.on_removed(clientid)
+
+	def clear(self):
+		clientids = self._users.keys()
+		self._users.clear()
+		for clientid in clientids:
+			self.on_removed(clientid)
+
+	def __getitem__(self, clientid):
+		return self._users[clientid]
+
+	def __iter__(self):
+		for clientid in self._users:
+			yield clientid
+
+class UserFilterProxy(object):
+
+	def __init__(self, source, filter_func):
+		self.on_added = Event.Event()
+		self.on_removed = Event.Event()
+		self.on_modified = Event.Event()
+
+		self._source = source
+		self._filter_func = filter_func
+		self._source.on_added += self._on_source_added
+		self._source.on_added += self._on_source_removed
+		self._source.on_added += self._on_source_modified
+
+		self._clientids = set()
+
+	def invalidate(self):
+		for clientid in self._clientids:
+			self.on_removed(clientid)
+		self._clientids.clear()
+		for clientid in self._source:
+			self._on_source_added(clientid)
+
+	def __getitem__(self, clientid):
+		return self._source[clientid]
+
+	def __iter__(self):
+		for clientid in self._clientids:
+			yield clientid
+
+	def _on_source_added(self, clientid):
+		if self._filter_func(self._source[clientid]):
+			self._clientids.add(clientid)
+			self.on_added(clientid)
+
+	def _on_source_removed(self, clientid):
+		if clientid in self._clientids:
+			self._clientids.remove(clientid)
+			self.on_removed(clientid)
+
+	def _on_source_modified(self, clientid):
+		if clientid in self._clientids:
+			self.on_modified(clientid)
+
 class TS3Client(object):
 	'''Main entry point for access to TeamSpeak's client query interface.'''
 	
@@ -249,6 +367,8 @@ class TS3Client(object):
 		self._connected_to_server = False
 		self._clientuidfromclid_cache = {}
 		self._socket_map = {}
+		self.my_client_id = None
+		self.my_channel_id = None
 
 		self._protocol = _ClientQueryProtocol(self, self._socket_map)
 		self._protocol.on_ready += self._set_connected
@@ -256,6 +376,12 @@ class TS3Client(object):
 		self._protocol.on_ready += self._ping
 		self._protocol.on_connected += self._on_protocol_connected
 		self._protocol.on_closed += self._on_protocol_closed
+
+		self.users = UserModel()
+		self.users_in_my_channel = UserFilterProxy(
+			source      = self.users,
+			filter_func = lambda user: user.channelid == self.my_channel_id
+		)
 
 	def connect(self):
 		'''Starts connect attempt and continues to try until succesfully
@@ -280,9 +406,11 @@ class TS3Client(object):
 			self._handle_api_error(err, "Event registering failed")
 
 		self._protocol.send_command("clientnotifyregister schandlerid=0 event=notifytalkstatuschange", on_command_finish)
-		self._protocol.send_command("clientnotifyregister schandlerid=0 event=notifycliententerview", on_command_finish)
 		self._protocol.send_command("clientnotifyregister schandlerid=0 event=notifyclientupdated", on_command_finish)
 		self._protocol.send_command("clientnotifyregister schandlerid=0 event=notifyclientuidfromclid", on_command_finish)
+		self._protocol.send_command("clientnotifyregister schandlerid=0 event=notifycliententerview", on_command_finish)
+		self._protocol.send_command("clientnotifyregister schandlerid=0 event=notifyclientleftview", on_command_finish)
+		self._protocol.send_command("clientnotifyregister schandlerid=0 event=notifyclientmoved", on_command_finish)
 
 	def _handle_api_error(self, err, msg):
 		if err:
@@ -297,13 +425,42 @@ class TS3Client(object):
 
 	def _ping(self):
 		'''Ping TS client with some command to keep connection alive.'''
-		def on_finish(err, result):
+		def on_finish(err, ignored):
 			if not err and not self._connected_to_server:
 				self._connected_to_server = True
+				self._update_user_list()
 				self.on_connected_to_server()
 			self._call_later(_RETRY_TIMEOUT, self._ping)
 
-		self.get_my_client_id(on_finish)
+		self._update_my_client_id(on_finish)
+
+	def _update_my_client_id(self, callback=_noop):
+		def on_whoami(err, lines):
+			if err:
+				self._handle_api_error(err, "_update_my_client_id() failed")
+			else:
+				self.my_client_id = int(clientquery.getParamValue(lines[0], 'clid'))
+				new_channel_id = int(clientquery.getParamValue(lines[0], 'cid'))
+				if new_channel_id != self.my_channel_id:
+					self.my_channel_id = new_channel_id
+					self.users_in_my_channel.invalidate()
+			callback(err, None)
+		self._protocol.send_command("whoami", on_whoami)
+
+	def _update_user_list(self):
+		if not self._connected_to_server:
+			self.users.clear()
+			return
+		def on_clientlist(err, entries):
+			if not err:
+				for entry in entries:
+					self.users.add(
+						clientid  = int(clientquery.getParamValue(entry, 'clid')),
+						nick      = clientquery.getParamValue(entry, 'client_nickname'),
+						uniqueid  = clientquery.getParamValue(entry, 'client_unique_identifier'),
+						channelid = int(clientquery.getParamValue(entry, 'cid'))
+					)
+		self.get_clientlist(on_clientlist)
 
 	def _on_protocol_connected(self):
 		LOG_NOTE("Connected to TeamSpeak clientquery interface")
@@ -312,6 +469,9 @@ class TS3Client(object):
 		if self._connected:
 			LOG_WARNING("TeamSpeak clientquery connection closed")
 			self._connected = False
+			self.my_client_id = None
+			self.my_channel_id = None
+			self._update_user_list()
 			self.on_disconnected()
 		self._call_later(_RETRY_TIMEOUT, self.connect)
 
@@ -337,16 +497,6 @@ class TS3Client(object):
 			BigWorld.cancelCallback(handle)
 		self._callback_handles = []
 
-	def get_my_client_id(self, callback=_noop):
-		def on_whoami(err, lines):
-			if err:
-				self._handle_api_error(err, "get_my_client_id() failed")
-				callback(err, None)
-			else:
-				client_id = int(clientquery.getParamValue(lines[0], 'clid'))
-				callback(None, client_id)
-		self._protocol.send_command("whoami", on_whoami)
-
 	def get_client_meta_data(self, client_id, callback=_noop):
 		def on_finish(err, lines):
 			if err:
@@ -366,32 +516,28 @@ class TS3Client(object):
 			if err:
 				callback(err, None)
 			else:
-				matches = re.search(self.NICK_META_PATTERN, data)
-				if matches:
-					callback(None, matches.group(1))
-				else:
-					callback(None, "")
+				callback(None, self._get_wot_nick_from_metadata(data))
 		self.get_client_meta_data(client_id, on_finish)
 
+	def _get_wot_nick_from_metadata(self, data):
+		matches = re.search(self.NICK_META_PATTERN, data)
+		if matches:
+			return matches.group(1)
+		return ""
+
 	def set_wot_nickname(self, name):
-		if name is None:
+		if name is None or self.my_client_id is None:
 			return
-
-		def on_get_my_client_id(err, client_id):
-			def on_get_client_meta_data(err, data):
-				if data is not None:
-					new_tag = "<wot_nickname_start>{0}<wot_nickname_end>".format(name)
-					if re.search(self.NICK_META_PATTERN, data):
-						data = re.sub(self.NICK_META_PATTERN, new_tag, data)
-					else:
-						data += new_tag
-					self._protocol.send_command("clientupdate client_meta_data={0}".format(data))
-					self._invalidate_client_id(client_id)
-
-			if client_id is not None:
-				self.get_client_meta_data(client_id, on_get_client_meta_data)
-
-		self.get_my_client_id(on_get_my_client_id)
+		def on_get_client_meta_data(err, data):
+			if data is not None:
+				new_tag = "<wot_nickname_start>{0}<wot_nickname_end>".format(name)
+				if re.search(self.NICK_META_PATTERN, data):
+					data = re.sub(self.NICK_META_PATTERN, new_tag, data)
+				else:
+					data += new_tag
+				self._protocol.send_command("clientupdate client_meta_data={0}".format(data))
+				self._invalidate_client_id(self.my_client_id)
+		self.get_client_meta_data(self.my_client_id, on_get_client_meta_data)
 
 	def _invalidate_client_id(self, client_id):
 		try:
@@ -422,14 +568,8 @@ class TS3Client(object):
 				self._handle_api_error(err, "get_clientlist() failed")
 				callback(err, None)
 			else:
-				clientlist = []
-				for client_data in lines[0].split('|'):
-					clientlist.append((
-						int(clientquery.getParamValue(client_data, 'clid')),
-						clientquery.getParamValue(client_data, 'client_nickname')
-					))
-				callback(None, clientlist)
-		self._protocol.send_command("clientlist", on_clientlist)
+				callback(None, lines[0].split('|'))
+		self._protocol.send_command("clientlist -uid", on_clientlist)
 
 	def get_client_info(self, client_id, callback=_noop):
 		def on_query_clientgetuidfromclid(err, ts_nickname):
@@ -485,10 +625,6 @@ class TS3Client(object):
 					}, talking)
 			self.get_client(client_id, on_get_client)
 
-	def on_notifycliententerview_ts3_event(self, line):
-		client_id = int(clientquery.getParamValue(line, 'clid'))
-		self._invalidate_client_id(client_id)
-
 	def on_notifyclientupdated_ts3_event(self, line):
 		client_id = int(clientquery.getParamValue(line, 'clid'))
 		self._invalidate_client_id(client_id)
@@ -497,6 +633,30 @@ class TS3Client(object):
 		client_id = int(clientquery.getParamValue(line, 'clid'))
 		nickname = clientquery.getParamValue(line, "nickname")
 		self._clientuidfromclid_cache[client_id] = nickname
+
+	def on_notifycliententerview_ts3_event(self, line):
+		'''This event handler is called when a TS user enters to the TS server.'''
+		clientid = int(clientquery.getParamValue(line, 'clid'))
+		self._invalidate_client_id(clientid)
+		self.users.add(
+			nick      = clientquery.getParamValue(line, 'client_nickname'),
+			wot_nick  = self._get_wot_nick_from_metadata(clientquery.getParamValue(line, 'client_meta_data')),
+			clientid  = clientid,
+			uniqueid  = clientquery.getParamValue(line, 'client_unique_identifier'),
+			channelid = int(clientquery.getParamValue(line, 'ctid'))
+		)
+
+	def on_notifyclientleftview_ts3_event(self, line):
+		'''This event handler is called when a TS user leaves from the TS server.'''
+		clientid = int(clientquery.getParamValue(line, 'clid'))
+		self.users.remove(clientid)
+
+	def on_notifyclientmoved_ts3_event(self, line):
+		'''This event handler is called when a TS user moves from one channel to another.'''
+		self.users.add(
+			clientid = int(clientquery.getParamValue(line, 'clid')),
+			channelid = int(clientquery.getParamValue(line, 'ctid'))
+		)
 
 	def _save_client_data(self, client_id, client_nick, wot_nick):
 		self._clients[client_id] = {
