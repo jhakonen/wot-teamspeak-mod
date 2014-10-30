@@ -127,9 +127,9 @@ class UserCache(object):
 		self._check_interval = interval
 
 	def add_ts_user(self, user):
-		LOG_NOTE("TS user: {0} ({1})".format(user.nick, user.uniqueid))
-		if user.uniqueid not in self._ts_users:
-			self._ts_users[user.uniqueid] = user.nick
+		LOG_NOTE("TS user: {0} ({1})".format(user.nick, user.unique_id))
+		if user.unique_id not in self._ts_users:
+			self._ts_users[user.unique_id] = user.nick
 		self._write_needed = True
 
 	def add_player(self, player):

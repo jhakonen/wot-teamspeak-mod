@@ -232,25 +232,25 @@ class User(object):
 	def __init__(self):
 		self.nick = None
 		self.wot_nick = None
-		self.clientid = None
-		self.uniqueid = None
-		self.channelid = None
+		self.client_id = None
+		self.unique_id = None
+		self.channel_id = None
 
 	def __hash__(self):
 		return (
-			hash(self.clientid) ^
+			hash(self.client_id) ^
 			hash(self.nick) ^
 			hash(self.wot_nick) ^
-			hash(self.uniqueid) ^
-			hash(self.channelid)
+			hash(self.unique_id) ^
+			hash(self.channel_id)
 		)
 
 	def __eq__(self, other):
 		return hash(self) == hash(other)
 
 	def __repr__(self):
-		return "User (clientid={0}, nick={1}, wot_nick={2}, uniqueid={3}, channelid={4})".format(
-			repr(self.clientid), repr(self.nick), repr(self.wot_nick), repr(self.uniqueid), repr(self.channelid))
+		return "User (client_id={0}, nick={1}, wot_nick={2}, unique_id={3}, channel_id={4})".format(
+			repr(self.client_id), repr(self.nick), repr(self.wot_nick), repr(self.unique_id), repr(self.channel_id))
 
 class UserModel(object):
 
@@ -260,47 +260,47 @@ class UserModel(object):
 		self.on_removed = Event.Event()
 		self.on_modified = Event.Event()
 
-	def add(self, clientid, nick=None, wot_nick=None, uniqueid=None, channelid=None):
-		if clientid is None:
+	def add(self, client_id, nick=None, wot_nick=None, unique_id=None, channel_id=None):
+		if client_id is None:
 			return
 
-		is_new = clientid not in self._users
+		is_new = client_id not in self._users
 		if is_new:
-			self._users[clientid] = User()
-		user = self._users[clientid]
+			self._users[client_id] = User()
+		user = self._users[client_id]
 		old_hash = hash(user)
 
-		user.clientid = clientid
+		user.client_id = client_id
 		if nick is not None:
 			user.nick = nick
 		if wot_nick is not None:
 			user.wot_nick = wot_nick
-		if uniqueid is not None:
-			user.uniqueid = uniqueid
-		if channelid is not None:
-			user.channelid = channelid
+		if unique_id is not None:
+			user.unique_id = unique_id
+		if channel_id is not None:
+			user.channel_id = channel_id
 
 		if is_new:
-			self.on_added(clientid)
+			self.on_added(client_id)
 		elif old_hash == hash(user):
-			self.on_modified(clientid)
+			self.on_modified(client_id)
 
-	def remove(self, clientid):
-		del self._users[clientid]
-		self.on_removed(clientid)
+	def remove(self, client_id):
+		del self._users[client_id]
+		self.on_removed(client_id)
 
 	def clear(self):
-		clientids = self._users.keys()
+		client_ids = self._users.keys()
 		self._users.clear()
-		for clientid in clientids:
-			self.on_removed(clientid)
+		for client_id in client_ids:
+			self.on_removed(client_id)
 
-	def __getitem__(self, clientid):
-		return self._users[clientid]
+	def __getitem__(self, client_id):
+		return self._users[client_id]
 
 	def __iter__(self):
-		for clientid in self._users:
-			yield clientid
+		for client_id in self._users:
+			yield client_id
 
 class UserFilterProxy(object):
 
@@ -315,35 +315,35 @@ class UserFilterProxy(object):
 		self._source.on_added += self._on_source_removed
 		self._source.on_added += self._on_source_modified
 
-		self._clientids = set()
+		self._client_ids = set()
 
 	def invalidate(self):
-		for clientid in self._clientids:
-			self.on_removed(clientid)
-		self._clientids.clear()
-		for clientid in self._source:
-			self._on_source_added(clientid)
+		for client_id in self._client_ids:
+			self.on_removed(client_id)
+		self._client_ids.clear()
+		for client_id in self._source:
+			self._on_source_added(client_id)
 
-	def __getitem__(self, clientid):
-		return self._source[clientid]
+	def __getitem__(self, client_id):
+		return self._source[client_id]
 
 	def __iter__(self):
-		for clientid in self._clientids:
-			yield clientid
+		for client_id in self._client_ids:
+			yield client_id
 
-	def _on_source_added(self, clientid):
-		if self._filter_func(self._source[clientid]):
-			self._clientids.add(clientid)
-			self.on_added(clientid)
+	def _on_source_added(self, client_id):
+		if self._filter_func(self._source[client_id]):
+			self._client_ids.add(client_id)
+			self.on_added(client_id)
 
-	def _on_source_removed(self, clientid):
-		if clientid in self._clientids:
-			self._clientids.remove(clientid)
-			self.on_removed(clientid)
+	def _on_source_removed(self, client_id):
+		if client_id in self._client_ids:
+			self._client_ids.remove(client_id)
+			self.on_removed(client_id)
 
-	def _on_source_modified(self, clientid):
-		if clientid in self._clientids:
-			self.on_modified(clientid)
+	def _on_source_modified(self, client_id):
+		if client_id in self._client_ids:
+			self.on_modified(client_id)
 
 class TS3Client(object):
 	'''Main entry point for access to TeamSpeak's client query interface.'''
@@ -380,7 +380,7 @@ class TS3Client(object):
 		self.users = UserModel()
 		self.users_in_my_channel = UserFilterProxy(
 			source      = self.users,
-			filter_func = lambda user: user.channelid == self.my_channel_id
+			filter_func = lambda user: user.channel_id == self.my_channel_id
 		)
 
 	def connect(self):
@@ -455,10 +455,10 @@ class TS3Client(object):
 			if not err:
 				for entry in entries:
 					self.users.add(
-						clientid  = int(clientquery.getParamValue(entry, 'clid')),
+						client_id  = int(clientquery.getParamValue(entry, 'clid')),
 						nick      = clientquery.getParamValue(entry, 'client_nickname'),
-						uniqueid  = clientquery.getParamValue(entry, 'client_unique_identifier'),
-						channelid = int(clientquery.getParamValue(entry, 'cid'))
+						unique_id  = clientquery.getParamValue(entry, 'client_unique_identifier'),
+						channel_id = int(clientquery.getParamValue(entry, 'cid'))
 					)
 		self.get_clientlist(on_clientlist)
 
@@ -636,26 +636,26 @@ class TS3Client(object):
 
 	def on_notifycliententerview_ts3_event(self, line):
 		'''This event handler is called when a TS user enters to the TS server.'''
-		clientid = int(clientquery.getParamValue(line, 'clid'))
-		self._invalidate_client_id(clientid)
+		client_id = int(clientquery.getParamValue(line, 'clid'))
+		self._invalidate_client_id(client_id)
 		self.users.add(
 			nick      = clientquery.getParamValue(line, 'client_nickname'),
 			wot_nick  = self._get_wot_nick_from_metadata(clientquery.getParamValue(line, 'client_meta_data')),
-			clientid  = clientid,
-			uniqueid  = clientquery.getParamValue(line, 'client_unique_identifier'),
-			channelid = int(clientquery.getParamValue(line, 'ctid'))
+			client_id  = client_id,
+			unique_id  = clientquery.getParamValue(line, 'client_unique_identifier'),
+			channel_id = int(clientquery.getParamValue(line, 'ctid'))
 		)
 
 	def on_notifyclientleftview_ts3_event(self, line):
 		'''This event handler is called when a TS user leaves from the TS server.'''
-		clientid = int(clientquery.getParamValue(line, 'clid'))
-		self.users.remove(clientid)
+		client_id = int(clientquery.getParamValue(line, 'clid'))
+		self.users.remove(client_id)
 
 	def on_notifyclientmoved_ts3_event(self, line):
 		'''This event handler is called when a TS user moves from one channel to another.'''
 		self.users.add(
-			clientid = int(clientquery.getParamValue(line, 'clid')),
-			channelid = int(clientquery.getParamValue(line, 'ctid'))
+			client_id = int(clientquery.getParamValue(line, 'clid')),
+			channel_id = int(clientquery.getParamValue(line, 'ctid'))
 		)
 
 	def _save_client_data(self, client_id, client_nick, wot_nick):
