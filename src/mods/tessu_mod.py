@@ -143,11 +143,19 @@ def on_disconnected_from_ts3_server():
 	LOG_NOTE("Disconnected from TeamSpeak server")
 	clear_speak_statuses()
 
+def on_ts3_user_in_my_channel_added(client_id):
+	'''This function populates user cache with TeamSpeak users whenever they
+	enter our TeamSpeak channel.
+	'''
+	user = g_ts.users_in_my_channel[client_id]
+	g_user_cache.add_ts_user(user)
+
 def load_settings():
 	LOG_NOTE("Settings loaded from ini file")
 	utils.CURRENT_LOG_LEVEL = settings().get_log_level()
 	g_ts.HOST = settings().get_client_query_host()
 	g_ts.PORT = settings().get_client_query_port()
+	g_user_cache.set_ini_check_interval(settings().get_ini_check_interval())
 
 def Player_onBecomePlayer(orig_method):
 	def wrapper(self):
@@ -169,15 +177,28 @@ def VOIPManager_isParticipantTalking(orig_method):
 		return orig_method(self, dbid)
 	return wrapper
 
+def on_users_rosters_received():
+	'''This function populates user cache with friends and clan members from
+	user storage when user rosters are received at start when player logs in to
+	the game.
+	Users storage should be available and populated by now.
+	'''
+	users_storage = storage_getter('users')()
+	for friend in users_storage.getList(find_criteria.BWFriendFindCriteria()):
+		g_user_cache.add_player(friend)
+	for member in users_storage.getClanMembersIterator(False):
+		g_user_cache.add_player(member)
+
 def in_test_suite():
 	import sys
 	return "behave" in sys.argv[0]
 
 def load_mod():
-	global g_ts, g_talk_states, g_minimap_ctrl
+	global g_ts, g_talk_states, g_minimap_ctrl, g_user_cache
 
 	# do all intializations here
 	settings(utils.get_mods_path() + "/tessu_mod.ini").on_reloaded += load_settings
+	g_user_cache = UserCache(utils.get_mods_path() + "/tessu_mod_cache.ini")
 
 	g_talk_states = {}
 	g_minimap_ctrl = utils.MinimapMarkersController()
@@ -191,6 +212,7 @@ def load_mod():
 	g_ts.on_connected_to_server += on_connected_to_ts3_server
 	g_ts.on_disconnected_from_server += on_disconnected_from_ts3_server
 	g_ts.on_talk_status_changed += on_talk_status_changed
+	g_ts.users_in_my_channel.on_added += on_ts3_user_in_my_channel_added
 	utils.call_in_loop(settings().get_client_query_interval(), g_ts.check_events)
 
 	# if nothing broke so far then it should be safe to patch the needed
@@ -199,17 +221,23 @@ def load_mod():
 	Account.PlayerAccount.onBecomePlayer = Player_onBecomePlayer(Account.PlayerAccount.onBecomePlayer)
 	VOIP.VOIPManager.isParticipantTalking = VOIPManager_isParticipantTalking(VOIP.VOIPManager.isParticipantTalking)
 
+	g_messengerEvents.users.onUsersRosterReceived += on_users_rosters_received
+
 try:
 	import game
 	from tessu_utils.ts3 import TS3Client
 	from tessu_utils.utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
 	from tessu_utils import utils
 	from tessu_utils.settings import settings
+	from tessu_utils.user_cache import UserCache
 	import BigWorld
 	import Avatar
 	import Account
 	import VOIP
 	from gui import SystemMessages
+	from messenger.proto.events import g_messengerEvents
+	from messenger.storage import storage_getter
+	from messenger.proto.bw import find_criteria
 
 	if not in_test_suite():
 		load_mod()
