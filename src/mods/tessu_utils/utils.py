@@ -157,7 +157,7 @@ def push_system_message(message, type):
 		LOG_CURRENT_EXCEPTION()
 		return
 
-def get_mods_path():
+def get_ini_dir_path():
 	res = ResMgr.openSection('../paths.xml')
 	sb = res['Paths']
 	vals = sb.values()

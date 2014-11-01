@@ -47,9 +47,6 @@ class TSClientQueryService(object):
 	def insert_connect_message(self, index, message):
 		self._data.connect_messages[index] = message
 
-	def set_cmd_response(self, command, response=None, error=None):
-		self._data.cmd_responses[command] = (response, error)
-
 	def send_event(self, event):
 		self._data.event_queue.put(event)
 
@@ -96,7 +93,6 @@ class TSClientQueryService(object):
 class Data(object):
 	def __init__(self):
 		self.connect_messages = ["", "", ""]
-		self.cmd_responses = {}
 		self.event_queue = Queue()
 		self.connected_to_server = False
 		self.users = {}
@@ -137,28 +133,28 @@ class TSClientQueryHandler(asynchat.async_chat):
 		self._buffer = ""
 		self.handle_command(command)
 
+	def push(self, data):
+		asynchat.async_chat.push(self, data.encode('ascii'))
+
 	def handle_command(self, command):
 		command_type, params_str = re.match("^([\S]+)\s?(.*)", command).groups()
 		param_str_list = params_str.split()
 
 		params = {}
+		options = []
 		for param_str in param_str_list:
-			key, value = re.match("([^=]+)=?(.*)", param_str).groups()
-			params[key] = value
+			if param_str.startswith("-"):
+				options.append(param_str[1:])
+			else:
+				key, value = re.match("([^=]+)=?(.*)", param_str).groups()
+				params[key] = value
+		if options:
+			params["options"] = options
 
 		if hasattr(self, "handle_command_" + command_type):
 			status = getattr(self, "handle_command_" + command_type)(**params)
 			if status:
 				self.send_status(*status)
-			else:
-				self.send_status()
-
-		elif command in self._data_source.cmd_responses:
-			response, error = self._data_source.cmd_responses[command]
-			if response:
-				self.push(response + "\n\r")
-			if error:
-				self.send_status(*error)
 			else:
 				self.send_status()
 		else:
@@ -182,7 +178,7 @@ class TSClientQueryHandler(asynchat.async_chat):
 	def handle_command_clientgetuidfromclid(self, clid, **ignored):
 		user = self._data_source.users[clid]
 		self._data_source.event_queue.put("notifyclientuidfromclid schandlerid={0} clid={1} cluid={2} nickname={3}"
-			.format(user["schandlerid"], user["clid"], user["cluid"], user["name"].replace(" ", "\s")))
+			.format(user["schandlerid"], user["clid"], user["cluid"], escape(user["name"])))
 
 	def handle_command_clientvariable(self, clid, **requested_vars):
 		user = self._data_source.users[clid]
@@ -190,6 +186,22 @@ class TSClientQueryHandler(asynchat.async_chat):
 		if "client_meta_data" in requested_vars:
 			self.push(" client_meta_data=" + user["metadata"].replace(" ", "\s"))
 		self.push("\n\r")
+
+	def handle_command_clientlist(self, options=[]):
+		entries = []
+		for clid in self._data_source.users:
+			user = self._data_source.users[clid]
+			params = [
+				"clid=" + str(user["clid"]),
+				"cid=" + str(user["cid"]),
+				"client_database_id=DBID" + str(user["clid"]),
+				"client_nickname=" + user["name"],
+				"client_type=0"
+			]
+			if "uid" in options:
+				params.append("client_unique_identifier=" + user["cluid"])
+			entries.append(" ".join(escape(param) for param in params))
+		self.push(("|".join(entries) + "\n\r"))
 
 	def user_value_changed(self, clid, name, value):
 		if name == "speaking":
@@ -218,3 +230,6 @@ class TSClientQueryHandler(asynchat.async_chat):
 				if old_user[key] != new_user[key]:
 					self.user_value_changed(clid, key, new_user[key])
 		self._prev_users = copy.deepcopy(self._data_source.users)
+
+def escape(value):
+	return value.replace(" ", "\s")

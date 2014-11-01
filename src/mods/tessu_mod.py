@@ -197,8 +197,8 @@ def load_mod():
 	global g_ts, g_talk_states, g_minimap_ctrl, g_user_cache
 
 	# do all intializations here
-	settings(utils.get_mods_path() + "/tessu_mod.ini").on_reloaded += load_settings
-	g_user_cache = UserCache(utils.get_mods_path() + "/tessu_mod_cache.ini")
+	settings(os.path.join(utils.get_ini_dir_path(), "tessu_mod.ini")).on_reloaded += load_settings
+	g_user_cache = UserCache(os.path.join(utils.get_ini_dir_path(), "tessu_mod_cache.ini"))
 
 	g_talk_states = {}
 	g_minimap_ctrl = utils.MinimapMarkersController()
@@ -238,8 +238,10 @@ try:
 	from messenger.proto.events import g_messengerEvents
 	from messenger.storage import storage_getter
 	from messenger.proto.bw import find_criteria
+	import os
 
 	if not in_test_suite():
 		load_mod()
 except:
+	raise
 	LOG_CURRENT_EXCEPTION()

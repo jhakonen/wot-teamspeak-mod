@@ -8,9 +8,9 @@ import coverage
 
 class GameRunner(object):
 
-	def __init__(self, mod_path, ini_path):
+	def __init__(self, mod_path, ini_dir_path):
 		self._mod_path = mod_path
-		self._ini_path = ini_path
+		self._ini_dir_path = ini_dir_path
 		self._to_proc_queue = Queue()
 		self._from_proc_queue = Queue()
 		self._process = None
@@ -19,12 +19,12 @@ class GameRunner(object):
 		return self._stub(name)
 
 	def _stub(self, name):
-		return MethodStub(name, self._to_proc_queue, self._from_proc_queue)
+		return MethodStub(name, self)
 
 	def start(self):
 		self._process = Process(
 			target=game_main,
-			args=(self._to_proc_queue, self._from_proc_queue, self._mod_path, self._ini_path)
+			args=(self._to_proc_queue, self._from_proc_queue, self._mod_path, self._ini_dir_path)
 		)
 		self._process.start()
 
@@ -34,19 +34,22 @@ class GameRunner(object):
 			self._process.join()
 			self._process = None
 
+	def is_running(self):
+		return self._process and self._process.is_alive()
+
 class MethodStub(object):
 
-	def __init__(self, method_name, to_queue, from_queue):
+	def __init__(self, method_name, runner):
 		self._method_name = method_name
-		self._to_queue = to_queue
-		self._from_queue = from_queue
+		self._runner = runner
 
 	def __call__(self, *args, **kwargs):
-		self._to_queue.put((self._method_name, args, kwargs))
-		while True:
+		result = None
+		self._runner._to_proc_queue.put((self._method_name, args, kwargs))
+		while self._runner.is_running():
 			process_events()
 			try:
-				result = self._from_queue.get(block=False)
+				result = self._runner._from_proc_queue.get(block=False)
 				break
 			except Empty:
 				pass
@@ -55,7 +58,7 @@ class MethodStub(object):
 		return result
 
 
-def game_main(from_runner_queue, to_runner_queue, mod_path, ini_path):
+def game_main(from_runner_queue, to_runner_queue, mod_path, ini_dir_path):
 	cov = coverage.coverage(
 		auto_data=True,
 		branch=True,
@@ -74,19 +77,20 @@ def game_main(from_runner_queue, to_runner_queue, mod_path, ini_path):
 
 		# create directory structure for ini-file
 		try:
-			os.makedirs(os.path.dirname(ini_path))
+			os.makedirs(os.path.dirname(ini_dir_path))
 		except:
 			pass
 		# remove previous ini-file (if one exists)
 		try:
-			os.remove(ini_path)
+			os.remove(ini_dir_path)
 		except:
 			pass
 		import tessu_mod
 		import tessu_utils.ts3
 		import tessu_utils.settings
+		import tessu_utils.utils
 		tessu_utils.ts3._RETRY_TIMEOUT = 1
-		tessu_utils.settings.settings(ini_path)
+		tessu_utils.utils.get_ini_dir_path = lambda: ini_dir_path
 
 		tessu_mod.load_mod()
 
