@@ -56,23 +56,34 @@ class TSClientQueryService(object):
 	def add_user(self, name, metadata=""):
 		if name not in self._clids:
 			self._clids.append(name)
-		clid = self._clids.index(name)
+		clid = str(self._clids.index(name))
+		self._data.users[clid] = User(service=self, name=name, clid=clid, metadata=metadata)
 
-		self._data.users[str(clid)] = dict(
-			name=name,
-			clid=str(clid),
-			cid=str(1),
-			cluid="BAADF00D" + str(clid),
-			schandlerid="",
-			metadata=metadata,
-			speaking=False
-		)
+	def get_user(self, name):
+		for clid in self._data.users:
+			user = self._data.users[clid]
+			if user.name == name:
+				return user
 
 	def set_user_speaking(self, ts_name, speaking):
 		for clid in self._data.users:
 			user = self._data.users[clid]
-			if user["name"] == ts_name:
-				user["speaking"] = speaking
+			if user.name == ts_name:
+				user.speaking = speaking
+
+	def add_wait_of_command(self, command):
+		self._data.required_commands.append(command)
+
+	def wait_for_data_in_response(self, data):
+		end_t = time.time() + 10
+		while True:
+			self.check()
+			assert time.time() < end_t, "Timeout, no data '{0}' in responses".format(data)
+			for response in self._data.responses:
+				if data in response:
+					self._data.responses.remove(response)
+					return
+			time.sleep(0.01)
 
 	def _run_in_thread(self):
 		try:
@@ -90,12 +101,66 @@ class TSClientQueryService(object):
 			for socket in sock_map.values():
 				socket.close()
 
+class User(object):
+
+	def __init__(self, service, name, clid, metadata):
+		self._service = service
+		self._name = name
+		self._clid = clid
+		self._cid = str(1)
+		self._cluid = "BAADF00D" + clid
+		self._schandlerid = ""
+		self._metadata = metadata
+		self._speaking = False
+
+	@property
+	def name(self):
+		return self._name
+
+	@property
+	def clid(self):
+		return self._clid
+
+	@property
+	def cid(self):
+		return self._cid
+
+	@property
+	def cluid(self):
+		return self._cluid
+
+	@property
+	def schandlerid(self):
+		return self._schandlerid
+
+	@property
+	def metadata(self):
+		return self._metadata
+	@metadata.setter
+	def metadata(self, value):
+		self._metadata = value
+		self._service.send_event("notifyclientupdated schandlerid={0} clid={1} client_meta_data={2}".format(
+			self._schandlerid,
+			self._clid,
+			self._metadata
+		))
+
+	@property
+	def speaking(self):
+		return self._speaking
+	@speaking.setter
+	def speaking(self, value):
+		self._speaking = value
+		self._service.send_event("notifytalkstatuschange status={0} clid={1}".format(1 if value else 0, self._clid))
+
 class Data(object):
 	def __init__(self):
 		self.connect_messages = ["", "", ""]
 		self.event_queue = Queue()
+		self.responses = []
 		self.connected_to_server = False
 		self.users = {}
+		self.required_commands = []
 
 class TSClientQueryServer(asyncore.dispatcher):
 	def __init__(self, host, port, sock_map, data_source):
@@ -135,6 +200,7 @@ class TSClientQueryHandler(asynchat.async_chat):
 
 	def push(self, data):
 		asynchat.async_chat.push(self, data.encode('ascii'))
+		self._data_source.responses.append(data)
 
 	def handle_command(self, command):
 		command_type, params_str = re.match("^([\S]+)\s?(.*)", command).groups()
@@ -160,6 +226,10 @@ class TSClientQueryHandler(asynchat.async_chat):
 		else:
 			self.send_status(256, "command not found")
 			print "ERROR: Response missing for command:", repr(command)
+		try:
+			self._data_source.required_commands.remove(command_type)
+		except ValueError:
+			pass
 
 	def send_status(self, code=0, message="ok"):
 		message = message.replace(" ", "\\s")
@@ -171,20 +241,20 @@ class TSClientQueryHandler(asynchat.async_chat):
 	def handle_command_whoami(self):
 		if self._data_source.connected_to_server:
 			self.push("clid={0} cid={1}\n\r".format(
-				self.get_my_user()["clid"], self.get_my_user()["cid"]))
+				self.get_my_user().clid, self.get_my_user().cid))
 		else:
 			return 1794, "not connected"
 
 	def handle_command_clientgetuidfromclid(self, clid, **ignored):
 		user = self._data_source.users[clid]
 		self._data_source.event_queue.put("notifyclientuidfromclid schandlerid={0} clid={1} cluid={2} nickname={3}"
-			.format(user["schandlerid"], user["clid"], user["cluid"], escape(user["name"])))
+			.format(user.schandlerid, user.clid, user.cluid, escape(user.name)))
 
 	def handle_command_clientvariable(self, clid, **requested_vars):
 		user = self._data_source.users[clid]
 		self.push("clid=" + clid)
 		if "client_meta_data" in requested_vars:
-			self.push(" client_meta_data=" + user["metadata"].replace(" ", "\s"))
+			self.push(" client_meta_data=" + escape(user.metadata))
 		self.push("\n\r")
 
 	def handle_command_clientlist(self, options=[]):
@@ -192,16 +262,19 @@ class TSClientQueryHandler(asynchat.async_chat):
 		for clid in self._data_source.users:
 			user = self._data_source.users[clid]
 			params = [
-				"clid=" + str(user["clid"]),
-				"cid=" + str(user["cid"]),
-				"client_database_id=DBID" + str(user["clid"]),
-				"client_nickname=" + user["name"],
+				"clid=" + str(user.clid),
+				"cid=" + str(user.cid),
+				"client_database_id=DBID" + str(user.clid),
+				"client_nickname=" + user.name,
 				"client_type=0"
 			]
 			if "uid" in options:
-				params.append("client_unique_identifier=" + user["cluid"])
+				params.append("client_unique_identifier=" + user.cluid)
 			entries.append(" ".join(escape(param) for param in params))
 		self.push(("|".join(entries) + "\n\r"))
+
+	def handle_command_clientupdate(self, client_meta_data, **ignored):
+		pass
 
 	def user_value_changed(self, clid, name, value):
 		if name == "speaking":
@@ -210,26 +283,19 @@ class TSClientQueryHandler(asynchat.async_chat):
 	def get_my_user(self):
 		for clid in self._data_source.users:
 			user = self._data_source.users[clid]
-			if user["name"] == _SELF_USER_NAME:
+			if user.name == _SELF_USER_NAME:
 				return user
 
 	def tick(self):
-		try:
-			event = self._data_source.event_queue.get(block=False)
-			if event.split(None, 1)[0] in self._registered_events:
-				self.push(event + "\n\r")
-			else:
-				self._data_source.event_queue.put(event)
-		except Empty:
-			pass
-
-		for clid in self._prev_users:
-			old_user = self._prev_users[clid]
-			new_user = self._data_source.users[clid]
-			for key in old_user:
-				if old_user[key] != new_user[key]:
-					self.user_value_changed(clid, key, new_user[key])
-		self._prev_users = copy.deepcopy(self._data_source.users)
+		if not self._data_source.required_commands:
+			try:
+				event = self._data_source.event_queue.get(block=False)
+				if event.split(None, 1)[0] in self._registered_events:
+					self.push(event + "\n\r")
+				else:
+					self._data_source.event_queue.put(event)
+			except Empty:
+				pass
 
 def escape(value):
 	return value.replace(" ", "\s")

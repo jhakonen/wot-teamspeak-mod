@@ -14,7 +14,7 @@ def step_impl(context, player_name):
 
 @given("player \"{player_name}\" TS name is \"{ts_name}\" and has TessuMod installed")
 def step_impl(context, player_name, ts_name):
-	context.ts_client.add_user(ts_name, metadata="client_meta_data=<wot_nickname_start>{0}<wot_nickname_end>".format(player_name))
+	context.ts_client.add_user(ts_name, metadata="<wot_nickname_start>{0}<wot_nickname_end>".format(player_name))
 
 @given("user \"{ts_name}\" is in TS")
 def step_impl(context, ts_name):
@@ -24,7 +24,6 @@ def step_impl(context, ts_name):
 def step_impl(context, ts_name):
 	assert context.game.wait_for_log("Connected to TeamSpeak server", once=False)
 	context.ts_client.set_user_speaking(ts_name, True)
-	assert context.game.wait_for_log("TEST_SUITE: setPlayerTalking() called")
 
 @given("nick extract pattern \"{pattern}\" is set")
 def step_impl(context, pattern):
@@ -38,13 +37,13 @@ def step_impl(context, ts_name, player_name):
 def step_impl(context, ts_name):
 	assert context.game.wait_for_log("Connected to TeamSpeak server", once=False)
 	context.ts_client.set_user_speaking(ts_name, True)
-	assert context.game.wait_for_log("TEST_SUITE: setPlayerTalking() called")
+	context.ts_client.wait_for_data_in_response("notifytalkstatuschange")
 
 @when("TS user \"{ts_name}\" stops speaking")
 def step_impl(context, ts_name):
 	assert context.game.wait_for_log("Connected to TeamSpeak server", once=False)
 	context.ts_client.set_user_speaking(ts_name, False)
-	assert context.game.wait_for_log("TEST_SUITE: setPlayerTalking() called")
+	context.ts_client.wait_for_data_in_response("notifytalkstatuschange")
 
 @then("I see speak feedback start for player \"{player_name}\"")
 def step_impl(context, player_name):

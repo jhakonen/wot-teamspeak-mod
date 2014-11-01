@@ -48,6 +48,7 @@ def after_all(context):
 
 def before_scenario(context, scenario):
 	context.ts_client = TSClientQueryService()
+	context.ts_client.add_wait_of_command("clientlist")
 	context.ini_dir_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "tmp")
 	context.ini_path = os.path.join(context.ini_dir_path, "tessu_mod.ini")
 	context.game = GameRunner(

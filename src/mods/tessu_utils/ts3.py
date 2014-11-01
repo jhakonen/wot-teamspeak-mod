@@ -612,6 +612,8 @@ class TS3Client(object):
 	def on_notifytalkstatuschange_ts3_event(self, line):
 		client_id = int(clientquery.getParamValue(line, 'clid'))
 		talking = int(clientquery.getParamValue(line, 'status')) == 1
+		if client_id not in self.users:
+			return
 		if client_id not in self._speak_states:
 			self._speak_states[client_id] = False
 		if self._speak_states[client_id] != talking:

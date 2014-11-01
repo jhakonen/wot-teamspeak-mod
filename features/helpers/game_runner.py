@@ -5,6 +5,7 @@ from Queue import Empty
 from multiprocessing import Process, Queue
 from test_events import process_events
 import coverage
+import traceback
 
 class GameRunner(object):
 
@@ -122,6 +123,7 @@ class GameService(object):
 			try:
 				result = getattr(self, method_name)(*args, **kwargs)
 			except Exception as error:
+				traceback.print_exc()
 				result = error
 			self._to_queue.put(result)
 		return not self._quit
@@ -160,7 +162,10 @@ class GameService(object):
 
 	def add_player(self, player_name):
 		import BigWorld
-		BigWorld.player().arena.add_vehicle(player_name)
+		if hasattr(BigWorld.player(), "arena"):
+			BigWorld.player().arena.add_vehicle(player_name)
+		if hasattr(BigWorld.player(), "prebattle"):
+			BigWorld.player().prebattle.add_roster(player_name)
 
 	def is_player_speaking(self, player_name):
 		import VOIP
@@ -194,8 +199,16 @@ class GameService(object):
 
 	def _get_player_dbid(self, player_name):
 		import BigWorld
-		for vehicle_id in BigWorld.player().arena.vehicles:
-			vehicle = BigWorld.player().arena.vehicles[vehicle_id]
-			if player_name == vehicle["name"]:
-				return vehicle["accountDBID"]
+		if hasattr(BigWorld.player(), "arena"):
+			for vehicle_id in BigWorld.player().arena.vehicles:
+				vehicle = BigWorld.player().arena.vehicles[vehicle_id]
+				if player_name == vehicle["name"]:
+					return vehicle["accountDBID"]
+		if hasattr(BigWorld.player(), "prebattle"):
+			rosters = BigWorld.player().prebattle.rosters
+			for roster in rosters:
+				for id in rosters[roster]:
+					info = rosters[roster][id]
+					if player_name == info["name"]:
+						return info["dbID"]
 		raise RuntimeError("Player {0} doesn't exist".format(player_name))
