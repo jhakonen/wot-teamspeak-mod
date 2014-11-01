@@ -616,13 +616,11 @@ class TS3Client(object):
 			self._speak_states[client_id] = False
 		if self._speak_states[client_id] != talking:
 			self._speak_states[client_id] = talking
-
+			user = self.users[client_id]
 			def on_get_client(err, client):
 				if not err:
-					self.on_talk_status_changed({
-						"ts": client["ts-nickname"],
-						"wot": client["wot-nickname"]
-					}, talking)
+					user.wot_nick = client["wot-nickname"]
+					self.on_talk_status_changed(user, talking)
 			self.get_client(client_id, on_get_client)
 
 	def on_notifyclientupdated_ts3_event(self, line):

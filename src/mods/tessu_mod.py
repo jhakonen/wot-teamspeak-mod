@@ -22,8 +22,8 @@ def on_talk_status_changed(user, talking):
 		talking: True if talking, False otherwise
 	'''
 	if not settings().get_wot_nick_from_ts_metadata():
-		user["wot"] = ""
-	player_name = user["wot"] if user["wot"] else map_nick_to_wot_nick(extract_nick(user["ts"]))
+		user.wot_nick = ""
+	player_name = user.wot_nick if user.wot_nick else map_nick_to_wot_nick(extract_nick(user.nick))
 	talk_status(player_name, talking)
 	if talking:
 		# set talking state immediately
