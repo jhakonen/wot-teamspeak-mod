@@ -43,6 +43,7 @@ import functools
 import Event
 import BigWorld
 from utils import (
+	noop,
 	with_args,
 	LOG_CALL,
 	LOG_DEBUG,
@@ -55,18 +56,260 @@ from utils import (
 _RETRY_TIMEOUT = 10
 _API_NOT_CONNECTED_TO_SERVER = 1794
 
+class TS3Client(object):
+	'''Main entry point for access to TeamSpeak's client query interface.'''
+	
+	HOST = "localhost"
+	PORT = 25639
+	NICK_META_PATTERN = "<wot_nickname_start>(.+)<wot_nickname_end>"
+
+	def __init__(self):
+		# public events
+		self.on_connected = Event.Event()
+		self.on_disconnected = Event.Event()
+		self.on_speak_status_changed = Event.Event()
+		self.on_connected_to_server = Event.Event()
+		self.on_disconnected_from_server = Event.Event()
+
+		# public models
+		self.users = UserModel()
+		self.users_in_my_channel = UserFilterProxy(
+			source      = self.users,
+			filter_func = lambda user: user.channel_id == self._my_channel_id
+		)
+		self.users_in_my_channel.on_added += self.on_user_entered_my_channel
+
+		self._callback_handles = []
+		self._connected = False
+		self._connected_to_server = False
+		self._socket_map = {}
+		self._my_client_id = None
+		self._my_channel_id = None
+
+		self._protocol = _ClientQueryProtocol(self, self._socket_map)
+		self._protocol.on_ready += self._set_connected
+		self._protocol.on_ready += self._register_notifications
+		self._protocol.on_ready += self._ping
+		self._protocol.on_connected += self._on_protocol_connected
+		self._protocol.on_closed += self._on_protocol_closed
+
+	def connect(self):
+		'''Starts connect attempt and continues to try until succesfully
+		connected.
+		'''
+		self._connected = False
+		self._cancel_all__call_laters()
+		self._protocol.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+		self._protocol.connect((self.HOST, self.PORT))
+
+	def check_events(self):
+		'''Event handler method. Call this periodically.'''
+		asyncore.loop(timeout=0, count=1, map=self._socket_map)
+		self._protocol.handle_out_commands()
+
+	def _set_connected(self):
+		self._connected = True
+		self.on_connected()
+
+	def _register_notifications(self):
+		def on_command_finish(err, data):
+			self._handle_api_error(err, "Event registering failed")
+
+		self._protocol.send_command("clientnotifyregister schandlerid=0 event=notifytalkstatuschange", on_command_finish)
+		self._protocol.send_command("clientnotifyregister schandlerid=0 event=notifyclientupdated", on_command_finish)
+		self._protocol.send_command("clientnotifyregister schandlerid=0 event=notifyclientuidfromclid", on_command_finish)
+		self._protocol.send_command("clientnotifyregister schandlerid=0 event=notifycliententerview", on_command_finish)
+		self._protocol.send_command("clientnotifyregister schandlerid=0 event=notifyclientleftview", on_command_finish)
+		self._protocol.send_command("clientnotifyregister schandlerid=0 event=notifyclientmoved", on_command_finish)
+
+	def _handle_api_error(self, err, msg):
+		if err:
+			if err[0] == _API_NOT_CONNECTED_TO_SERVER:
+				if self._connected_to_server:
+					self._connected_to_server = False
+					self.on_disconnected_from_server()
+			else:
+				_LOG_API_ERROR(msg + ":", err)
+				LOG_NOTE("Closing connection")
+				self._protocol.close()
+
+	def _ping(self):
+		'''Ping TS client with some command to keep connection alive.'''
+		def on_finish(err, ignored):
+			if not err and not self._connected_to_server:
+				self._connected_to_server = True
+				self._update_user_list()
+				self.on_connected_to_server()
+			self._call_later(_RETRY_TIMEOUT, self._ping)
+
+		self._update_my_client_id(on_finish)
+
+	def _update_my_client_id(self, callback=noop):
+		def on_whoami(err, lines):
+			if err:
+				self._handle_api_error(err, "_update_my_client_id() failed")
+			else:
+				self._my_client_id = int(clientquery.getParamValue(lines[0], 'clid'))
+				new_channel_id = int(clientquery.getParamValue(lines[0], 'cid'))
+				if new_channel_id != self._my_channel_id:
+					self._my_channel_id = new_channel_id
+					self.users_in_my_channel.invalidate()
+			callback(err, None)
+		self._protocol.send_command("whoami", on_whoami)
+
+	def _update_user_list(self):
+		if not self._connected_to_server:
+			self.users.clear()
+			return
+		def on_clientlist(err, entries):
+			if not err:
+				for entry in entries:
+					self.users.add(
+						client_id  = int(clientquery.getParamValue(entry, 'clid')),
+						nick      = clientquery.getParamValue(entry, 'client_nickname'),
+						unique_id  = clientquery.getParamValue(entry, 'client_unique_identifier'),
+						channel_id = int(clientquery.getParamValue(entry, 'cid'))
+					)
+		self.get_clientlist(on_clientlist)
+
+	def _on_protocol_connected(self):
+		LOG_NOTE("Connected to TeamSpeak clientquery interface")
+
+	def _on_protocol_closed(self):
+		if self._connected:
+			LOG_WARNING("TeamSpeak clientquery connection closed")
+			self._connected = False
+			self._my_client_id = None
+			self._my_channel_id = None
+			self._update_user_list()
+			self.on_disconnected()
+		self._call_later(_RETRY_TIMEOUT, self.connect)
+
+	def _call_later(self, secs, func):
+		'''Enhanced version of BigWorld.callback() which keeps track of
+		waiting callbacks.
+		'''
+		def wrapper():
+			try:
+				func()
+			finally:
+				try:
+					self._callback_handles.remove(handle)
+				except ValueError:
+					# protect against 'handle' not being in the list anymore
+					# due of _cancel_all__call_laters()
+					pass
+		handle = BigWorld.callback(secs, wrapper)
+		self._callback_handles.append(handle)
+
+	def _cancel_all__call_laters(self):
+		for handle in self._callback_handles:
+			BigWorld.cancelCallback(handle)
+		self._callback_handles = []
+
+	def get_client_meta_data(self, client_id, callback=noop):
+		def on_finish(err, lines):
+			if err:
+				self._handle_api_error(err, "get_client_meta_data() failed")
+				callback(err, "")
+			else:
+				data = clientquery.getParamValue(lines[0], "client_meta_data")
+				if data is None:
+					LOG_WARNING("get_client_meta_data failed, value:", data)
+					callback(None, "")
+				else:
+					callback(None, data)
+		self._protocol.send_command("clientvariable clid={0} client_meta_data".format(client_id), on_finish)
+
+	def get_wot_nickname(self, client_id, callback=noop):
+		def on_finish(err, data):
+			if err:
+				callback(err, None)
+			else:
+				callback(None, self._get_wot_nick_from_metadata(data))
+		self.get_client_meta_data(client_id, on_finish)
+
+	def _get_wot_nick_from_metadata(self, data):
+		matches = re.search(self.NICK_META_PATTERN, data)
+		if matches:
+			return matches.group(1)
+		return ""
+
+	def set_wot_nickname(self, name):
+		if name is None or self._my_client_id is None:
+			return
+		def on_get_client_meta_data(err, data):
+			if data is not None:
+				new_tag = "<wot_nickname_start>{0}<wot_nickname_end>".format(name)
+				if re.search(self.NICK_META_PATTERN, data):
+					data = re.sub(self.NICK_META_PATTERN, new_tag, data)
+				else:
+					data += new_tag
+				self._protocol.send_command("clientupdate client_meta_data={0}".format(data))
+		self.get_client_meta_data(self._my_client_id, on_get_client_meta_data)
+
+	def get_clientlist(self, callback=noop):
+		def on_clientlist(err, lines):
+			if err:
+				self._handle_api_error(err, "get_clientlist() failed")
+				callback(err, None)
+			else:
+				callback(None, lines[0].split('|'))
+		self._protocol.send_command("clientlist -uid", on_clientlist)
+
+	def on_user_entered_my_channel(self, client_id):
+		user = self.users[client_id]
+		def on_get_wot_nickname(err, wot_nickname):
+			if not err:
+				user.wot_nick = wot_nickname
+		self.get_wot_nickname(client_id, on_get_wot_nickname)
+
+	def on_notifytalkstatuschange_ts3_event(self, line):
+		client_id = int(clientquery.getParamValue(line, 'clid'))
+		speaking = int(clientquery.getParamValue(line, 'status')) == 1
+		if client_id not in self.users:
+			return
+		user = self.users[client_id]
+		if user.speaking != speaking:
+			user.speaking = speaking
+			self.on_speak_status_changed(user)
+
+	def on_notifyclientupdated_ts3_event(self, line):
+		client_id = int(clientquery.getParamValue(line, "clid"))
+		metadata = clientquery.getParamValue(line, "client_meta_data")
+		user = self.users[client_id]
+		if metadata:
+			user.wot_nick = self._get_wot_nick_from_metadata(metadata)
+
+	def on_notifycliententerview_ts3_event(self, line):
+		'''This event handler is called when a TS user enters to the TS server.'''
+		client_id = int(clientquery.getParamValue(line, 'clid'))
+		self.users.add(
+			nick       = clientquery.getParamValue(line, 'client_nickname'),
+			wot_nick   = self._get_wot_nick_from_metadata(clientquery.getParamValue(line, 'client_meta_data')),
+			client_id  = client_id,
+			unique_id  = clientquery.getParamValue(line, 'client_unique_identifier'),
+			channel_id = int(clientquery.getParamValue(line, 'ctid'))
+		)
+
+	def on_notifyclientleftview_ts3_event(self, line):
+		'''This event handler is called when a TS user leaves from the TS server.'''
+		client_id = int(clientquery.getParamValue(line, 'clid'))
+		self.users.remove(client_id)
+
+	def on_notifyclientmoved_ts3_event(self, line):
+		'''This event handler is called when a TS user moves from one channel to another.'''
+		self.users.add(
+			client_id  = int(clientquery.getParamValue(line, 'clid')),
+			channel_id = int(clientquery.getParamValue(line, 'ctid'))
+		)
+
 def _LOG_API_ERROR(message, err):
 	if err:
 		if err[0] == _API_NOT_CONNECTED_TO_SERVER:
 			LOG_DEBUG(message, err)
 		else:
 			LOG_ERROR(message, err)
-
-def _noop(*args, **kwargs):
-	'''Function that does nothing. A safe default value for callback
-	parameters.
-	'''
-	pass
 
 def _would_block_windows_workaround(func, fix_func):
 	'''Function decorator which caughts socket errors of type WSAEWOULDBLOCK
@@ -93,7 +336,7 @@ class _ClientQueryProtocol(asynchat.async_chat):
 		self.on_closed = Event.Event()
 		self.on_ready = Event.Event()
 
-		self._data_in_handler = _noop
+		self._data_in_handler = noop
 		self._event_handlers = {}
 		for attr in dir(event_receiver):
 			matches = re.match("on_(.+)_ts3_event", attr)
@@ -110,7 +353,7 @@ class _ClientQueryProtocol(asynchat.async_chat):
 	def close(self):
 		'''Closes connection.'''
 		asynchat.async_chat.close(self)
-		self._data_in_handler = _noop
+		self._data_in_handler = noop
 		self.on_closed()
 
 	def handle_connect(self):
@@ -192,7 +435,7 @@ class _ClientQueryProtocol(asynchat.async_chat):
 			except IndexError:
 				pass
 
-	def send_command(self, command, callback=_noop):
+	def send_command(self, command, callback=noop):
 		'''Queues command for sending to client query.'''
 		if self._data_in_handler == self._handle_in_data_actions:
 			self._commands.append(_ClientQueryCommand(command, callback))
@@ -235,6 +478,7 @@ class User(object):
 		self.client_id = None
 		self.unique_id = None
 		self.channel_id = None
+		self.speaking = False
 
 	def __hash__(self):
 		return (
@@ -249,8 +493,14 @@ class User(object):
 		return hash(self) == hash(other)
 
 	def __repr__(self):
-		return "User (client_id={0}, nick={1}, wot_nick={2}, unique_id={3}, channel_id={4})".format(
-			repr(self.client_id), repr(self.nick), repr(self.wot_nick), repr(self.unique_id), repr(self.channel_id))
+		return "User (client_id={0}, nick={1}, wot_nick={2}, unique_id={3}, channel_id={4}, speaking={5})".format(
+			repr(self.client_id),
+			repr(self.nick),
+			repr(self.wot_nick),
+			repr(self.unique_id),
+			repr(self.channel_id),
+			repr(self.speaking)
+		)
 
 class UserModel(object):
 
@@ -344,322 +594,3 @@ class UserFilterProxy(object):
 	def _on_source_modified(self, client_id):
 		if client_id in self._client_ids:
 			self.on_modified(client_id)
-
-class TS3Client(object):
-	'''Main entry point for access to TeamSpeak's client query interface.'''
-	
-	HOST = "localhost"
-	PORT = 25639
-	NICK_META_PATTERN = "<wot_nickname_start>(.+)<wot_nickname_end>"
-
-	def __init__(self):
-		# public events
-		self.on_connected = Event.Event()
-		self.on_disconnected = Event.Event()
-		self.on_talk_status_changed = Event.Event()
-		self.on_connected_to_server = Event.Event()
-		self.on_disconnected_from_server = Event.Event()
-
-		self._clients = {}
-		self._speak_states = {}
-		self._callback_handles = []
-		self._connected = False
-		self._connected_to_server = False
-		self._clientuidfromclid_cache = {}
-		self._socket_map = {}
-		self.my_client_id = None
-		self.my_channel_id = None
-
-		self._protocol = _ClientQueryProtocol(self, self._socket_map)
-		self._protocol.on_ready += self._set_connected
-		self._protocol.on_ready += self._register_notifications
-		self._protocol.on_ready += self._ping
-		self._protocol.on_connected += self._on_protocol_connected
-		self._protocol.on_closed += self._on_protocol_closed
-
-		self.users = UserModel()
-		self.users_in_my_channel = UserFilterProxy(
-			source      = self.users,
-			filter_func = lambda user: user.channel_id == self.my_channel_id
-		)
-
-	def connect(self):
-		'''Starts connect attempt and continues to try until succesfully
-		connected.
-		'''
-		self._connected = False
-		self._cancel_all__call_laters()
-		self._protocol.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-		self._protocol.connect((self.HOST, self.PORT))
-
-	def check_events(self):
-		'''Event handler method. Call this periodically.'''
-		asyncore.loop(timeout=0, count=1, map=self._socket_map)
-		self._protocol.handle_out_commands()
-
-	def _set_connected(self):
-		self._connected = True
-		self.on_connected()
-
-	def _register_notifications(self):
-		def on_command_finish(err, data):
-			self._handle_api_error(err, "Event registering failed")
-
-		self._protocol.send_command("clientnotifyregister schandlerid=0 event=notifytalkstatuschange", on_command_finish)
-		self._protocol.send_command("clientnotifyregister schandlerid=0 event=notifyclientupdated", on_command_finish)
-		self._protocol.send_command("clientnotifyregister schandlerid=0 event=notifyclientuidfromclid", on_command_finish)
-		self._protocol.send_command("clientnotifyregister schandlerid=0 event=notifycliententerview", on_command_finish)
-		self._protocol.send_command("clientnotifyregister schandlerid=0 event=notifyclientleftview", on_command_finish)
-		self._protocol.send_command("clientnotifyregister schandlerid=0 event=notifyclientmoved", on_command_finish)
-
-	def _handle_api_error(self, err, msg):
-		if err:
-			if err[0] == _API_NOT_CONNECTED_TO_SERVER:
-				if self._connected_to_server:
-					self._connected_to_server = False
-					self.on_disconnected_from_server()
-			else:
-				_LOG_API_ERROR(msg + ":", err)
-				LOG_NOTE("Closing connection")
-				self._protocol.close()
-
-	def _ping(self):
-		'''Ping TS client with some command to keep connection alive.'''
-		def on_finish(err, ignored):
-			if not err and not self._connected_to_server:
-				self._connected_to_server = True
-				self._update_user_list()
-				self.on_connected_to_server()
-			self._call_later(_RETRY_TIMEOUT, self._ping)
-
-		self._update_my_client_id(on_finish)
-
-	def _update_my_client_id(self, callback=_noop):
-		def on_whoami(err, lines):
-			if err:
-				self._handle_api_error(err, "_update_my_client_id() failed")
-			else:
-				self.my_client_id = int(clientquery.getParamValue(lines[0], 'clid'))
-				new_channel_id = int(clientquery.getParamValue(lines[0], 'cid'))
-				if new_channel_id != self.my_channel_id:
-					self.my_channel_id = new_channel_id
-					self.users_in_my_channel.invalidate()
-			callback(err, None)
-		self._protocol.send_command("whoami", on_whoami)
-
-	def _update_user_list(self):
-		if not self._connected_to_server:
-			self.users.clear()
-			return
-		def on_clientlist(err, entries):
-			if not err:
-				for entry in entries:
-					self.users.add(
-						client_id  = int(clientquery.getParamValue(entry, 'clid')),
-						nick      = clientquery.getParamValue(entry, 'client_nickname'),
-						unique_id  = clientquery.getParamValue(entry, 'client_unique_identifier'),
-						channel_id = int(clientquery.getParamValue(entry, 'cid'))
-					)
-		self.get_clientlist(on_clientlist)
-
-	def _on_protocol_connected(self):
-		LOG_NOTE("Connected to TeamSpeak clientquery interface")
-
-	def _on_protocol_closed(self):
-		if self._connected:
-			LOG_WARNING("TeamSpeak clientquery connection closed")
-			self._connected = False
-			self.my_client_id = None
-			self.my_channel_id = None
-			self._update_user_list()
-			self.on_disconnected()
-		self._call_later(_RETRY_TIMEOUT, self.connect)
-
-	def _call_later(self, secs, func):
-		'''Enhanced version of BigWorld.callback() which keeps track of
-		waiting callbacks.
-		'''
-		def wrapper():
-			try:
-				func()
-			finally:
-				try:
-					self._callback_handles.remove(handle)
-				except ValueError:
-					# protect against 'handle' not being in the list anymore
-					# due of _cancel_all__call_laters()
-					pass
-		handle = BigWorld.callback(secs, wrapper)
-		self._callback_handles.append(handle)
-
-	def _cancel_all__call_laters(self):
-		for handle in self._callback_handles:
-			BigWorld.cancelCallback(handle)
-		self._callback_handles = []
-
-	def get_client_meta_data(self, client_id, callback=_noop):
-		def on_finish(err, lines):
-			if err:
-				self._handle_api_error(err, "get_client_meta_data() failed")
-				callback(err, "")
-			else:
-				data = clientquery.getParamValue(lines[0], "client_meta_data")
-				if data is None:
-					LOG_WARNING("get_client_meta_data failed, value:", data)
-					callback(None, "")
-				else:
-					callback(None, data)
-		self._protocol.send_command("clientvariable clid={0} client_meta_data".format(client_id), on_finish)
-
-	def get_wot_nickname(self, client_id, callback=_noop):
-		def on_finish(err, data):
-			if err:
-				callback(err, None)
-			else:
-				callback(None, self._get_wot_nick_from_metadata(data))
-		self.get_client_meta_data(client_id, on_finish)
-
-	def _get_wot_nick_from_metadata(self, data):
-		matches = re.search(self.NICK_META_PATTERN, data)
-		if matches:
-			return matches.group(1)
-		return ""
-
-	def set_wot_nickname(self, name):
-		if name is None or self.my_client_id is None:
-			return
-		def on_get_client_meta_data(err, data):
-			if data is not None:
-				new_tag = "<wot_nickname_start>{0}<wot_nickname_end>".format(name)
-				if re.search(self.NICK_META_PATTERN, data):
-					data = re.sub(self.NICK_META_PATTERN, new_tag, data)
-				else:
-					data += new_tag
-				self._protocol.send_command("clientupdate client_meta_data={0}".format(data))
-				self._invalidate_client_id(self.my_client_id)
-		self.get_client_meta_data(self.my_client_id, on_get_client_meta_data)
-
-	def _invalidate_client_id(self, client_id):
-		try:
-			del self._clients[client_id]
-		except:
-			pass
-
-	def get_client(self, client_id, callback=_noop):
-		def on_get_client_info(err, client_info):
-			if err:
-				callback(err, None)
-			else:
-				self._save_client_data(
-					client_id=client_info[0],
-					client_nick=client_info[1],
-					wot_nick=client_info[2]
-				)
-				callback(None, self._clients[client_id])
-
-		if client_id in self._clients:
-			callback(None, self._clients[client_id])
-		else:
-			self.get_client_info(client_id, on_get_client_info)
-
-	def get_clientlist(self, callback=_noop):
-		def on_clientlist(err, lines):
-			if err:
-				self._handle_api_error(err, "get_clientlist() failed")
-				callback(err, None)
-			else:
-				callback(None, lines[0].split('|'))
-		self._protocol.send_command("clientlist -uid", on_clientlist)
-
-	def get_client_info(self, client_id, callback=_noop):
-		def on_query_clientgetuidfromclid(err, ts_nickname):
-			def on_get_wot_nickname(err, wot_nickname):
-				if err:
-					callback(err, None)
-				else:
-					callback(None, (client_id, ts_nickname, wot_nickname))
-			if err:
-				callback(err, None)
-			else:
-				self.get_wot_nickname(client_id, on_get_wot_nickname)
-		self.query_clientgetuidfromclid(client_id, on_query_clientgetuidfromclid)
-
-	def query_clientgetuidfromclid(self, client_id, callback=_noop):
-		try:
-			del self._clientuidfromclid_cache[client_id]
-		except KeyError:
-			pass
-
-		wait_end_t = time.time() + 10
-
-		def wait_notify():
-			if client_id in self._clientuidfromclid_cache:
-				callback(None, self._clientuidfromclid_cache[client_id])
-			elif time.time() < wait_end_t:
-				self._call_later(0.1, wait_notify)
-			else:
-				LOG_ERROR("Event notifyclientuidfromclid not received")
-				callback("Event notifyclientuidfromclid not received", None)
-
-		def on_clientgetuidfromclid(err, lines):
-			if err:
-				self._handle_api_error(err, "clientgetuidfromclid() failed")
-				callback(err, None)
-			else:
-				wait_notify()
-		self._protocol.send_command("clientgetuidfromclid clid={0}".format(client_id), on_clientgetuidfromclid)
-
-	def on_notifytalkstatuschange_ts3_event(self, line):
-		client_id = int(clientquery.getParamValue(line, 'clid'))
-		talking = int(clientquery.getParamValue(line, 'status')) == 1
-		if client_id not in self.users:
-			return
-		if client_id not in self._speak_states:
-			self._speak_states[client_id] = False
-		if self._speak_states[client_id] != talking:
-			self._speak_states[client_id] = talking
-			user = self.users[client_id]
-			def on_get_client(err, client):
-				if not err:
-					user.wot_nick = client["wot-nickname"]
-					self.on_talk_status_changed(user, talking)
-			self.get_client(client_id, on_get_client)
-
-	def on_notifyclientupdated_ts3_event(self, line):
-		client_id = int(clientquery.getParamValue(line, 'clid'))
-		self._invalidate_client_id(client_id)
-
-	def on_notifyclientuidfromclid_ts3_event(self, line):
-		client_id = int(clientquery.getParamValue(line, 'clid'))
-		nickname = clientquery.getParamValue(line, "nickname")
-		self._clientuidfromclid_cache[client_id] = nickname
-
-	def on_notifycliententerview_ts3_event(self, line):
-		'''This event handler is called when a TS user enters to the TS server.'''
-		client_id = int(clientquery.getParamValue(line, 'clid'))
-		self._invalidate_client_id(client_id)
-		self.users.add(
-			nick      = clientquery.getParamValue(line, 'client_nickname'),
-			wot_nick  = self._get_wot_nick_from_metadata(clientquery.getParamValue(line, 'client_meta_data')),
-			client_id  = client_id,
-			unique_id  = clientquery.getParamValue(line, 'client_unique_identifier'),
-			channel_id = int(clientquery.getParamValue(line, 'ctid'))
-		)
-
-	def on_notifyclientleftview_ts3_event(self, line):
-		'''This event handler is called when a TS user leaves from the TS server.'''
-		client_id = int(clientquery.getParamValue(line, 'clid'))
-		self.users.remove(client_id)
-
-	def on_notifyclientmoved_ts3_event(self, line):
-		'''This event handler is called when a TS user moves from one channel to another.'''
-		self.users.add(
-			client_id = int(clientquery.getParamValue(line, 'clid')),
-			channel_id = int(clientquery.getParamValue(line, 'ctid'))
-		)
-
-	def _save_client_data(self, client_id, client_nick, wot_nick):
-		self._clients[client_id] = {
-			"ts-nickname": client_nick,
-			"wot-nickname": wot_nick
-		}

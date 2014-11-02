@@ -15,21 +15,17 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-def on_talk_status_changed(user, talking):
-	'''Called when TeamSpeak user's talk status changes.
-	Parameters:
-		user: a dict with WOT nickname (empty if not available) and TeamSpeak nickname 
-		talking: True if talking, False otherwise
-	'''
+def on_speak_status_changed(user):
+	'''Called when TeamSpeak user's speak status changes.'''
 	if not settings().get_wot_nick_from_ts_metadata():
 		user.wot_nick = ""
 	player_name = user.wot_nick if user.wot_nick else map_nick_to_wot_nick(extract_nick(user.nick))
-	talk_status(player_name, talking)
-	if talking:
-		# set talking state immediately
+	talk_status(player_name, user.speaking)
+	if user.speaking:
+		# set speaking state immediately
 		update_player_speak_status(player_name)
 	else:
-		# keep talking state for a little longer
+		# keep speaking state for a little longer
 		BigWorld.callback(settings().get_speak_stop_delay(), utils.with_args(update_player_speak_status, player_name))
 
 def extract_nick(ts_nickname):
@@ -147,8 +143,7 @@ def on_ts3_user_in_my_channel_added(client_id):
 	'''This function populates user cache with TeamSpeak users whenever they
 	enter our TeamSpeak channel.
 	'''
-	user = g_ts.users_in_my_channel[client_id]
-	g_user_cache.add_ts_user(user)
+	g_user_cache.add_ts_user(g_ts.users[client_id])
 
 def load_settings():
 	LOG_NOTE("Settings loaded from ini file")
@@ -211,7 +206,7 @@ def load_mod():
 	g_ts.on_disconnected += on_disconnected_from_ts3
 	g_ts.on_connected_to_server += on_connected_to_ts3_server
 	g_ts.on_disconnected_from_server += on_disconnected_from_ts3_server
-	g_ts.on_talk_status_changed += on_talk_status_changed
+	g_ts.on_speak_status_changed += on_speak_status_changed
 	g_ts.users_in_my_channel.on_added += on_ts3_user_in_my_channel_added
 	utils.call_in_loop(settings().get_client_query_interval(), g_ts.check_events)
 

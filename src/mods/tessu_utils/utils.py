@@ -25,6 +25,12 @@ import functools
 import inspect
 import time
 
+def noop(*args, **kwargs):
+	'''Function that does nothing. A safe default value for callback
+	parameters.
+	'''
+	pass
+
 def call_in_loop(secs, func):
 	def wrapper(*args, **kwargs):
 		func(*args, **kwargs)
