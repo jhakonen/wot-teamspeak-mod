@@ -19,6 +19,8 @@ import BigWorld
 import debug_utils
 from gui import SystemMessages
 from gui.WindowsManager import g_windowsManager
+from messenger.storage import storage_getter
+from messenger.proto.bw import find_criteria
 import ResMgr
 import os
 import functools
@@ -172,6 +174,46 @@ def get_ini_dir_path():
 		if os.path.isdir(path):
 			return path
 	return ""
+
+def get_players(in_battle=False, in_prebattle=False, clanmembers=False, friends=False):
+	if in_battle:
+		try:
+			vehicles = BigWorld.player().arena.vehicles
+			for id in vehicles:
+				vehicle = vehicles[id]
+				yield Player(vehicle["name"], vehicle["accountDBID"])
+		except AttributeError:
+			pass
+	if in_prebattle:
+		try:
+			rosters = BigWorld.player().prebattle.rosters
+			for roster in rosters:
+				for id in rosters[roster]:
+					info = rosters[roster][id]
+					yield Player(info["name"], info["dbID"])
+		except AttributeError:
+			pass
+	users_storage = storage_getter('users')()
+	if clanmembers:
+		for member in users_storage.getClanMembersIterator(False):
+			yield Player(member.getName(), member.getID())
+	if friends:
+		for friend in users_storage.getList(find_criteria.BWFriendFindCriteria()):
+			yield Player(friend.getName(), friend.getID())
+
+class Player(object):
+
+	def __init__(self, name, id):
+		self._name = name
+		self._id = id
+
+	@property
+	def name(self):
+		return self._name
+
+	@property
+	def id(self):
+		return self._id
 
 class MinimapMarkersController(object):
 	'''MinimapMarkersController class repeatably starts given marker 'action' every

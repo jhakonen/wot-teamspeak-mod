@@ -17,16 +17,25 @@
 
 def on_speak_status_changed(user):
 	'''Called when TeamSpeak user's speak status changes.'''
+	g_user_cache.add_ts_user(user.nick, user.unique_id)
+
 	if not settings().get_wot_nick_from_ts_metadata():
 		user.wot_nick = ""
 	player_name = user.wot_nick if user.wot_nick else map_nick_to_wot_nick(extract_nick(user.nick))
-	talk_status(player_name, user.speaking)
-	if user.speaking:
-		# set speaking state immediately
-		update_player_speak_status(player_name)
-	else:
-		# keep speaking state for a little longer
-		BigWorld.callback(settings().get_speak_stop_delay(), utils.with_args(update_player_speak_status, player_name))
+	player_name = player_name.lower()
+	for player in utils.get_players(in_battle=True, in_prebattle=True):
+		if player.name.lower() == player_name:
+			g_user_cache.add_player(player.name, player.id)
+			g_user_cache.pair(player_id=player.id, ts_user_id=user.unique_id)
+
+	for player_id in g_user_cache.get_paired_player_ids(user.unique_id):
+		talk_status(player_id, user.speaking)
+		if user.speaking:
+			# set speaking state immediately
+			update_player_speak_status(player_id)
+		else:
+			# keep speaking state for a little longer
+			BigWorld.callback(settings().get_speak_stop_delay(), utils.with_args(update_player_speak_status, player_id))
 
 def extract_nick(ts_nickname):
 	'''Extracts WOT nickname (or something that can be passed to mapping
@@ -54,30 +63,28 @@ def map_nick_to_wot_nick(ts_nickname):
 	except:
 		return ts_nickname
 
-def talk_status(player_name, talking=None):
-	player_name = player_name.lower()
+def talk_status(player_id, talking=None):
 	if talking is not None:
-		g_talk_states[player_name] = talking
+		g_talk_states[player_id] = talking
 	try:
-		return g_talk_states[player_name]
+		return g_talk_states[player_id]
 	except:
 		return False
 
-def update_player_speak_status(player_name):
-	'''Updates given 'player_name's talking status to VOIP system and minimap.''' 
-	player_name = player_name.lower()
-	info = utils.get_player_info_by_name(player_name)
+def update_player_speak_status(player_id):
+	'''Updates given 'player_id's talking status to VOIP system and minimap.''' 
+	info = utils.get_player_info_by_dbid(player_id)
 	if not info:
 		return
 	try:
-		talking = is_voice_chat_speak_allowed(player_name) and talk_status(player_name)
-		VOIP.getVOIPManager().setPlayerTalking(info["dbid"], talking)
+		talking = is_voice_chat_speak_allowed(player_id) and talk_status(player_id)
+		VOIP.getVOIPManager().setPlayerTalking(player_id, talking)
 	except:
 		LOG_CURRENT_EXCEPTION()
 	try:
 		talking = (
-			talk_status(player_name) and
-			is_minimap_speak_allowed(player_name) and
+			talk_status(player_id) and
+			is_minimap_speak_allowed(player_id) and
 			utils.get_vehicle(info["vehicle_id"])["isAlive"]
 		)
 		if talking:
@@ -91,30 +98,29 @@ def update_player_speak_status(player_name):
 	except:
 		LOG_CURRENT_EXCEPTION()
 
-def is_voice_chat_speak_allowed(player_name):
+def is_voice_chat_speak_allowed(player_id):
 	if not settings().is_voice_chat_notifications_enabled():
 		return False
-	if not settings().is_self_voice_chat_notifications_enabled() and utils.get_my_name().lower() == player_name.lower():
+	if not settings().is_self_voice_chat_notifications_enabled() and utils.get_my_dbid() == player_id:
 		return False
 	return True
 
-def is_minimap_speak_allowed(player_name):
+def is_minimap_speak_allowed(player_id):
 	if not settings().is_minimap_notifications_enabled():
 		return False
-	if not settings().is_self_minimap_notifications_enabled() and utils.get_my_name().lower() == player_name.lower():
+	if not settings().is_self_minimap_notifications_enabled() and utils.get_my_dbid() == player_id:
 		return False
 	return True
 
 def clear_speak_statuses():
 	'''Clears speak status of all players.'''
-	players_speaking = [name for name in g_talk_states if g_talk_states[name]]
+	players_speaking = [id for id in g_talk_states if g_talk_states[id]]
 	g_talk_states.clear()
 	g_minimap_ctrl.stop_all()
 
-	for name in players_speaking:
+	for id in players_speaking:
 		try:
-			info = utils.get_player_info_by_name(name)
-			VOIP.getVOIPManager().setPlayerTalking(info["dbid"], False)
+			VOIP.getVOIPManager().setPlayerTalking(id, False)
 		except:
 			pass
 
@@ -143,7 +149,8 @@ def on_ts3_user_in_my_channel_added(client_id):
 	'''This function populates user cache with TeamSpeak users whenever they
 	enter our TeamSpeak channel.
 	'''
-	g_user_cache.add_ts_user(g_ts.users[client_id])
+	user = g_ts.users[client_id]
+	g_user_cache.add_ts_user(user.nick, user.unique_id)
 
 def load_settings():
 	LOG_NOTE("Settings loaded from ini file")
@@ -165,8 +172,7 @@ def VOIPManager_isParticipantTalking(orig_method):
 		current speaking status.
 		'''
 		try:
-			player_name = utils.get_player_info_by_dbid(dbid)["player_name"]
-			return is_voice_chat_speak_allowed(player_name) and talk_status(player_name)
+			return is_voice_chat_speak_allowed(dbid) and talk_status(dbid)
 		except:
 			LOG_CURRENT_EXCEPTION()
 		return orig_method(self, dbid)
@@ -178,11 +184,8 @@ def on_users_rosters_received():
 	the game.
 	Users storage should be available and populated by now.
 	'''
-	users_storage = storage_getter('users')()
-	for friend in users_storage.getList(find_criteria.BWFriendFindCriteria()):
-		g_user_cache.add_player(friend)
-	for member in users_storage.getClanMembersIterator(False):
-		g_user_cache.add_player(member)
+	for player in utils.get_players(clanmembers=True, friends=True):
+		g_user_cache.add_player(player.name, player.id)
 
 def in_test_suite():
 	import sys
@@ -231,8 +234,6 @@ try:
 	import VOIP
 	from gui import SystemMessages
 	from messenger.proto.events import g_messengerEvents
-	from messenger.storage import storage_getter
-	from messenger.proto.bw import find_criteria
 	import os
 
 	if not in_test_suite():

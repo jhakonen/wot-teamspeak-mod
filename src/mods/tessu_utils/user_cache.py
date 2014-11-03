@@ -63,17 +63,26 @@ class UserCache(object):
 	def set_ini_check_interval(self, interval):
 		self._ini_cache.ini_check_interval = interval
 
-	def add_ts_user(self, user):
-		LOG_NOTE("TS user: {0} ({1})".format(user.nick, user.unique_id))
-		if user.unique_id not in self._ts_users:
-			self._ts_users[user.unique_id] = user.nick
+	def add_ts_user(self, name, id):
+		LOG_NOTE("TS user: {0} ({1})".format(name, id))
+		if id not in self._ts_users:
+			self._ts_users[id] = name
 		self._ini_cache.write_needed()
 
-	def add_player(self, player):
-		LOG_NOTE("Player: {0} ({1})".format(player.getName(), player.getID()))
-		if player.getID() not in self._players:
-			self._players[player.getID()] = player.getName()
+	def add_player(self, name, id):
+		LOG_NOTE("Player: {0} ({1})".format(name, id))
+		if id not in self._players:
+			self._players[id] = name
 		self._ini_cache.write_needed()
+
+	def pair(player_id, ts_user_id):
+		pass
+
+	def get_paired_player_ids(ts_user_id):
+		for player_id in self._pairings:
+			ts_user_ids = self._pairings[player_id]
+			if ts_user_id in ts_user_ids:
+				yield player_id
 
 class INICache(object):
 
