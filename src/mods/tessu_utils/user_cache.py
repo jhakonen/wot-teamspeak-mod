@@ -37,11 +37,13 @@ class UserCache(object):
 
 	def _on_read(self, parser):
 		pairings = {}
-		for (player_nick,) in parser.items("PlayerUserPairings"):
+		for player_nick in parser.keys("PlayerUserPairings"):
 			player_id = parser.getint("GamePlayers", player_nick)
-			pairings[player_id] = [parser.getint("TeamSpeakUsers", ts_nick) for ts_nick in parser.getlist("PlayerUserPairings", player_nick)]
+			ts_nicks = parser.getlist("PlayerUserPairings", player_nick)
+			ts_ids = [parser.get("TeamSpeakUsers", ts_nick) for ts_nick in ts_nicks]
+			pairings[player_id] = ts_ids
 		ts_users = {id: nick for nick, id in parser.items("TeamSpeakUsers")}
-		players = {id: nick for nick, id in parser.items("GamePlayers")}
+		players = {int(id): nick for nick, id in parser.items("GamePlayers")}
 
 		self._ts_users = ts_users
 		self._players = players
@@ -64,21 +66,24 @@ class UserCache(object):
 		self._ini_cache.ini_check_interval = interval
 
 	def add_ts_user(self, name, id):
-		LOG_NOTE("TS user: {0} ({1})".format(name, id))
 		if id not in self._ts_users:
 			self._ts_users[id] = name
-		self._ini_cache.write_needed()
+			self._ini_cache.write_needed()
 
 	def add_player(self, name, id):
-		LOG_NOTE("Player: {0} ({1})".format(name, id))
 		if id not in self._players:
 			self._players[id] = name
-		self._ini_cache.write_needed()
+			self._ini_cache.write_needed()
 
-	def pair(player_id, ts_user_id):
-		pass
+	def pair(self, player_id, ts_user_id):
+		if player_id not in self._pairings:
+			self._pairings[player_id] = []
+			self._ini_cache.write_needed()
+		if ts_user_id not in self._pairings[player_id]:
+			self._pairings[player_id].append(ts_user_id)
+			self._ini_cache.write_needed()
 
-	def get_paired_player_ids(ts_user_id):
+	def get_paired_player_ids(self, ts_user_id):
 		for player_id in self._pairings:
 			ts_user_ids = self._pairings[player_id]
 			if ts_user_id in ts_user_ids:
@@ -154,13 +159,17 @@ class INICache(object):
 
 class ExtendedConfigParser(ConfigParser.SafeConfigParser):
 
+	def keys(self, section):
+		for key, value in self.items(section):
+			yield key
+
 	def getlist(self, section, option):
-		return csv.reader([self.get(section, option)])[0]
+		return csv.reader([self.get(section, option)]).next()
 
 	def set(self, section, option, value):
 		if isinstance(value, list) or isinstance(value, tuple):
-			string_io = io.StringIO()
-			csv_out = csv.writer(string_io)
+			bytes_io = io.BytesIO()
+			csv_out = csv.writer(bytes_io)
 			csv_out.writerow(value)
-			value = string_io.getvalue().rstrip("\r\n")
+			value = bytes_io.getvalue().rstrip("\r\n")
 		ConfigParser.SafeConfigParser.set(self, section, option, value)
