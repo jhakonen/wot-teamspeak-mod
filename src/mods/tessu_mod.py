@@ -19,9 +19,11 @@ def on_speak_status_changed(user):
 	'''Called when TeamSpeak user's speak status changes.'''
 	g_user_cache.add_ts_user(user.nick, user.unique_id)
 
+	player_name = user.wot_nick
 	if not settings().get_wot_nick_from_ts_metadata():
-		user.wot_nick = ""
-	player_name = user.wot_nick if user.wot_nick else map_nick_to_wot_nick(extract_nick(user.nick))
+		player_name = ""
+	if not player_name:
+		player_name = map_nick_to_wot_nick(extract_nick(user.nick))
 	player_name = player_name.lower()
 	for player in utils.get_players(in_battle=True, in_prebattle=True):
 		if player.name.lower() == player_name:
@@ -239,5 +241,4 @@ try:
 	if not in_test_suite():
 		load_mod()
 except:
-	raise
 	LOG_CURRENT_EXCEPTION()
