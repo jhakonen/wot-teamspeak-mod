@@ -166,7 +166,7 @@ class TS3Client(object):
 				for entry in entries:
 					self.users.add(
 						client_id  = int(clientquery.getParamValue(entry, 'clid')),
-						nick      = clientquery.getParamValue(entry, 'client_nickname'),
+						nick       = clientquery.getParamValue(entry, 'client_nickname'),
 						unique_id  = clientquery.getParamValue(entry, 'client_unique_identifier'),
 						channel_id = int(clientquery.getParamValue(entry, 'cid'))
 					)
@@ -277,6 +277,8 @@ class TS3Client(object):
 	def on_notifyclientupdated_ts3_event(self, line):
 		client_id = int(clientquery.getParamValue(line, "clid"))
 		metadata = clientquery.getParamValue(line, "client_meta_data")
+		if client_id not in self.users:
+			return
 		user = self.users[client_id]
 		if metadata:
 			user.wot_nick = self._get_wot_nick_from_metadata(metadata)
@@ -295,14 +297,17 @@ class TS3Client(object):
 	def on_notifyclientleftview_ts3_event(self, line):
 		'''This event handler is called when a TS user leaves from the TS server.'''
 		client_id = int(clientquery.getParamValue(line, 'clid'))
+		if client_id not in self.users:
+			return
 		self.users.remove(client_id)
 
 	def on_notifyclientmoved_ts3_event(self, line):
 		'''This event handler is called when a TS user moves from one channel to another.'''
-		self.users.add(
-			client_id  = int(clientquery.getParamValue(line, 'clid')),
-			channel_id = int(clientquery.getParamValue(line, 'ctid'))
-		)
+		client_id = int(clientquery.getParamValue(line, 'clid'))
+		channel_id = int(clientquery.getParamValue(line, 'ctid'))
+		if client_id not in self.users:
+			return
+		self.users.add(client_id=client_id, channel_id=channel_id)
 
 def _LOG_API_ERROR(message, err):
 	if err:
