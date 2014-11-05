@@ -10,11 +10,11 @@ This mod enables ingame notifications when a player speaks in TS. The notificati
   - speaker icon on top of a tank in battle
 - Notication in minimap around speaking player's tank marker
 
-Compatible with WOT version 0.9.3. 
+Compatible with WOT version 0.9.4. 
 
 Installation
 ------------
-1. [Download the mod](http://db.orangedox.com/8aLAZjfrFVmInPwtol/TessuMod-0.3.3.zip) and extract it to your WOT folder.
+1. [Download the mod](http://db.orangedox.com/JhI1RNg8D2UYCgEyF4/TessuMod-0.3.4.zip) and extract it to your WOT folder.
 2. Download and install TS 3 client from http://www.teamspeak.com/?page=downloads
 
 Usage
@@ -84,6 +84,7 @@ Changelog
 Version 0.4.0, master:
 - Added behavior test suite.
 - Added coverage reporting for behavior tests.
+- Added support to WOT version 0.9.4.
 
 Version 0.3.3, 12.10.2014:
 - Removed logging spam while speaking in garage.
