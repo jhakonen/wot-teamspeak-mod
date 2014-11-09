@@ -16,3 +16,4 @@ def LOG_ERROR(msg, *args):
 
 def LOG_CURRENT_EXCEPTION():
 	logs.append(("EXCEPTION", traceback.format_exc(), []))
+	print traceback.format_exc()

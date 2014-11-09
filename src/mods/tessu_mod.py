@@ -159,7 +159,10 @@ def load_settings():
 	utils.CURRENT_LOG_LEVEL = settings().get_log_level()
 	g_ts.HOST = settings().get_client_query_host()
 	g_ts.PORT = settings().get_client_query_port()
-	g_user_cache.set_ini_check_interval(settings().get_ini_check_interval())
+
+def sync_configs():
+	g_user_cache.sync()
+	settings().sync()
 
 def Player_onBecomePlayer(orig_method):
 	def wrapper(self):
@@ -223,10 +226,11 @@ def load_mod():
 
 	g_messengerEvents.users.onUsersRosterReceived += on_users_rosters_received
 
+	utils.call_in_loop(settings().get_ini_check_interval, sync_configs)
 try:
 	import game
-	from tessu_utils.ts3 import TS3Client
 	from tessu_utils.utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
+	from tessu_utils.ts3 import TS3Client
 	from tessu_utils import utils
 	from tessu_utils.settings import settings
 	from tessu_utils.user_cache import UserCache

@@ -34,10 +34,13 @@ def noop(*args, **kwargs):
 	pass
 
 def call_in_loop(secs, func):
+	if not callable(secs):
+		secs_value = secs
+		secs = lambda: secs_value
 	def wrapper(*args, **kwargs):
 		func(*args, **kwargs)
-		BigWorld.callback(secs, wrapper)
-	BigWorld.callback(secs, wrapper)
+		BigWorld.callback(secs(), wrapper)
+	BigWorld.callback(secs(), wrapper)
 
 def with_args(func, *args, **kwargs):
 	def wrapper():

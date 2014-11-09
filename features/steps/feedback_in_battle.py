@@ -12,11 +12,11 @@ def step_impl(context):
 def step_impl(context, player_name):
 	context.game.add_player(player_name)
 
-@given("player \"{player_name}\" TS name is \"{ts_name}\" and has TessuMod installed")
+@given("TS user \"{ts_name}\" player name is \"{player_name}\" and has TessuMod installed")
 def step_impl(context, player_name, ts_name):
 	context.ts_client.add_user(ts_name, metadata="<wot_nickname_start>{0}<wot_nickname_end>".format(player_name))
 
-@given("user \"{ts_name}\" is in TS")
+@given("TS user \"{ts_name}\" is in my channel")
 def step_impl(context, ts_name):
 	context.ts_client.add_user(ts_name)
 

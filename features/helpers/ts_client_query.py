@@ -53,11 +53,13 @@ class TSClientQueryService(object):
 	def set_connected_to_server(self, connected):
 		self._data.connected_to_server = connected
 
-	def add_user(self, name, metadata=""):
+	def add_user(self, name, **kwargs):
 		if name not in self._clids:
 			self._clids.append(name)
 		clid = str(self._clids.index(name))
-		self._data.users[clid] = User(service=self, name=name, clid=clid, metadata=metadata)
+		if clid not in self._data.users:
+			self._data.users[clid] = User(service=self, name=name, clid=clid)
+		self._data.users[clid].set(**kwargs)
 
 	def get_user(self, name):
 		for clid in self._data.users:
@@ -103,15 +105,23 @@ class TSClientQueryService(object):
 
 class User(object):
 
-	def __init__(self, service, name, clid, metadata):
+	def __init__(self, service, name, clid):
 		self._service = service
 		self._name = name
-		self._clid = clid
-		self._cid = str(1)
-		self._cluid = "BAADF00D" + clid
-		self._schandlerid = ""
-		self._metadata = metadata
-		self._speaking = False
+		self._clid = str(clid)
+		self._cid = None
+		self._cluid = None
+		self._schandlerid = None
+		self._metadata = None
+		self._speaking = None
+		self.set()
+
+	def set(self, **kwargs):
+		self.cid = str(kwargs["cid"] if "cid" in kwargs else 1)
+		self.cluid = str(kwargs["cluid"] if "cluid" in kwargs else "BAADF00D" + self._clid)
+		self.schandlerid = str(kwargs["schandlerid"] if "schandlerid" in kwargs else 1)
+		self.metadata = str(kwargs["metadata"] if "metadata" in kwargs else "")
+		self.speaking = kwargs["speaking"] if "speaking" in kwargs else False
 
 	@property
 	def name(self):
@@ -124,34 +134,45 @@ class User(object):
 	@property
 	def cid(self):
 		return self._cid
+	@cid.setter
+	def cid(self, value):
+		self._cid = value
 
 	@property
 	def cluid(self):
 		return self._cluid
+	@cluid.setter
+	def cluid(self, value):
+		self._cluid = value
 
 	@property
 	def schandlerid(self):
 		return self._schandlerid
+	@schandlerid.setter
+	def schandlerid(self, value):
+		self._schandlerid = value
 
 	@property
 	def metadata(self):
 		return self._metadata
 	@metadata.setter
 	def metadata(self, value):
-		self._metadata = value
-		self._service.send_event("notifyclientupdated schandlerid={0} clid={1} client_meta_data={2}".format(
-			self._schandlerid,
-			self._clid,
-			self._metadata
-		))
+		if self._metadata != value:
+			self._metadata = value
+			self._service.send_event("notifyclientupdated schandlerid={0} clid={1} client_meta_data={2}".format(
+				self._schandlerid,
+				self._clid,
+				self._metadata
+			))
 
 	@property
 	def speaking(self):
 		return self._speaking
 	@speaking.setter
 	def speaking(self, value):
-		self._speaking = value
-		self._service.send_event("notifytalkstatuschange status={0} clid={1}".format(1 if value else 0, self._clid))
+		if self._speaking != value:
+			self._speaking = value
+			self._service.send_event("notifytalkstatuschange status={0} clid={1}".format(1 if value else 0, self._clid))
 
 class Data(object):
 	def __init__(self):

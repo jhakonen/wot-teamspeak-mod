@@ -36,46 +36,49 @@ class UserCache(object):
 		self._ini_cache.init()
 
 	def _on_read(self, parser):
-		pairings = {}
-		for player_nick in parser.keys("PlayerUserPairings"):
-			player_id = parser.getint("GamePlayers", player_nick)
-			ts_nicks = parser.getlist("PlayerUserPairings", player_nick)
-			ts_ids = [parser.get("TeamSpeakUsers", ts_nick) for ts_nick in ts_nicks]
-			pairings[player_id] = ts_ids
-		ts_users = {id: nick for nick, id in parser.items("TeamSpeakUsers")}
-		players = {int(id): nick for nick, id in parser.items("GamePlayers")}
+		ts_users   = {nick.lower(): id for nick, id in parser.items("TeamSpeakUsers")}
+		ts_users_r = {id: nick for nick, id in ts_users.iteritems()}
+		players    = {nick.lower(): id for nick, id in parser.items("GamePlayers")}
+		players_r  = {id: nick for id, nick in players.iteritems()}
 
-		self._ts_users = ts_users
-		self._players = players
-		self._pairings = pairings
+		nick_pairings = {p_nick.lower(): csv_split(ts_nicks.lower()) for p_nick, ts_nicks in parser.items("PlayerUserPairings")}
+
+		id_pairings = {}
+		for player_nick in nick_pairings:
+			id_pairings[players[player_nick.lower()]] = [ts_users[ts_nick] for ts_nick in nick_pairings[player_nick]]
+
+		self._ts_users = ts_users_r
+		self._players = players_r
+		self._pairings = id_pairings
 
 	def _on_write(self, parser):
 		parser.add_section("TeamSpeakUsers")
 		parser.add_section("GamePlayers")
 		parser.add_section("PlayerUserPairings")
 		for id in self._ts_users:
-			parser.set("TeamSpeakUsers", self._ts_users[id], str(id))
+			parser.set("TeamSpeakUsers", ini_escape(self._ts_users[id]), str(id))
 		for id in self._players:
-			parser.set("GamePlayers", self._players[id], str(id))
+			parser.set("GamePlayers", ini_escape(self._players[id]), str(id))
 		for player_id in self._pairings:
 			player_nick = self._players[player_id]
 			ts_nicks = [self._ts_users[ts_id] for ts_id in self._pairings[player_id]]
-			parser.set("PlayerUserPairings", player_nick, ts_nicks)
-
-	def set_ini_check_interval(self, interval):
-		self._ini_cache.ini_check_interval = interval
+			parser.set("PlayerUserPairings", ini_escape(player_nick), ini_escape(csv_join(ts_nicks)))
 
 	def add_ts_user(self, name, id):
+		id = str(id)
 		if id not in self._ts_users:
-			self._ts_users[id] = name
+			self._ts_users[id] = name.lower()
 			self._ini_cache.write_needed()
 
 	def add_player(self, name, id):
+		id = str(id)
 		if id not in self._players:
-			self._players[id] = name
+			self._players[id] = name.lower()
 			self._ini_cache.write_needed()
 
 	def pair(self, player_id, ts_user_id):
+		player_id = str(player_id)
+		ts_user_id = str(ts_user_id)
 		if player_id not in self._pairings:
 			self._pairings[player_id] = []
 			self._ini_cache.write_needed()
@@ -84,17 +87,20 @@ class UserCache(object):
 			self._ini_cache.write_needed()
 
 	def get_paired_player_ids(self, ts_user_id):
+		ts_user_id = str(ts_user_id)
 		for player_id in self._pairings:
 			ts_user_ids = self._pairings[player_id]
 			if ts_user_id in ts_user_ids:
 				yield player_id
+
+	def sync(self):
+		self._ini_cache.sync()
 
 class INICache(object):
 
 	def __init__(self, ini_path):
 		self._sync_time = 0
 		self._parser = None
-		self._check_interval = 5
 		self._write_needed = False
 		self._ini_path = ini_path
 		self.on_read = Event.Event()
@@ -103,15 +109,7 @@ class INICache(object):
 	def init(self):
 		self._read_cache_file()
 		self._write_cache_file()
-		self._sync()
-
-	@property
-	def check_interval(self):
-		return self._check_interval
-
-	@check_interval.setter
-	def ini_check_interval(self, interval):
-		self._check_interval = interval
+		self.sync()
 
 	def write_needed(self):
 		self._write_needed = True
@@ -119,7 +117,7 @@ class INICache(object):
 	def _read_cache_file(self):
 		if not os.path.isfile(self._ini_path):
 			return
-		parser = ExtendedConfigParser()
+		parser = ConfigParser.SafeConfigParser()
 		if not parser.read(self._ini_path):
 			LOG_ERROR("Failed to parse ini file '{0}'"
 				.format(self._ini_path))
@@ -131,14 +129,14 @@ class INICache(object):
 		self._sync_time = self._get_modified_time()
 
 	def _write_cache_file(self):
-		parser = ExtendedConfigParser()
+		parser = ConfigParser.SafeConfigParser()
 		self.on_write(parser)
 		with open(self._ini_path, "w") as f:
 			parser.write(f)
 		self._update_sync_time()
 		self._write_needed = False
 
-	def _sync_cache_file(self):
+	def sync(self):
 		if self._is_cache_file_modified():
 			self._read_cache_file()
 		elif self._should_write_cache_file():
@@ -153,23 +151,14 @@ class INICache(object):
 	def _should_write_cache_file(self):
 		return self._write_needed or not os.path.isfile(self._ini_path)
 
-	def _sync(self):
-		self._sync_cache_file()
-		BigWorld.callback(self.ini_check_interval, self._sync)
+def csv_split(string_value):
+	return csv.reader([string_value]).next()
 
-class ExtendedConfigParser(ConfigParser.SafeConfigParser):
+def csv_join(list_value):
+	bytes_io = io.BytesIO()
+	csv_out = csv.writer(bytes_io)
+	csv_out.writerow(list_value)
+	return bytes_io.getvalue().rstrip("\r\n")
 
-	def keys(self, section):
-		for key, value in self.items(section):
-			yield key
-
-	def getlist(self, section, option):
-		return csv.reader([self.get(section, option)]).next()
-
-	def set(self, section, option, value):
-		if isinstance(value, list) or isinstance(value, tuple):
-			bytes_io = io.BytesIO()
-			csv_out = csv.writer(bytes_io)
-			csv_out.writerow(value)
-			value = bytes_io.getvalue().rstrip("\r\n")
-		ConfigParser.SafeConfigParser.set(self, section, option, value)
+def ini_escape(value):
+	return re.sub(r"[\[\]=:\\]", "*", value)

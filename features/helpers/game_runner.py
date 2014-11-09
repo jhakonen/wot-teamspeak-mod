@@ -78,12 +78,13 @@ def game_main(from_runner_queue, to_runner_queue, mod_path, ini_dir_path):
 
 		# create directory structure for ini-file
 		try:
-			os.makedirs(os.path.dirname(ini_dir_path))
+			os.makedirs(ini_dir_path)
 		except:
 			pass
 		# remove previous ini-file (if one exists)
 		try:
-			os.remove(ini_dir_path)
+			for file_name in os.listdir(ini_dir_path):
+				os.remove(os.path.join(ini_dir_path, file_name))
 		except:
 			pass
 		import tessu_mod
@@ -195,7 +196,7 @@ class GameService(object):
 
 	def reload_ini_file(self):
 		from tessu_utils.settings import settings
-		settings().reload()
+		settings().sync()
 
 	def _get_player_dbid(self, player_name):
 		import BigWorld

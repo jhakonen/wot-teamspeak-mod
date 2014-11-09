@@ -7,9 +7,9 @@ Feature: Feedback in garage
 		Given WOT is running and in garage
 		  And TS is running
 		  And TS is connected to server
-		  And user "Erkki Meikalainen" is in TS
+		  And TS user "Erkki Meikalainen" is in my channel
 		  And player "TuhoajaErkki" is logged in
-		  And player "SomeGuy" TS name is "Erkki Meikalainen" and has TessuMod installed
+		  And TS user "Erkki Meikalainen" player name is "SomeGuy" and has TessuMod installed
 		  And TS user "Erkki Meikalainen" is speaking
 		 When TS user "Erkki Meikalainen" stops speaking
 		  And TS user "Erkki Meikalainen" player name changes to "TuhoajaErkki"
