@@ -18,6 +18,9 @@ for root, dirs, files in os.walk(SRC_DIR):
 		os.mkdir(build_dir)
 
 	for filename in fnmatch.filter(files, "*.py"):
+		# ignore unit test files
+		if filename.endswith("_test.py"):
+			continue
 		filepath = os.path.join(root, filename)
 		py_compile.compile(file=os.path.join(src_dir, filename), cfile=os.path.join(build_dir, filename)+"c", doraise=True)
 

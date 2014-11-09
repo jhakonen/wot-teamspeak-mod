@@ -59,7 +59,7 @@ Easy one liner (using 7-zip's command line tool 7za.exe) to compile and install 
 
 Tests
 -----
-TessuMod has a battery of behaviour tests.
+TessuMod has a battery of unit and behaviour tests.
 
 To execute them you need:
  * Windows
@@ -67,12 +67,17 @@ To execute them you need:
  * Python 2.7
  * [Behave](http://pythonhosted.org/behave/install.html) test runner
  * [Coverage.py](https://pypi.python.org/pypi/coverage)
+ * [Nose](https://nose.readthedocs.org/en/latest)
 
-Execute in command prompt:
+Execute behavior tests in command prompt with:
 
     behave
 
 Coverage report is shown at end of the execution and is also generated in html form to coverage_report subfolder.
+
+For unit tests execute in command prompt:
+
+    nosetests
 
 TODO
 ----
@@ -82,7 +87,8 @@ TODO
 Changelog
 ---------
 Version 0.4.0, master:
-- Added behavior test suite.
+- Added caching of matched TS users and players.
+- Added unit and behavior tests.
 - Added coverage reporting for behavior tests.
 - Added support to WOT version 0.9.4.
 

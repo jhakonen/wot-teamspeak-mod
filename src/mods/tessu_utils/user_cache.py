@@ -22,7 +22,6 @@ import re
 import io
 import cStringIO
 from utils import LOG_ERROR, LOG_NOTE
-import BigWorld
 import Event
 
 _GENERAL_HELP = """
