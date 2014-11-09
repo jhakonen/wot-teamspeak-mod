@@ -218,6 +218,9 @@ class Player(object):
 	def id(self):
 		return self._id
 
+	def __repr__(self):
+		return "Player(name={0}, id={1})".format(self._name, self._id)
+
 class MinimapMarkersController(object):
 	'''MinimapMarkersController class repeatably starts given marker 'action' every
 	'interval' seconds in minimap over given 'vehicle_id', effectively creating

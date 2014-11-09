@@ -29,6 +29,7 @@ def on_speak_status_changed(user):
 		if player.name.lower() == player_name:
 			g_user_cache.add_player(player.name, player.id)
 			g_user_cache.pair(player_id=player.id, ts_user_id=user.unique_id)
+			break
 
 	for player_id in g_user_cache.get_paired_player_ids(user.unique_id):
 		talk_status(player_id, user.speaking)

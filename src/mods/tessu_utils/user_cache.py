@@ -36,33 +36,31 @@ class UserCache(object):
 		self._ini_cache.init()
 
 	def _on_read(self, parser):
-		ts_users   = {nick.lower(): id for nick, id in parser.items("TeamSpeakUsers")}
-		ts_users_r = {id: nick for nick, id in ts_users.iteritems()}
-		players    = {nick.lower(): id for nick, id in parser.items("GamePlayers")}
-		players_r  = {id: nick for id, nick in players.iteritems()}
+		ts_users      = {nick.lower(): id for nick, id in parser.items("TeamSpeakUsers")}
+		players       = {nick.lower(): id for nick, id in parser.items("GamePlayers")}
+		nick_pairings = {ts_nick.lower(): csv_split(p_nicks.lower()) for ts_nick, p_nicks in parser.items("UserPlayerPairings")}
+		id_pairings   = {}
 
-		nick_pairings = {p_nick.lower(): csv_split(ts_nicks.lower()) for p_nick, ts_nicks in parser.items("PlayerUserPairings")}
+		for ts_nick in nick_pairings:
+			id_pairings[ts_users[ts_nick]] = [players[player_nick] for player_nick in nick_pairings[ts_nick]]
 
-		id_pairings = {}
-		for player_nick in nick_pairings:
-			id_pairings[players[player_nick.lower()]] = [ts_users[ts_nick] for ts_nick in nick_pairings[player_nick]]
-
-		self._ts_users = ts_users_r
-		self._players = players_r
+		self._ts_users = {id: nick for nick, id in ts_users.iteritems()}
+		self._players = {id: nick for id, nick in players.iteritems()}
 		self._pairings = id_pairings
 
 	def _on_write(self, parser):
 		parser.add_section("TeamSpeakUsers")
 		parser.add_section("GamePlayers")
-		parser.add_section("PlayerUserPairings")
-		for id in self._ts_users:
-			parser.set("TeamSpeakUsers", ini_escape(self._ts_users[id]), str(id))
-		for id in self._players:
-			parser.set("GamePlayers", ini_escape(self._players[id]), str(id))
-		for player_id in self._pairings:
-			player_nick = self._players[player_id]
-			ts_nicks = [self._ts_users[ts_id] for ts_id in self._pairings[player_id]]
-			parser.set("PlayerUserPairings", ini_escape(player_nick), ini_escape(csv_join(ts_nicks)))
+		parser.add_section("UserPlayerPairings")
+		for id, nick in self._ts_users.iteritems():
+			parser.set("TeamSpeakUsers", ini_escape(nick), str(id))
+		for id, nick in self._players.iteritems():
+			parser.set("GamePlayers", ini_escape(nick), str(id))
+		for ts_id, player_ids in self._pairings.iteritems():
+			parser.set("UserPlayerPairings",
+				ini_escape(self._ts_users[ts_id]),
+				ini_escape(csv_join(self._players[player_id] for player_id in player_ids))
+			)
 
 	def add_ts_user(self, name, id):
 		id = str(id)
@@ -79,18 +77,17 @@ class UserCache(object):
 	def pair(self, player_id, ts_user_id):
 		player_id = str(player_id)
 		ts_user_id = str(ts_user_id)
-		if player_id not in self._pairings:
-			self._pairings[player_id] = []
+		if ts_user_id not in self._pairings:
+			self._pairings[ts_user_id] = []
 			self._ini_cache.write_needed()
-		if ts_user_id not in self._pairings[player_id]:
-			self._pairings[player_id].append(ts_user_id)
+		if player_id not in self._pairings[ts_user_id]:
+			self._pairings[ts_user_id].append(player_id)
 			self._ini_cache.write_needed()
 
 	def get_paired_player_ids(self, ts_user_id):
 		ts_user_id = str(ts_user_id)
-		for player_id in self._pairings:
-			ts_user_ids = self._pairings[player_id]
-			if ts_user_id in ts_user_ids:
+		if ts_user_id in self._pairings:
+			for player_id in self._pairings[ts_user_id]:
 				yield player_id
 
 	def sync(self):
