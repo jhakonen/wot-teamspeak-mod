@@ -20,9 +20,52 @@ import os
 import csv
 import re
 import io
+import cStringIO
 from utils import LOG_ERROR, LOG_NOTE
 import BigWorld
 import Event
+
+_GENERAL_HELP = """
+; This file stores paired TeamSpeak users and WOT players. When TessuMod
+; manages to match a TeamSpeak user to a WOT player ingame it stores the match
+; into this file. This allows TessuMod to match users in future even if the
+; player's name changes in TeamSpeak or in game.
+; 
+; All nick names in this cache are stored in lower case, no matter how they are
+; written in WOT or in TeamSpeak. Also, any ini-syntax's reserved characters
+; are replaced with '*'.
+""".strip()
+
+_TS_USERS_HELP = """
+; TessuMod will populate this section with TeamSpeak users who are in the same
+; TeamSpeak channel with you.
+; 
+; The users are stored as key/value pairs where key is user's nick name and
+; value is user's unique id. The nick doesn't have to be the real user nick
+; name, it can be anything. If you modify the nick name, make sure you also
+; update names used in UserPlayerPairings.
+""".strip()
+
+_PLAYERS_HELP  = """
+; TessuMod will populate this section with players from your friend and clan
+; member lists. Players are also added when someone speaks in your TeamSpeak
+; channel and TessuMod manages to match the user to player which isn't yet in
+; the cache.
+; 
+; The players are stored as key/value pairs where key is player's nick name and
+; value is player's id. The nick doesn't have to be the real player nick name,
+; it can be anything. If you modify the nick name, make sure you also update
+; names used in UserPlayerPairings.
+""".strip()
+
+_PAIRINGS_HELP = """
+; This section is updated when TessuMod, using nick matching rules, manages to
+; match TeamSpeak user to a WOT player.
+; 
+; The pairings are stored as key/value pairs where key is TeamSpeak nick name
+; and value is a list of WOT nick names that the TeamSpeak user will match
+; against. The WOT nick list is a comma-separated-value.
+""".strip()
 
 class UserCache(object):
 
@@ -33,6 +76,7 @@ class UserCache(object):
 		self._ini_cache = INICache(ini_path)
 		self._ini_cache.on_read += self._on_read
 		self._ini_cache.on_write += self._on_write
+		self._ini_cache.on_write_io += self._on_write_io
 		self._ini_cache.init()
 
 	def _on_read(self, parser):
@@ -61,6 +105,14 @@ class UserCache(object):
 				ini_escape(self._ts_users[ts_id]),
 				ini_escape(csv_join(self._players[player_id] for player_id in player_ids))
 			)
+
+	def _on_write_io(self, string_io):
+		ini_contents = string_io.getvalue()
+		ini_contents = ini_contents.replace("[TeamSpeakUsers]",     _TS_USERS_HELP + "\n[TeamSpeakUsers]", 1)
+		ini_contents = ini_contents.replace("[GamePlayers]",        _PLAYERS_HELP  + "\n[GamePlayers]", 1)
+		ini_contents = ini_contents.replace("[UserPlayerPairings]", _PAIRINGS_HELP + "\n[UserPlayerPairings]", 1)
+		string_io.truncate(0)
+		string_io.write(_GENERAL_HELP + "\n\n\n" + ini_contents)
 
 	def add_ts_user(self, name, id):
 		id = str(id)
@@ -102,6 +154,7 @@ class INICache(object):
 		self._ini_path = ini_path
 		self.on_read = Event.Event()
 		self.on_write = Event.Event()
+		self.on_write_io = Event.Event()
 
 	def init(self):
 		self._read_cache_file()
@@ -114,7 +167,7 @@ class INICache(object):
 	def _read_cache_file(self):
 		if not os.path.isfile(self._ini_path):
 			return
-		parser = ConfigParser.SafeConfigParser()
+		parser = ConfigParser.RawConfigParser()
 		if not parser.read(self._ini_path):
 			LOG_ERROR("Failed to parse ini file '{0}'"
 				.format(self._ini_path))
@@ -126,10 +179,13 @@ class INICache(object):
 		self._sync_time = self._get_modified_time()
 
 	def _write_cache_file(self):
-		parser = ConfigParser.SafeConfigParser()
+		parser = ConfigParser.RawConfigParser()
 		self.on_write(parser)
 		with open(self._ini_path, "w") as f:
-			parser.write(f)
+			string_io = cStringIO.StringIO()
+			parser.write(string_io)
+			self.on_write_io(string_io)
+			f.write(string_io.getvalue())
 		self._update_sync_time()
 		self._write_needed = False
 
