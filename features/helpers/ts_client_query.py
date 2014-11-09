@@ -157,22 +157,22 @@ class User(object):
 		return self._metadata
 	@metadata.setter
 	def metadata(self, value):
-		if self._metadata != value:
-			self._metadata = value
+		if self._metadata is not None and self._metadata != value:
 			self._service.send_event("notifyclientupdated schandlerid={0} clid={1} client_meta_data={2}".format(
 				self._schandlerid,
 				self._clid,
-				self._metadata
+				value
 			))
+		self._metadata = value
 
 	@property
 	def speaking(self):
 		return self._speaking
 	@speaking.setter
 	def speaking(self, value):
-		if self._speaking != value:
-			self._speaking = value
+		if self._speaking is not None and self._speaking != value:
 			self._service.send_event("notifytalkstatuschange status={0} clid={1}".format(1 if value else 0, self._clid))
+		self._speaking = value
 
 class Data(object):
 	def __init__(self):

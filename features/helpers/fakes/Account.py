@@ -18,6 +18,6 @@ class Prebattle(object):
 	def add_roster(self, name):
 		self.rosters["foo"][self.id_counter] = dict(
 			name=name,
-			dbID=str(random.randint(0, 1000000))
+			dbID=random.randint(0, 1000000)
 		)
 		self.id_counter += 1

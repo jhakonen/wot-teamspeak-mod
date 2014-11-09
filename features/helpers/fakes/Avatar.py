@@ -6,8 +6,8 @@ class TestArena(object):
 		self.vehicles = {}
 
 	def add_vehicle(self, name):
-		vehicle_id = str(random.randint(0, 1000000))
-		dbid = str(random.randint(0, 1000000))
+		vehicle_id = random.randint(0, 1000000)
+		dbid = random.randint(0, 1000000)
 		self.vehicles[vehicle_id] = dict(
 			accountDBID=dbid,
 			name=name

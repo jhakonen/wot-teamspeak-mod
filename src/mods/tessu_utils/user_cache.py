@@ -74,6 +74,7 @@ class UserCache(object):
 		self._players = {}
 		self._pairings = {}
 		self._ini_cache = INICache(ini_path)
+		self._ini_cache.on_init_cleanup = self._on_init_cleanup
 		self._ini_cache.on_read += self._on_read
 		self._ini_cache.on_write += self._on_write
 		self._ini_cache.on_write_io += self._on_write_io
@@ -89,8 +90,24 @@ class UserCache(object):
 			id_pairings[ts_users[ts_nick]] = [players[player_nick] for player_nick in nick_pairings[ts_nick]]
 
 		self._ts_users = {id: nick for nick, id in ts_users.iteritems()}
-		self._players = {id: nick for id, nick in players.iteritems()}
+		self._players = {id: nick for nick, id in players.iteritems()}
 		self._pairings = id_pairings
+
+	def _on_init_cleanup(self):
+		'''Removes TeamSpeak user and WOT players who do not appear in the pairings.'''
+		cleanup_ts_ids = [id for id in self._ts_users]
+		cleanup_player_ids = [id for id in self._players]
+		for ts_id, player_ids in self._pairings.iteritems():
+			cleanup_ts_ids.remove(ts_id)
+			for player_id in self._pairings[ts_id]:
+				try:
+					cleanup_player_ids.remove(player_id)
+				except:
+					pass
+		for id in cleanup_ts_ids:
+			del self._ts_users[id]
+		for id in cleanup_player_ids:
+			del self._players[id]
 
 	def _on_write(self, parser):
 		parser.add_section("TeamSpeakUsers")
@@ -103,7 +120,7 @@ class UserCache(object):
 		for ts_id, player_ids in self._pairings.iteritems():
 			parser.set("UserPlayerPairings",
 				ini_escape(self._ts_users[ts_id]),
-				ini_escape(csv_join(self._players[player_id] for player_id in player_ids))
+				ini_escape(csv_join([self._players[player_id] for player_id in player_ids]))
 			)
 
 	def _on_write_io(self, string_io):
@@ -115,7 +132,6 @@ class UserCache(object):
 		string_io.write(_GENERAL_HELP + "\n\n\n" + ini_contents)
 
 	def add_ts_user(self, name, id):
-		id = str(id)
 		if id not in self._ts_users:
 			self._ts_users[id] = name.lower()
 			self._ini_cache.write_needed()
@@ -140,7 +156,7 @@ class UserCache(object):
 		ts_user_id = str(ts_user_id)
 		if ts_user_id in self._pairings:
 			for player_id in self._pairings[ts_user_id]:
-				yield player_id
+				yield int(player_id)
 
 	def sync(self):
 		self._ini_cache.sync()
@@ -152,12 +168,14 @@ class INICache(object):
 		self._parser = None
 		self._write_needed = False
 		self._ini_path = ini_path
+		self.on_init_cleanup = Event.Event()
 		self.on_read = Event.Event()
 		self.on_write = Event.Event()
 		self.on_write_io = Event.Event()
 
 	def init(self):
 		self._read_cache_file()
+		self.on_init_cleanup()
 		self._write_cache_file()
 		self.sync()
 
