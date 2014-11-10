@@ -56,6 +56,13 @@ speak_stop_delay: 1
 ;  7. Jump back to step 5
 get_wot_nick_from_ts_metadata: on
 
+; When turned on enables updating of tessu_mod_cache.ini when playing replays.
+; Note that when playing someone else's replay your TS user will get paired
+; with the replay's player name if this option is turned on.
+; Useful for debugging purposes.
+; Changing this value requires game restart
+update_cache_in_replays: off
+
 ; Defines regular expressions for extracting WOT nickname from user's
 ; TS nickname, e.g. if TS nickname is:
 ;   "wot_nickname | real name"
@@ -177,6 +184,7 @@ class Settings(object):
 		self._parser.set("General", "ini_check_interval", "5")
 		self._parser.set("General", "speak_stop_delay", "1")
 		self._parser.set("General", "get_wot_nick_from_ts_metadata", "on")
+		self._parser.set("General", "update_cache_in_replays", "off")
 		self._parser.set("General", "nick_extract_patterns", "")
 		self._parser.add_section("NameMappings")
 		self._parser.add_section("TSClientQueryService")
@@ -218,6 +226,9 @@ class Settings(object):
 
 	def get_wot_nick_from_ts_metadata(self):
 		return self._parser.getboolean("General", "get_wot_nick_from_ts_metadata")
+
+	def should_update_cache_in_replays(self):
+		return self._parser.getboolean("General", "update_cache_in_replays")
 
 	def get_nick_extract_patterns(self):
 		patterns = []

@@ -184,6 +184,17 @@ def VOIPManager_isParticipantTalking(orig_method):
 		return orig_method(self, dbid)
 	return wrapper
 
+def BattleReplay_play(orig_method):
+	def wrapper(*args, **kwargs):
+		'''Called when replay is starting.
+		Prevents user cache from getting polluted by incorrect pairings; If user
+		plays someone else's replay and user's TS ID would get matched with the
+		replay's player name.
+		'''
+		g_user_cache.is_write_enabled = settings().should_update_cache_in_replays()
+		return orig_method(*args, **kwargs)
+	return wrapper
+
 def on_users_rosters_received():
 	'''This function populates user cache with friends and clan members from
 	user storage when user rosters are received at start when player logs in to
@@ -224,6 +235,7 @@ def load_mod():
 	Avatar.Avatar.onBecomePlayer = Player_onBecomePlayer(Avatar.Avatar.onBecomePlayer)
 	Account.PlayerAccount.onBecomePlayer = Player_onBecomePlayer(Account.PlayerAccount.onBecomePlayer)
 	VOIP.VOIPManager.isParticipantTalking = VOIPManager_isParticipantTalking(VOIP.VOIPManager.isParticipantTalking)
+	BattleReplay.BattleReplay.play = BattleReplay_play(BattleReplay.BattleReplay.play)
 
 	g_messengerEvents.users.onUsersRosterReceived += on_users_rosters_received
 
@@ -239,6 +251,7 @@ try:
 	import Avatar
 	import Account
 	import VOIP
+	import BattleReplay
 	from gui import SystemMessages
 	from messenger.proto.events import g_messengerEvents
 	import os

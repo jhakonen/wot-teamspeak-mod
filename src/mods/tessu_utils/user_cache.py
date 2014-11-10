@@ -30,6 +30,15 @@ _GENERAL_HELP = """
 ; into this file. This allows TessuMod to match users in future even if the
 ; player's name changes in TeamSpeak or in game.
 ; 
+; This file can be modified and changes are automatically loaded even when game
+; is running. The frequency of checks is determined by 'ini_check_interval'
+; option in tessu_mod.ini.
+;
+; This file will not update with new users, players or pairings when playing
+; replays. Although, if modified by user the done changes are still loaded
+; automatically. To enable updates with replays toggle 'update_cache_in_replays'
+; option in tessu_mod.ini to 'on'.
+; 
 ; All nick names in this cache are stored in lower case, no matter how they are
 ; written in WOT or in TeamSpeak. Also, any ini-syntax's reserved characters
 ; are replaced with '*'.
@@ -130,6 +139,14 @@ class UserCache(object):
 		string_io.truncate(0)
 		string_io.write(_GENERAL_HELP + "\n\n\n" + ini_contents)
 
+	@property
+	def is_write_enabled(self):
+		return self._ini_cache.is_write_allowed
+
+	@is_write_enabled.setter
+	def is_write_enabled(self, value):
+		self._ini_cache.is_write_allowed = value
+
 	def add_ts_user(self, name, id):
 		if id not in self._ts_users:
 			self._ts_users[id] = name.lower()
@@ -171,6 +188,7 @@ class INICache(object):
 		self.on_read = Event.Event()
 		self.on_write = Event.Event()
 		self.on_write_io = Event.Event()
+		self.is_write_allowed = True
 
 	def init(self):
 		self._read_cache_file()
@@ -196,14 +214,15 @@ class INICache(object):
 		self._sync_time = self._get_modified_time()
 
 	def _write_cache_file(self):
-		parser = ConfigParser.RawConfigParser()
-		self.on_write(parser)
-		with open(self._ini_path, "w") as f:
-			string_io = cStringIO.StringIO()
-			parser.write(string_io)
-			self.on_write_io(string_io)
-			f.write(string_io.getvalue())
-		self._update_sync_time()
+		if self.is_write_allowed:
+			parser = ConfigParser.RawConfigParser()
+			self.on_write(parser)
+			with open(self._ini_path, "w") as f:
+				string_io = cStringIO.StringIO()
+				parser.write(string_io)
+				self.on_write_io(string_io)
+				f.write(string_io.getvalue())
+			self._update_sync_time()
 		self._write_needed = False
 
 	def sync(self):
