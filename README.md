@@ -87,7 +87,8 @@ TODO
 Changelog
 ---------
 Version 0.4.0, master:
-- Added caching of matched TS users and players.
+- Changed location of ini-files to '\res_mods\configs\tessu_mod\' (issue #9).
+- Added caching of matched TS users and players (issue #5).
 - Added unit and behavior tests.
 - Added coverage reporting for behavior tests.
 - Added support to WOT version 0.9.4.

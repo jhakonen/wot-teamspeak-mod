@@ -169,6 +169,9 @@ def push_system_message(message, type):
 		return
 
 def get_ini_dir_path():
+	return os.path.join(os.getcwd(), "res_mods", "configs", "tessu_mod")
+
+def get_old_ini_dir_path():
 	res = ResMgr.openSection('../paths.xml')
 	sb = res['Paths']
 	vals = sb.values()

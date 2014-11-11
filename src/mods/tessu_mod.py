@@ -211,9 +211,22 @@ def in_test_suite():
 def load_mod():
 	global g_ts, g_talk_states, g_minimap_ctrl, g_user_cache
 
+	# make sure that ini-folder exists
+	try:
+		os.makedirs(utils.get_ini_dir_path())
+	except os.error:
+		pass
+	settings_ini_path     = os.path.join(utils.get_ini_dir_path(), "tessu_mod.ini")
+	old_settings_ini_path = os.path.join(utils.get_old_ini_dir_path(), "tessu_mod.ini")
+	cache_ini_path        = os.path.join(utils.get_ini_dir_path(), "tessu_mod_cache.ini")
+	# when updating from mod version 0.3.x to 0.4 (or newer) the ini-file needs
+	# to be copied to the new location
+	if os.path.isfile(old_settings_ini_path) and not os.path.isfile(settings_ini_path):
+		os.rename(old_settings_ini_path, settings_ini_path)
+
 	# do all intializations here
-	settings(os.path.join(utils.get_ini_dir_path(), "tessu_mod.ini")).on_reloaded += load_settings
-	g_user_cache = UserCache(os.path.join(utils.get_ini_dir_path(), "tessu_mod_cache.ini"))
+	settings(settings_ini_path).on_reloaded += load_settings
+	g_user_cache = UserCache(cache_ini_path)
 
 	g_talk_states = {}
 	g_minimap_ctrl = utils.MinimapMarkersController()
