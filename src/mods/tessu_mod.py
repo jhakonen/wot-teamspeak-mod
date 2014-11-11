@@ -253,6 +253,7 @@ def load_mod():
 	g_messengerEvents.users.onUsersRosterReceived += on_users_rosters_received
 
 	utils.call_in_loop(settings().get_ini_check_interval, sync_configs)
+
 try:
 	import game
 	from tessu_utils.utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
@@ -270,6 +271,7 @@ try:
 	import os
 
 	if not in_test_suite():
+		print "TessuMod version {0} ({1})".format(utils.get_mod_version(), utils.get_support_url())
 		load_mod()
 except:
 	LOG_CURRENT_EXCEPTION()

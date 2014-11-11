@@ -181,6 +181,20 @@ def get_old_ini_dir_path():
 			return path
 	return ""
 
+def get_mod_version():
+	try:
+		import build_info
+		return build_info.MOD_VERSION
+	except ImportError:
+		return "undefined"
+
+def get_support_url():
+	try:
+		import build_info
+		return build_info.SUPPORT_URL
+	except ImportError:
+		return "undefined"
+
 def get_players(in_battle=False, in_prebattle=False, clanmembers=False, friends=False):
 	if in_battle:
 		try:
