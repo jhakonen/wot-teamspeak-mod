@@ -155,6 +155,11 @@ def on_ts3_user_in_my_channel_added(client_id):
 	user = g_ts.users[client_id]
 	g_user_cache.add_ts_user(user.nick, user.unique_id)
 
+def on_user_cache_read_error(message):
+	'''This function is called if user cache's reading fails.'''
+	utils.push_system_message("Failed to read file '{0}':\n   {1}"
+		.format(g_user_cache.ini_path, message), SystemMessages.SM_TYPE.Error)
+
 def load_settings():
 	LOG_NOTE("Settings loaded from ini file")
 	utils.CURRENT_LOG_LEVEL = settings().get_log_level()
@@ -227,6 +232,8 @@ def load_mod():
 	# do all intializations here
 	settings(settings_ini_path).on_reloaded += load_settings
 	g_user_cache = UserCache(cache_ini_path)
+	g_user_cache.on_read_error += on_user_cache_read_error
+	g_user_cache.init()
 
 	g_talk_states = {}
 	g_minimap_ctrl = utils.MinimapMarkersController()

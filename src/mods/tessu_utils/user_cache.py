@@ -78,6 +78,7 @@ _PAIRINGS_HELP = """
 class UserCache(object):
 
 	def __init__(self, ini_path):
+		self.on_read_error = Event.Event()
 		self._ts_users = {}
 		self._players = {}
 		self._pairings = {}
@@ -86,20 +87,42 @@ class UserCache(object):
 		self._ini_cache.on_read += self._on_read
 		self._ini_cache.on_write += self._on_write
 		self._ini_cache.on_write_io += self._on_write_io
+		self._read_error = False
+		self._write_enabled = True
+
+	def init(self):
 		self._ini_cache.init()
 
 	def _on_read(self, parser):
-		ts_users      = {nick.lower(): id for nick, id in parser.items("TeamSpeakUsers")}
-		players       = {nick.lower(): id for nick, id in parser.items("GamePlayers")}
-		nick_pairings = {ts_nick.lower(): csv_split(p_nicks.lower()) for ts_nick, p_nicks in parser.items("UserPlayerPairings")}
-		id_pairings   = {}
+		error_message = None
+		try:
+			ts_users      = {nick.lower(): id for nick, id in parser.items("TeamSpeakUsers")}
+			players       = {nick.lower(): id for nick, id in parser.items("GamePlayers")}
+			nick_pairings = {ts_nick.lower(): csv_split(p_nicks.lower()) for ts_nick, p_nicks in parser.items("UserPlayerPairings")}
+			id_pairings   = {}
 
-		for ts_nick in nick_pairings:
-			id_pairings[ts_users[ts_nick]] = [players[player_nick] for player_nick in nick_pairings[ts_nick]]
+			for ts_nick in nick_pairings:
+				try:
+					player_ids = [players[player_nick] for player_nick in nick_pairings[ts_nick]]
+				except KeyError as error:
+					error_message = "Player {0} is not defined".format(error)
+					raise
+				try:
+					id_pairings[ts_users[ts_nick]] = player_ids
+				except KeyError as error:
+					error_message = "TeamSpeak user {0} is not defined".format(error)
+					raise
 
-		self._ts_users = {id: nick for nick, id in ts_users.iteritems()}
-		self._players = {id: nick for nick, id in players.iteritems()}
-		self._pairings = id_pairings
+			self._ts_users = {id: nick for nick, id in ts_users.iteritems()}
+			self._players = {id: nick for nick, id in players.iteritems()}
+			self._pairings = id_pairings
+			self._read_error = False
+			self._update_write_allowed()
+		except Exception as error:
+			self._read_error = True
+			self._update_write_allowed()
+			self.on_read_error(error_message if error_message else error)
+			raise
 
 	def _on_init_cleanup(self):
 		'''Removes TeamSpeak user and WOT players who do not appear in the pairings.'''
@@ -141,11 +164,19 @@ class UserCache(object):
 
 	@property
 	def is_write_enabled(self):
-		return self._ini_cache.is_write_allowed
+		return self._write_enabled
 
 	@is_write_enabled.setter
 	def is_write_enabled(self, value):
-		self._ini_cache.is_write_allowed = value
+		self._write_enabled = value
+		self._update_write_allowed()
+
+	def _update_write_allowed(self):
+		self._ini_cache.is_write_allowed = self._write_enabled and not self._read_error
+
+	@property
+	def ini_path(self):
+		return self._ini_cache.ini_path
 
 	def add_ts_user(self, name, id):
 		if id not in self._ts_users:
@@ -183,29 +214,33 @@ class INICache(object):
 		self._sync_time = 0
 		self._parser = None
 		self._write_needed = False
-		self._ini_path = ini_path
+		self.ini_path = ini_path
 		self.on_init_cleanup = Event.Event()
 		self.on_read = Event.Event()
 		self.on_write = Event.Event()
 		self.on_write_io = Event.Event()
 		self.is_write_allowed = True
+		self._initialized = False
 
 	def init(self):
+		if self._initialized:
+			return
 		self._read_cache_file()
 		self.on_init_cleanup()
 		self._write_cache_file()
 		self.sync()
+		self._initialized = True
 
 	def write_needed(self):
 		self._write_needed = True
 
 	def _read_cache_file(self):
-		if not os.path.isfile(self._ini_path):
+		if not os.path.isfile(self.ini_path):
 			return
 		parser = ConfigParser.RawConfigParser()
-		if not parser.read(self._ini_path):
+		if not parser.read(self.ini_path):
 			LOG_ERROR("Failed to parse ini file '{0}'"
-				.format(self._ini_path))
+				.format(self.ini_path))
 			return
 		self.on_read(parser)
 		self._update_sync_time()
@@ -217,7 +252,7 @@ class INICache(object):
 		if self.is_write_allowed:
 			parser = ConfigParser.RawConfigParser()
 			self.on_write(parser)
-			with open(self._ini_path, "w") as f:
+			with open(self.ini_path, "w") as f:
 				string_io = cStringIO.StringIO()
 				parser.write(string_io)
 				self.on_write_io(string_io)
@@ -232,13 +267,13 @@ class INICache(object):
 			self._write_cache_file()
 
 	def _get_modified_time(self):
-		return os.path.getmtime(self._ini_path)
+		return os.path.getmtime(self.ini_path)
 
 	def _is_cache_file_modified(self):
 		return self._sync_time < self._get_modified_time()
 
 	def _should_write_cache_file(self):
-		return self._write_needed or not os.path.isfile(self._ini_path)
+		return self._write_needed or not os.path.isfile(self.ini_path)
 
 def csv_split(string_value):
 	return csv.reader([string_value]).next()
