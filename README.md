@@ -31,7 +31,9 @@ If the WOT nickname isn't present in speaking TS user's meta data then TessuMod,
 
 If none of the players matched then configuration options may have rules which first extract nickname from TS nickname (e.g. if TS nickname has WOT nickname and user's clan tag, or maybe user's real name) and then map the extracted nickname using mapping rules to configured WOT nickname.
 
-If still no matching WOT player is found then nothing happens.
+The mod also collects successful matches into a cache file (located at res_mods/configs/tessu_mod_cache.ini) and the file is used to match players to TS users if the above mentioned rules fail to provide successful match. The cache stores matched TS users and players by their unique ID values. This helps the mod to remember matches even if user changes his TS nickname.
+
+If still no matching player is found then nothing happens.
 
 License
 -------
@@ -81,17 +83,17 @@ For unit tests execute in command prompt:
 
 TODO
 ----
-- Add settings ui using ModSettingsAPI
-- Add 3D positional audio support (need a new TS plugin for this)
+See issues page.
 
 Changelog
 ---------
 Version 0.4.0, master:
-- Changed location of ini-files to '\res_mods\configs\tessu_mod\' (issue #9).
+- Added version number and url to official forum thread to python.log.
 - Added caching of matched TS users and players (issue #5).
 - Added unit and behavior tests.
 - Added coverage reporting for behavior tests.
 - Added support to WOT version 0.9.4.
+- Changed location of ini-file to '\res_mods\configs\tessu_mod\' (issue #9).
 
 Version 0.3.3, 12.10.2014:
 - Removed logging spam while speaking in garage.
