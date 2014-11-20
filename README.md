@@ -41,92 +41,13 @@ This mod is licensed with LGPL v2.1.
 
 Development
 -----------
-With bugs and improvement ideas please use the Issues to report them.
+With bugs and improvement ideas please use [issues page](https://github.com/jhakonen/wot-teamspeak-mod/issues) to report them.
 Also, pull requests are welcome. :)
-
-To build the mod, you will need:
- * Windows
- * Command Prompt
- * Python 2.7
-
-Execute in command prompt:
-
-    package.py
-
-Extract generated zip-archive to your WOT folder.
-
-Easy one liner (using 7-zip's command line tool 7za.exe) to compile and install to WOT, e.g:
-
-    package.py && 7za x TessuMod*.zip -oE:\Games\World_of_Tanks -y
-
-Tests
------
-TessuMod has a battery of unit and behaviour tests.
-
-To execute them you need:
- * Windows
- * Command Prompt
- * Python 2.7
- * [Behave](http://pythonhosted.org/behave/install.html) test runner
- * [Coverage.py](https://pypi.python.org/pypi/coverage)
- * [Nose](https://nose.readthedocs.org/en/latest)
-
-Execute behavior tests in command prompt with:
-
-    behave
-
-Coverage report is shown at end of the execution and is also generated in html form to coverage_report subfolder.
-
-For unit tests execute in command prompt:
-
-    nosetests
 
 TODO
 ----
-See issues page.
+See [issues page](https://github.com/jhakonen/wot-teamspeak-mod/issues).
 
 Changelog
 ---------
-Version 0.4.0, master:
-- Added version number and url to official forum thread to python.log.
-- Added caching of matched TS users and players (issue #5).
-- Added unit and behavior tests.
-- Added coverage reporting for behavior tests.
-- Added support to WOT version 0.9.4.
-- Changed location of ini-file to '\res_mods\configs\tessu_mod\' (issue #9).
-
-Version 0.3.3, 12.10.2014:
-- Removed logging spam while speaking in garage.
-
-Version 0.3.2, 7.10.2014:
-- Fixed regression: 'not connected' -spam in system notification center.
-
-Version 0.3.1, 6.10.2014:
-- Refactored client query handling to use asynchat.
-- Client query connection is now closed and reconnected if an API error occurs.
-- Fixed mapping rules not working for TS nick with space in name.
-- Fixed client query handling breaking if recv() didn't return full line.
-- Fixed client query commands sent before welcome message was fully received.
-
-Version 0.3.0, 3.10.2014:
-- Fixed speak indicators left active if TS was closed while someone was speaking.
-- Added configuration options.
-
-Version 0.2.0, 25.9.2014:
-- Added notification to minimap when player is speaking.
-- Reduced amount of logging spam in python.log.
-- Fixed wot nickname not updating to teamspeak client if the client wasn't connected to teamspeak server before entering garage or battle.
-
-Version 0.1.2, 15.9.2014:
-- Fixed battle failing to start if TS client wasn't running.
-- Fixed WOT hanging a second every time the mod tried to (re)connect to TS.
-- Fixed speak indicators not working on first run (with the mod) in garage before joining a battle.
-- Improved CameraNode.pyc so that it is more compatible with other mods.
-- Reduced amount of logging spam in python.log.
-
-Version 0.1.1, 14.9.2014:
-- Fixed speak indicators in garage either not shown, or after battle stuck always on
-
-Version 0.1.0, 14.9.2014:
-- first version
-
+See [changelog in wiki](https://github.com/jhakonen/wot-teamspeak-mod/wiki/Changelog).
