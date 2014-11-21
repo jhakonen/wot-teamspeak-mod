@@ -24,12 +24,11 @@ def on_speak_status_changed(user):
 		player_name = ""
 	if not player_name:
 		player_name = map_nick_to_wot_nick(extract_nick(user.nick))
-	player_name = player_name.lower()
-	for player in utils.get_players(in_battle=True, in_prebattle=True):
-		if player.name.lower() == player_name:
-			g_user_cache.add_player(player.name, player.id)
-			g_user_cache.pair(player_id=player.id, ts_user_id=user.unique_id)
-			break
+
+	player = utils.get_player_by_name(player_name, in_battle=True, in_prebattle=True)
+	if player:
+		g_user_cache.add_player(player.name, player.id)
+		g_user_cache.pair(player_id=player.id, ts_user_id=user.unique_id)
 
 	for player_id in g_user_cache.get_paired_player_ids(user.unique_id):
 		talk_status(player_id, user.speaking)
@@ -76,15 +75,14 @@ def talk_status(player_id, talking=None):
 
 def update_player_speak_status(player_id):
 	'''Updates given 'player_id's talking status to VOIP system and minimap.''' 
-	info = utils.get_player_info_by_dbid(player_id)
-	if not info:
-		return
 	try:
 		talking = is_voice_chat_speak_allowed(player_id) and talk_status(player_id)
 		VOIP.getVOIPManager().setPlayerTalking(player_id, talking)
 	except:
 		LOG_CURRENT_EXCEPTION()
+
 	try:
+		info = utils.get_player_info_by_dbid(player_id)
 		talking = (
 			talk_status(player_id) and
 			is_minimap_speak_allowed(player_id) and

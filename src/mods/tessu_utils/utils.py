@@ -93,7 +93,10 @@ def get_my_dbid():
 	try:
 		return BigWorld.player().databaseID
 	except AttributeError:
-		pass
+		try:
+			return get_vehicle(BigWorld.player().playerVehicleID)["accountDBID"]
+		except AttributeError:
+			pass
 
 def find_prebattle_account_info(matcher):
 	'''Finds player information from prebattle rosters (e.g. in practise room
@@ -110,29 +113,6 @@ def find_prebattle_account_info(matcher):
 	except AttributeError:
 		pass
 
-def get_player_info_by_name(player_name):
-	'''Extracts player information with matching 'player_name' from
-	various locations. Returns 'dbid' and 'vehicle_id' in a dict if available,
-	returns empty dict if nothing found.
-	''' 
-	player_name = player_name.lower()
-	vehicle_id = find_vehicle_id(lambda v: v["name"].lower() == player_name)
-	if vehicle_id is not None:
-		return {
-			"dbid": get_vehicle(vehicle_id)["accountDBID"],
-			"vehicle_id": vehicle_id
-		}
-	if get_my_name().lower() == player_name:
-		return {
-			"dbid": get_my_dbid()
-		}
-	info = find_prebattle_account_info(lambda i: i["name"].lower() == player_name)
-	if info:
-		return {
-			"dbid": info["dbID"]
-		}
-	return {}
-
 def get_player_info_by_dbid(dbid):
 	'''Extracts player information with matching account 'dbid' from
 	various locations. Returns 'player_name' and 'vehicle_id' in a dict if
@@ -143,10 +123,6 @@ def get_player_info_by_dbid(dbid):
 		return {
 			"player_name": get_vehicle(vehicle_id)["name"],
 			"vehicle_id": vehicle_id
-		}
-	if get_my_dbid() == dbid:
-		return {
-			"player_name": get_my_name()
 		}
 	info = find_prebattle_account_info(lambda i: i["dbID"] == dbid)
 	if info:
@@ -220,6 +196,13 @@ def get_players(in_battle=False, in_prebattle=False, clanmembers=False, friends=
 	if friends:
 		for friend in users_storage.getList(find_criteria.BWFriendFindCriteria()):
 			yield Player(friend.getName(), friend.getID())
+
+def get_player_by_name(name, **sources):
+	name = name.lower()
+	for player in get_players(**sources):
+		if player.name.lower() == name:
+			return player
+	return None
 
 class Player(object):
 
