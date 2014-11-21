@@ -18,6 +18,7 @@ Feature: Notifications in garage
 	Scenario: TS and WOT is running and TS is closed
 		Given TS is running
 		  And WOT is running and in garage
+		  And mod is connected to TS
 		 When user closes TS
 		 Then "Disconnected from TeamSpeak client" is shown in notification center
 		  And no errors occurred

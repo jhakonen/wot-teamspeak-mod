@@ -16,6 +16,10 @@ def step_impl(context):
 	context.game.start()
 	context.game.login()
 
+@given("mod is connected to TS")
+def step_impl(context):
+	context.ts_client.wait_for_a_command()
+
 @when("user starts and logins to WOT")
 def step_impl(context):
 	context.game.start()

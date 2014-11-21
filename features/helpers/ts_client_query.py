@@ -5,10 +5,12 @@ import threading
 import time
 import re
 import copy
+import random
 from test_events import process_events
 from Queue import Queue, Empty
 
 _SELF_USER_NAME = "Testinukke"
+_NO_RESPONSE = (None, None)
 
 class TSClientQueryService(object):
 
@@ -22,7 +24,7 @@ class TSClientQueryService(object):
 		self.insert_connect_message(1, "Welcome to the TeamSpeak 3 "
 			+ "ClientQuery interface, type \"help\" for a list of commands "
 			+ "and \"help <command>\" for information on a specific command.")
-		self.insert_connect_message(2, "selected schandlerid=1")
+		self.insert_connect_message(2, "selected schandlerid={0}".format(self._data.schandler_id))
 		self.add_user(_SELF_USER_NAME)
 
 	def start(self):
@@ -59,6 +61,8 @@ class TSClientQueryService(object):
 		clid = str(self._clids.index(name))
 		if clid not in self._data.users:
 			self._data.users[clid] = User(service=self, name=name, clid=clid)
+		if "schandlerid" not in kwargs:
+			kwargs["schandlerid"] = self._data.schandler_id
 		self._data.users[clid].set(**kwargs)
 
 	def get_user(self, name):
@@ -86,6 +90,14 @@ class TSClientQueryService(object):
 					self._data.responses.remove(response)
 					return
 			time.sleep(0.01)
+
+	def wait_for_a_command(self):
+		self._data.command_received = False
+		end_t = time.time() + 10
+		while not self._data.command_received:
+			assert time.time() < end_t, "Timeout, no command received"
+			self.check()
+			process_events()
 
 	def _run_in_thread(self):
 		try:
@@ -182,6 +194,8 @@ class Data(object):
 		self.connected_to_server = False
 		self.users = {}
 		self.required_commands = []
+		self.schandler_id = int(random.uniform(1, 10))
+		self.command_received = False
 
 class TSClientQueryServer(asyncore.dispatcher):
 	def __init__(self, host, port, sock_map, data_source):
@@ -224,6 +238,7 @@ class TSClientQueryHandler(asynchat.async_chat):
 		self._data_source.responses.append(data)
 
 	def handle_command(self, command):
+		self._data_source.command_received = True
 		command_type, params_str = re.match("^([\S]+)\s?(.*)", command).groups()
 		param_str_list = params_str.split()
 
@@ -253,10 +268,19 @@ class TSClientQueryHandler(asynchat.async_chat):
 			pass
 
 	def send_status(self, code=0, message="ok"):
+		if code is None or message is None:
+			return
 		message = message.replace(" ", "\\s")
 		self.push("error id={0} msg={1}\n\r".format(code, message))
 
+	def handle_command_clientnotifyunregister(self):
+		if not self._registered_events:
+			return _NO_RESPONSE
+		self._registered_events.clear()
+
 	def handle_command_clientnotifyregister(self, event, **ignored):
+		if event in self._registered_events:
+			return _NO_RESPONSE
 		self._registered_events.append(event)
 
 	def handle_command_whoami(self):
@@ -296,6 +320,16 @@ class TSClientQueryHandler(asynchat.async_chat):
 
 	def handle_command_clientupdate(self, client_meta_data, **ignored):
 		pass
+
+	def handle_command_currentschandlerid(self):
+		self.push("schandlerid={0}\n\r".format(self._data_source.schandler_id))
+
+	def handle_command_use(self, schandlerid):
+		self._data_source.schandler_id = int(schandlerid)
+
+	def handle_command_servervariable(self, virtualserver_name=None):
+		if virtualserver_name is not None:
+			self.push("virtualserver_name=Dummy\sServer\n\r")
 
 	def user_value_changed(self, clid, name, value):
 		if name == "speaking":

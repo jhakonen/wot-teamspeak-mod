@@ -130,7 +130,7 @@ def on_connected_to_ts3():
 	doesn't mean that the client is connected to any TeamSpeak server.
 	'''
 	LOG_NOTE("Connected to TeamSpeak client")
-	utils.push_system_message("Connected to TeamSpeak client", SystemMessages.SM_TYPE.Warning)
+	utils.push_system_message("Connected to TeamSpeak client", SystemMessages.SM_TYPE.Information)
 
 def on_disconnected_from_ts3():
 	'''Called when TessuMod loses connection to TeamSpeak client.'''
@@ -138,8 +138,9 @@ def on_disconnected_from_ts3():
 	clear_speak_statuses()
 	utils.push_system_message("Disconnected from TeamSpeak client", SystemMessages.SM_TYPE.Warning)
 
-def on_connected_to_ts3_server():
-	LOG_NOTE("Connected to TeamSpeak server")
+def on_connected_to_ts3_server(server_name):
+	LOG_NOTE("Connected to TeamSpeak server '{0}'".format(server_name))
+	utils.push_system_message("Connected to TeamSpeak server '{0}'".format(server_name), SystemMessages.SM_TYPE.Information)
 	g_ts.set_wot_nickname(utils.get_my_name())
 
 def on_disconnected_from_ts3_server():
