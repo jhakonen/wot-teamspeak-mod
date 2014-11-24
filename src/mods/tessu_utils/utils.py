@@ -182,10 +182,16 @@ def get_players(in_battle=False, in_prebattle=False, clanmembers=False, friends=
 			pass
 	if in_prebattle:
 		try:
-			rosters = BigWorld.player().prebattle.rosters
-			for roster in rosters:
-				for id in rosters[roster]:
-					info = rosters[roster][id]
+			# get players from Team Battle room
+			for unit in BigWorld.player().unitMgr.units.itervalues():
+				for id, player in unit.getPlayers().iteritems():
+					yield Player(player["nickName"], id)
+		except AttributeError:
+			pass
+		try:
+			# get players from Training Room and the like
+			for roster in BigWorld.player().prebattle.rosters.itervalues():
+				for info in roster.itervalues():
 					yield Player(info["name"], info["dbID"])
 		except AttributeError:
 			pass
