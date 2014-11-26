@@ -171,6 +171,44 @@ def get_support_url():
 	except ImportError:
 		return "undefined"
 
+def ts_user_to_player(ts_user, extract_patterns=[], use_metadata=False, mappings={}, players=[]):
+	player_name = ts_user.wot_nick
+	if not use_metadata:
+		player_name = ""
+	if not player_name:
+		player_name = map_nick_to_wot_nick(extract_nick(ts_user.nick, extract_patterns), mappings)
+
+	player_name = player_name.lower()
+	for player in players:
+		if player.name.lower() == player_name:
+			return player
+	return None
+
+def extract_nick(ts_nickname, extract_patterns):
+	'''Extracts WOT nickname (or something that can be passed to mapping
+	rules) from 'ts_nickname' using regexp patterns defined in ini-file's
+	'nick_extract_patterns'-key.
+	Returns 'ts_nickname' if none of the patterns matched.
+	'''
+	for pattern in extract_patterns:
+		matches = pattern.match(ts_nickname)
+		if matches is not None:
+			LOG_DEBUG("TS nickname '{0}' matched to regexp pattern '{1}'".format(ts_nickname, pattern.pattern))
+			return matches.group(1)
+	return ts_nickname
+
+def map_nick_to_wot_nick(ts_nickname, mappings):
+	'''Returns 'ts_nickname's matching WOT nickname using values from
+	ini-file's [NameMappings] section.
+	Returns 'ts_nickname' if mapping didn't exist for it.
+	'''
+	try:
+		wot_nickname = mappings[ts_nickname.lower()]
+		LOG_DEBUG("TS nickname '{0}' mapped to WOT nickname '{1}'".format(ts_nickname, wot_nickname))
+		return wot_nickname
+	except:
+		return ts_nickname
+
 def get_players(in_battle=False, in_prebattle=False, clanmembers=False, friends=False):
 	if in_battle:
 		try:
@@ -202,13 +240,6 @@ def get_players(in_battle=False, in_prebattle=False, clanmembers=False, friends=
 	if friends:
 		for friend in users_storage.getList(find_criteria.BWFriendFindCriteria()):
 			yield Player(friend.getName(), friend.getID())
-
-def get_player_by_name(name, **sources):
-	name = name.lower()
-	for player in get_players(**sources):
-		if player.name.lower() == name:
-			return player
-	return None
 
 class Player(object):
 

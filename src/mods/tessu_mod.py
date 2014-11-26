@@ -19,13 +19,13 @@ def on_speak_status_changed(user):
 	'''Called when TeamSpeak user's speak status changes.'''
 	g_user_cache.add_ts_user(user.nick, user.unique_id)
 
-	player_name = user.wot_nick
-	if not settings().get_wot_nick_from_ts_metadata():
-		player_name = ""
-	if not player_name:
-		player_name = map_nick_to_wot_nick(extract_nick(user.nick))
+	player = utils.ts_user_to_player(user,
+		extract_patterns = settings().get_nick_extract_patterns(),
+		use_metadata = settings().get_wot_nick_from_ts_metadata(),
+		mappings = settings().get_name_mappings(),
+		players = utils.get_players(in_battle=True, in_prebattle=True)
+	)
 
-	player = utils.get_player_by_name(player_name, in_battle=True, in_prebattle=True)
 	if player:
 		g_user_cache.add_player(player.name, player.id)
 		g_user_cache.pair(player_id=player.id, ts_user_id=user.unique_id)
@@ -38,32 +38,6 @@ def on_speak_status_changed(user):
 		else:
 			# keep speaking state for a little longer
 			BigWorld.callback(settings().get_speak_stop_delay(), utils.with_args(update_player_speak_status, player_id))
-
-def extract_nick(ts_nickname):
-	'''Extracts WOT nickname (or something that can be passed to mapping
-	rules) from 'ts_nickname' using regexp patterns defined in ini-file's
-	'nick_extract_patterns'-key.
-	Returns 'ts_nickname' if none of the patterns matched.
-	'''
-	for pattern in settings().get_nick_extract_patterns():
-		matches = pattern.match(ts_nickname)
-		if matches is not None:
-			LOG_DEBUG("TS nickname '{0}' matched to regexp pattern '{1}'".format(ts_nickname, pattern.pattern))
-			return matches.group(1)
-	return ts_nickname
-
-def map_nick_to_wot_nick(ts_nickname):
-	'''Returns 'ts_nickname's matching WOT nickname using values from
-	ini-file's [NameMappings] section.
-	Returns 'ts_nickname' if mapping didn't exist for it.
-	'''
-	mapping = settings().get_name_mappings()
-	try:
-		wot_nickname = mapping[ts_nickname.lower()]
-		LOG_DEBUG("TS nickname '{0}' mapped to WOT nickname '{1}'".format(ts_nickname, wot_nickname))
-		return wot_nickname
-	except:
-		return ts_nickname
 
 def talk_status(player_id, talking=None):
 	if talking is not None:
