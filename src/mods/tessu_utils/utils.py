@@ -171,43 +171,57 @@ def get_support_url():
 	except ImportError:
 		return "undefined"
 
-def ts_user_to_player(ts_user, extract_patterns=[], use_metadata=False, mappings={}, players=[]):
-	player_name = ts_user.wot_nick
-	if not use_metadata:
-		player_name = ""
-	if not player_name:
-		player_name = map_nick_to_wot_nick(extract_nick(ts_user.nick, extract_patterns), mappings)
+def ts_user_to_player(ts_user, extract_patterns=[], mappings={}, players=[], use_metadata=False, use_ts_nick_search=False):
+	players = list(players)
 
-	player_name = player_name.lower()
-	for player in players:
-		if player.name.lower() == player_name:
-			return player
-	return None
+	def find_player(nick, comparator=lambda a, b: a == b):
+		if hasattr(nick, "lower"):
+			for player in players:
+				if comparator(player.name.lower(), nick.lower()):
+					return player
 
-def extract_nick(ts_nickname, extract_patterns):
-	'''Extracts WOT nickname (or something that can be passed to mapping
-	rules) from 'ts_nickname' using regexp patterns defined in ini-file's
-	'nick_extract_patterns'-key.
-	Returns 'ts_nickname' if none of the patterns matched.
-	'''
+	def map_nick(nick):
+		if hasattr(nick, "lower"):
+			try:
+				return mappings[nick.lower()]
+			except:
+				pass
+
+	# find player using TS user's WOT nickname in metadata (available if user
+	# has TessuMod installed)
+	if use_metadata and ts_user.wot_nick:
+		return find_player(ts_user.wot_nick)
+	# no metadata, try find player by using WOT nickname extracted from TS
+	# user's nickname using nick_extract_patterns
 	for pattern in extract_patterns:
-		matches = pattern.match(ts_nickname)
+		matches = pattern.match(ts_user.nick)
 		if matches is not None:
-			LOG_DEBUG("TS nickname '{0}' matched to regexp pattern '{1}'".format(ts_nickname, pattern.pattern))
-			return matches.group(1)
-	return ts_nickname
-
-def map_nick_to_wot_nick(ts_nickname, mappings):
-	'''Returns 'ts_nickname's matching WOT nickname using values from
-	ini-file's [NameMappings] section.
-	Returns 'ts_nickname' if mapping didn't exist for it.
-	'''
-	try:
-		wot_nickname = mappings[ts_nickname.lower()]
-		LOG_DEBUG("TS nickname '{0}' mapped to WOT nickname '{1}'".format(ts_nickname, wot_nickname))
-		return wot_nickname
-	except:
-		return ts_nickname
+			extracted_nick = matches.group(1)
+			player = find_player(extracted_nick)
+			if player:
+				return player
+			# extracted nickname didn't match any player, try find player by
+			# mapping the extracted nickname to WOT nickname (if available)
+			player = find_player(map_nick(extracted_nick))
+			if player:
+				return player
+	# extract patterns didn't help, try find player by mapping TS nickname to
+	# WOT nickname (if available)
+	player = find_player(map_nick(ts_user.nick))
+	if player:
+		return player
+	# still no match, as a last straw, try find player by searching each known
+	# WOT nickname from the TS nickname
+	if use_ts_nick_search:
+		player = find_player(ts_user.nick, comparator=lambda a, b: a in b)
+		if player:
+			return player
+	# or alternatively, try find player by just comparing that TS nickname and
+	# WOT nicknames are same
+	else:
+		player = find_player(ts_user.nick)
+		if player:
+			return player
 
 def get_players(in_battle=False, in_prebattle=False, clanmembers=False, friends=False):
 	if in_battle:

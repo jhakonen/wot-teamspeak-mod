@@ -63,6 +63,14 @@ get_wot_nick_from_ts_metadata: on
 ; Changing this value requires game restart
 update_cache_in_replays: off
 
+; Enables or disables searching of WOT player nicknames from within speaking TS
+; user's nickname. With this option enabled you usually do not need to define
+; anything in 'nick_extract_patterns' as the mod tries automatically to do the
+; extracting for you.
+; Disable this if the automatic searching pairs wrong TS users to wrong
+; WOT players.
+ts_nick_search_enabled: on
+
 ; Defines regular expressions for extracting WOT nickname from user's
 ; TS nickname, e.g. if TS nickname is:
 ;   "wot_nickname | real name"
@@ -185,6 +193,7 @@ class Settings(object):
 		self._parser.set("General", "speak_stop_delay", "1")
 		self._parser.set("General", "get_wot_nick_from_ts_metadata", "on")
 		self._parser.set("General", "update_cache_in_replays", "off")
+		self._parser.set("General", "ts_nick_search_enabled", "on")
 		self._parser.set("General", "nick_extract_patterns", "")
 		self._parser.add_section("NameMappings")
 		self._parser.add_section("TSClientQueryService")
@@ -229,6 +238,9 @@ class Settings(object):
 
 	def should_update_cache_in_replays(self):
 		return self._parser.getboolean("General", "update_cache_in_replays")
+
+	def is_ts_nick_search_enabled(self):
+		return self._parser.getboolean("General", "ts_nick_search_enabled")
 
 	def get_nick_extract_patterns(self):
 		patterns = []

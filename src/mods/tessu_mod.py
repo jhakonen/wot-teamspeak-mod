@@ -20,8 +20,9 @@ def on_speak_status_changed(user):
 	g_user_cache.add_ts_user(user.nick, user.unique_id)
 
 	player = utils.ts_user_to_player(user,
-		extract_patterns = settings().get_nick_extract_patterns(),
 		use_metadata = settings().get_wot_nick_from_ts_metadata(),
+		use_ts_nick_search = settings().is_ts_nick_search_enabled(),
+		extract_patterns = settings().get_nick_extract_patterns(),
 		mappings = settings().get_name_mappings(),
 		players = utils.get_players(in_battle=True, in_prebattle=True)
 	)
