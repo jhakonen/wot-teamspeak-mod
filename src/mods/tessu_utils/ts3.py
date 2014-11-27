@@ -56,7 +56,7 @@ from statemachine import StateMachine
 import async
 
 _RETRY_TIMEOUT = 10
-_COMMAND_WAIT_TIMEOUT = 5
+_COMMAND_WAIT_TIMEOUT = 30
 _API_NOT_CONNECTED_TO_SERVER = 1794
 _API_INVALID_SCHANDLER_ID = 1799
 
@@ -146,7 +146,7 @@ class TS3Client(object):
 		self.users_in_my_channel.invalidate()
 
 		def unregister(callback):
-			self._protocol.send_command("clientnotifyunregister", callback)
+			self._protocol.send_command("clientnotifyunregister", callback, timeout=5)
 		def register_connection_change(callback):
 			self._protocol.send_command("clientnotifyregister schandlerid=0 event=notifycurrentserverconnectionchanged", callback)
 		def get_currentschandlerid(callback):
@@ -528,17 +528,17 @@ class _ClientQueryProtocol(asynchat.async_chat):
 			except IndexError:
 				pass
 
-	def send_command(self, command, callback=noop):
+	def send_command(self, command, callback=noop, timeout=_COMMAND_WAIT_TIMEOUT):
 		'''Queues command for sending to client query.'''
 		if self._data_in_handler == self._handle_in_data_actions:
-			self._commands.append(_ClientQueryCommand(command, callback))
+			self._commands.append(_ClientQueryCommand(command, callback, timeout))
 
 class _ClientQueryCommand(object):
 	'''Container for a single command, handles receiving response lines and
 	calling a callback provided by the caller with the response, or error.
 	'''
 
-	def __init__(self, command, callback):
+	def __init__(self, command, callback, timeout):
 		self.command = command
 		self.is_sent = False
 		self._is_done = False
@@ -546,10 +546,11 @@ class _ClientQueryCommand(object):
 		self._response_lines = []
 		self._start_time = time.time()
 		self._err = None
+		self._timeout = timeout
 
 	@property
 	def is_done(self):
-		return self._is_done or (time.time() - self._start_time) >= _COMMAND_WAIT_TIMEOUT
+		return self._is_done or (time.time() - self._start_time) >= self._timeout
 
 	def handle_line(self, line):
 		'''Handles a single line received from client query.'''
