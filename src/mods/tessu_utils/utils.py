@@ -190,7 +190,10 @@ def ts_user_to_player(ts_user, extract_patterns=[], mappings={}, players=[], use
 	# find player using TS user's WOT nickname in metadata (available if user
 	# has TessuMod installed)
 	if use_metadata and ts_user.wot_nick:
-		return find_player(ts_user.wot_nick)
+		player = find_player(ts_user.wot_nick)
+		if player:
+			LOG_DEBUG("Matched TS user to player with TS metadata", ts_user, player)
+		return player
 	# no metadata, try find player by using WOT nickname extracted from TS
 	# user's nickname using nick_extract_patterns
 	for pattern in extract_patterns:
@@ -199,29 +202,35 @@ def ts_user_to_player(ts_user, extract_patterns=[], mappings={}, players=[], use
 			extracted_nick = matches.group(1)
 			player = find_player(extracted_nick)
 			if player:
+				LOG_DEBUG("Matched TS user to player with pattern", ts_user, player, pattern.pattern)
 				return player
 			# extracted nickname didn't match any player, try find player by
 			# mapping the extracted nickname to WOT nickname (if available)
 			player = find_player(map_nick(extracted_nick))
 			if player:
+				LOG_DEBUG("Matched TS user to player with pattern and mapping", ts_user, player, pattern.pattern)
 				return player
 	# extract patterns didn't help, try find player by mapping TS nickname to
 	# WOT nickname (if available)
 	player = find_player(map_nick(ts_user.nick))
 	if player:
+		LOG_DEBUG("Matched TS user to player via mapping", ts_user, player)
 		return player
 	# still no match, as a last straw, try find player by searching each known
 	# WOT nickname from the TS nickname
 	if use_ts_nick_search:
 		player = find_player(ts_user.nick, comparator=lambda a, b: a in b)
 		if player:
+			LOG_DEBUG("Matched TS user to player with TS nick search", ts_user, player)
 			return player
 	# or alternatively, try find player by just comparing that TS nickname and
 	# WOT nicknames are same
 	else:
 		player = find_player(ts_user.nick)
 		if player:
+			LOG_DEBUG("Matched TS user to player by comparing names", ts_user, player)
 			return player
+	LOG_DEBUG("Failed to match TS user", ts_user)
 
 def get_players(in_battle=False, in_prebattle=False, clanmembers=False, friends=False):
 	if in_battle:
@@ -229,6 +238,7 @@ def get_players(in_battle=False, in_prebattle=False, clanmembers=False, friends=
 			vehicles = BigWorld.player().arena.vehicles
 			for id in vehicles:
 				vehicle = vehicles[id]
+				LOG_DEBUG("Found player from battle", vehicle["name"])
 				yield Player(vehicle["name"], vehicle["accountDBID"])
 		except AttributeError:
 			pass
@@ -237,6 +247,7 @@ def get_players(in_battle=False, in_prebattle=False, clanmembers=False, friends=
 			# get players from Team Battle room
 			for unit in BigWorld.player().unitMgr.units.itervalues():
 				for id, player in unit.getPlayers().iteritems():
+					LOG_DEBUG("Found player from unit", player["nickName"])
 					yield Player(player["nickName"], id)
 		except AttributeError:
 			pass
@@ -244,15 +255,18 @@ def get_players(in_battle=False, in_prebattle=False, clanmembers=False, friends=
 			# get players from Training Room and the like
 			for roster in BigWorld.player().prebattle.rosters.itervalues():
 				for info in roster.itervalues():
+					LOG_DEBUG("Found player from rosters", info["name"])
 					yield Player(info["name"], info["dbID"])
 		except AttributeError:
 			pass
 	users_storage = storage_getter('users')()
 	if clanmembers:
 		for member in users_storage.getClanMembersIterator(False):
+			LOG_DEBUG("Found clan member", member.getName())
 			yield Player(member.getName(), member.getID())
 	if friends:
 		for friend in users_storage.getList(find_criteria.BWFriendFindCriteria()):
+			LOG_DEBUG("Found friend", friend.getName())
 			yield Player(friend.getName(), friend.getID())
 
 class Player(object):
@@ -343,19 +357,24 @@ CURRENT_LOG_LEVEL = LOG_LEVEL.NOTE
 
 def LOG_DEBUG(msg, *args):
 	if CURRENT_LOG_LEVEL <= LOG_LEVEL.DEBUG:
-		debug_utils._doLog('DEBUG', msg, args)
+		debug_utils._doLog('DEBUG', _prefix_with_timestamp(msg), args)
 
 def LOG_NOTE(msg, *args):
 	if CURRENT_LOG_LEVEL <= LOG_LEVEL.NOTE:
-		debug_utils._doLog('NOTE', msg, args)
+		debug_utils._doLog('NOTE', _prefix_with_timestamp(msg), args)
 
 def LOG_WARNING(msg, *args):
 	if CURRENT_LOG_LEVEL <= LOG_LEVEL.WARNING:
-		debug_utils._doLog('WARNING', msg, args)
+		debug_utils._doLog('WARNING', _prefix_with_timestamp(msg), args)
 
 def LOG_ERROR(msg, *args):
 	if CURRENT_LOG_LEVEL <= LOG_LEVEL.ERROR:
-		debug_utils._doLog('ERROR', msg, args)
+		debug_utils._doLog('ERROR', _prefix_with_timestamp(msg), args)
+
+def _prefix_with_timestamp(message):
+	if CURRENT_LOG_LEVEL <= LOG_LEVEL.DEBUG:
+		return time.strftime('[%H:%M:%S] ') + str(message)
+	return message
 
 LOG_CURRENT_EXCEPTION = debug_utils.LOG_CURRENT_EXCEPTION
 
@@ -366,7 +385,7 @@ def LOG_CALL(msg=""):
 				if CURRENT_LOG_LEVEL <= LOG_LEVEL.DEBUG:
 					callargs = inspect.getcallargs(func, *args, **kwargs)
 					callargs = { key: repr(callargs[key]) for key in callargs }
-					debug_utils._doLog('DEBUG', func.__name__ + "():", msg.format(**callargs))
+					debug_utils._doLog('DEBUG', _prefix_with_timestamp(func.__name__ + "():"), msg.format(**callargs))
 			except:
 				pass
 			return func(*args, **kwargs)

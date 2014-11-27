@@ -32,6 +32,7 @@ DEFAULT_INI = """
 ;   1: NOTE
 ;   2: WARNING
 ;   3: ERROR
+; DEBUG level also adds timestamps to log output.
 log_level: 1
 
 ; Interval (as seconds) that this ini-file is checked for modifications, and
