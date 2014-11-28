@@ -5,6 +5,9 @@
 # Common clientquery functions
 #
 
+_API_NOT_CONNECTED_TO_SERVER = 1794
+_API_INVALID_SCHANDLER_ID = 1799
+
 #
 # Get value by key from "key=value" string
 #
@@ -34,4 +37,17 @@ def checkError(data):
 	if id == 0:  # ERROR_ok == 0
 		return None
 	msg = getParamValue(e[2], 'msg')
-	return (id, msg)
+	if id == _API_NOT_CONNECTED_TO_SERVER:
+		return APINotConnectedError(msg)
+	if id == _API_INVALID_SCHANDLER_ID:
+		return APIInvalidSchandlerIDError(msg)
+	return APIError(str(id) + ": " + msg)
+
+class APIError(Exception):
+	pass
+
+class APINotConnectedError(APIError):
+	pass
+
+class APIInvalidSchandlerIDError(APIError):
+	pass

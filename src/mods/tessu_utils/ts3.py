@@ -108,7 +108,6 @@ class TS3Client(object):
 		self._sm.add_transition(connected_to_ts_state,        connecting_to_ts_state,       "protocol_closed", on_transit=self.on_disconnected)
 		self._sm.add_transition(connected_to_ts_state,        connected_to_ts_state,        "tab_changed")
 		self._sm.add_transition(connected_to_ts_state,        connected_to_ts_state,        "server_disconnected")
-		self._sm.add_transition(connected_to_ts_state,        connected_to_ts_state,        "not_connected_error")
 		self._sm.add_transition(connected_to_ts_server_state, connected_to_ts_state,        "tab_changed", on_transit=self.on_disconnected_from_server)
 		self._sm.add_transition(connected_to_ts_server_state, connected_to_ts_state,        "server_disconnected", on_transit=self.on_disconnected_from_server)
 		self._sm.add_transition(connected_to_ts_server_state, connected_to_ts_state,        "not_connected_error", on_transit=self.on_disconnected_from_server)
@@ -131,12 +130,22 @@ class TS3Client(object):
 
 	def _on_connecting_to_ts_state(self):
 		self._stop_pinging()
-		self._connected = False
 		self._protocol.create_socket(socket.AF_INET, socket.SOCK_STREAM)
 		self._protocol.connect((self.HOST, self.PORT))
 
 	def _on_connect_failed_state(self):
 		BigWorld.callback(_RETRY_TIMEOUT, functools.partial(self._send_sm_event, "connect_retry"))
+
+	def _send_command(self, command, callback=noop, timeout=_COMMAND_WAIT_TIMEOUT):
+		def on_command_finish(err, lines):
+			if err:
+				LOG_ERROR(type(err).__name__ + ": " + str(err))
+				if isinstance(err, clientquery.APINotConnectedError) or isinstance(err, clientquery.APIInvalidSchandlerIDError):
+					self._send_sm_event("not_connected_error")
+				else:
+					self._protocol.close()
+			callback(err, lines)
+		self._protocol.send_command(command, on_command_finish, timeout)
 
 	def _on_connected_to_ts_state(self):
 		self._my_client_id = None
@@ -146,35 +155,33 @@ class TS3Client(object):
 		self.users_in_my_channel.invalidate()
 
 		def unregister(callback):
-			self._protocol.send_command("clientnotifyunregister", callback, timeout=5)
+			self._send_command("clientnotifyunregister", callback, timeout=5)
 		def register_connection_change(callback):
-			self._protocol.send_command("clientnotifyregister schandlerid=0 event=notifycurrentserverconnectionchanged", callback)
+			self._send_command("clientnotifyregister schandlerid=0 event=notifycurrentserverconnectionchanged", callback)
 		def get_currentschandlerid(callback):
 			def on_finish(err, lines):
 				if not err:
 					self._schandler_id = int(clientquery.getParamValue(lines[0], 'schandlerid'))
 				callback(err, lines)
-			self._protocol.send_command("currentschandlerid", on_finish)
+			self._send_command("currentschandlerid", on_finish)
 		def register_talk_status_change(callback):
-			self._protocol.send_command("clientnotifyregister schandlerid={0} event=notifytalkstatuschange".format(self._schandler_id), callback)
+			self._send_command("clientnotifyregister schandlerid={0} event=notifytalkstatuschange".format(self._schandler_id), callback)
 		def register_client_update(callback):
-			self._protocol.send_command("clientnotifyregister schandlerid={0} event=notifyclientupdated".format(self._schandler_id), callback)
+			self._send_command("clientnotifyregister schandlerid={0} event=notifyclientupdated".format(self._schandler_id), callback)
 		def register_client_enter_view(callback):
-			self._protocol.send_command("clientnotifyregister schandlerid={0} event=notifycliententerview".format(self._schandler_id), callback)
+			self._send_command("clientnotifyregister schandlerid={0} event=notifycliententerview".format(self._schandler_id), callback)
 		def register_client_left_view(callback):
-			self._protocol.send_command("clientnotifyregister schandlerid={0} event=notifyclientleftview".format(self._schandler_id), callback)
+			self._send_command("clientnotifyregister schandlerid={0} event=notifyclientleftview".format(self._schandler_id), callback)
 		def register_client_moved(callback):
-			self._protocol.send_command("clientnotifyregister schandlerid={0} event=notifyclientmoved".format(self._schandler_id), callback)
+			self._send_command("clientnotifyregister schandlerid={0} event=notifyclientmoved".format(self._schandler_id), callback)
 		def register_connect_status_change(callback):
-			self._protocol.send_command("clientnotifyregister schandlerid={0} event=notifyconnectstatuschange".format(self._schandler_id), callback)
+			self._send_command("clientnotifyregister schandlerid={0} event=notifyconnectstatuschange".format(self._schandler_id), callback)
 		def use_schandler_id(callback):
-			self._protocol.send_command("use schandlerid={0}".format(self._schandler_id), callback)
+			self._send_command("use schandlerid={0}".format(self._schandler_id), callback)
 		def start_pinging(callback):
 			self._start_pinging()
 			callback(None, None)
 		def on_finish(err, results):
-			self._handle_api_error(err, "_on_connected_to_ts_state() failed")
-			self._connected = True
 			self._sm.set_state_done()
 
 		async.series([
@@ -207,8 +214,7 @@ class TS3Client(object):
 				callback(err, entries)
 			self.get_clientlist(on_clientlist)
 		def update_wot_nickname(callback):
-			self.set_wot_nickname(self._wot_nickname)
-			callback(None, None)
+			self.set_wot_nickname(self._wot_nickname, callback)
 		def notify_connected_to_server(callback):
 			def on_name_received(err, name):
 				self.on_connected_to_server("unknown" if err else name)
@@ -216,7 +222,6 @@ class TS3Client(object):
 			self._get_server_name(on_name_received)
 
 		def on_finish(err, results):
-			self._handle_api_error(err, "_on_connected_to_ts_server_state() failed")
 			self._sm.set_state_done()
 
 		async.series([
@@ -225,20 +230,10 @@ class TS3Client(object):
 			notify_connected_to_server
 		], on_finish)
 
-		self.set_wot_nickname(self._wot_nickname)
 		return False
 
 	def _send_sm_event(self, event_name):
 		self._sm.send_event(event_name)
-
-	def _handle_api_error(self, err, msg):
-		if err:
-			if isinstance(err, Exception):
-				LOG_WARNING(type(err).__name__ + ": " + str(err))
-			elif err[0] in (_API_NOT_CONNECTED_TO_SERVER, _API_INVALID_SCHANDLER_ID):
-				self._send_sm_event("not_connected_error")
-			else:
-				_LOG_API_ERROR(msg + ":", err)
 
 	def _start_pinging(self):
 		if self._is_pinging:
@@ -262,21 +257,19 @@ class TS3Client(object):
 
 	def _update_my_client_id(self, callback=noop):
 		def on_whoami(err, lines):
-			if err:
-				self._handle_api_error(err, "_update_my_client_id() failed")
-			else:
+			if not err and lines:
 				self._my_client_id = int(clientquery.getParamValue(lines[0], 'clid'))
 				new_channel_id = int(clientquery.getParamValue(lines[0], 'cid'))
 				if new_channel_id != self._my_channel_id:
 					self._my_channel_id = new_channel_id
 					self.users_in_my_channel.invalidate()
 			callback(err, None)
-		self._protocol.send_command("whoami", on_whoami)
+		self._send_command("whoami", on_whoami)
 
 	def get_client_meta_data(self, client_id, callback=noop):
 		def on_finish(err, lines):
 			if err:
-				callback(err, "")
+				callback(err, None)
 			else:
 				data = clientquery.getParamValue(lines[0], "client_meta_data")
 				if data is None:
@@ -284,7 +277,7 @@ class TS3Client(object):
 					callback(None, "")
 				else:
 					callback(None, data)
-		self._protocol.send_command("clientvariable clid={0} client_meta_data".format(client_id), on_finish)
+		self._send_command("clientvariable clid={0} client_meta_data".format(client_id), on_finish)
 
 	def get_wot_nickname(self, client_id, callback=noop):
 		def on_finish(err, data):
@@ -300,20 +293,24 @@ class TS3Client(object):
 			return matches.group(1)
 		return ""
 
-	def set_wot_nickname(self, name):
+	def set_wot_nickname(self, name, callback=noop):
 		self._wot_nickname = name
 
 		if name is None or self._my_client_id is None:
+			callback(None, None)
 			return
 
 		def on_get_client_meta_data(err, data):
-			if data is not None:
+			if err:
+				callback(err, data)
+			else:
+				data = data if data else ""
 				new_tag = "<wot_nickname_start>{0}<wot_nickname_end>".format(name)
 				if re.search(self.NICK_META_PATTERN, data):
 					data = re.sub(self.NICK_META_PATTERN, new_tag, data)
 				else:
 					data += new_tag
-				self._protocol.send_command("clientupdate client_meta_data={0}".format(data))
+				self._send_command("clientupdate client_meta_data={0}".format(data), callback)
 		self.get_client_meta_data(self._my_client_id, on_get_client_meta_data)
 
 	def get_clientlist(self, callback=noop):
@@ -322,7 +319,7 @@ class TS3Client(object):
 				callback(err, None)
 			else:
 				callback(None, lines[0].split('|'))
-		self._protocol.send_command("clientlist -uid", on_clientlist)
+		self._send_command("clientlist -uid", on_clientlist)
 
 	def _get_server_name(self, callback=noop):
 		def on_finish(err, lines):
@@ -330,7 +327,7 @@ class TS3Client(object):
 				callback(err, None)
 			else:
 				callback(None, clientquery.getParamValue(lines[0], "virtualserver_name"))
-		self._protocol.send_command("servervariable virtualserver_name", on_finish)
+		self._send_command("servervariable virtualserver_name", on_finish)
 
 	def on_user_entered_my_channel(self, client_id):
 		user = self.users[client_id]
@@ -392,13 +389,6 @@ class TS3Client(object):
 		if status == "disconnected":
 			self._send_sm_event("server_disconnected")
 
-def _LOG_API_ERROR(message, err):
-	if err:
-		if err[0] in (_API_NOT_CONNECTED_TO_SERVER, _API_INVALID_SCHANDLER_ID):
-			LOG_DEBUG(message, err)
-		else:
-			LOG_ERROR(message, err)
-
 def _would_block_windows_workaround(func, fix_func):
 	'''Function decorator which caughts socket errors of type WSAEWOULDBLOCK
 	while other exceptions will propagate through.
@@ -433,20 +423,27 @@ class _ClientQueryProtocol(asynchat.async_chat):
 				self._event_handlers[name] = getattr(event_receiver, attr)
 		self.set_terminator("\n\r")
 		self._commands = []
+		self._opened = False
 
 		def connect_fix(address):
 			self.addr = address
 		self.connect = _would_block_windows_workaround(self.connect, connect_fix)
 		self.send = _would_block_windows_workaround(self.send, lambda self, data: 0)
 
+	def connect(self, address):
+		self._opened = True
+		asynchat.async_chat.connect(self, address)
+
 	def close(self):
 		'''Closes connection.'''
 		asynchat.async_chat.close(self)
-		self._data_in_handler = noop
-		self.on_closed()
-		for command in self._commands:
-			command.closed()
-		del self._commands[:]
+		if self._opened:
+			self._opened = False
+			self._data_in_handler = noop
+			self.on_closed()
+			for command in self._commands:
+				command.closed()
+			del self._commands[:]
 
 	def handle_connect(self):
 		'''Hook method which is called by async_chat when connection is
@@ -474,7 +471,11 @@ class _ClientQueryProtocol(asynchat.async_chat):
 		'''Hook method which is called by async_chat to indicate end-of-line.
 		Feeds collected line to data handling.
 		'''
-		self._data_in_handler(self._in_line)
+		try:
+			self._data_in_handler(self._in_line)
+		except:
+			LOG_CURRENT_EXCEPTION()
+			self.close()
 		self._in_line = ""
 
 	@LOG_CALL(msg=">> {data}")
@@ -491,6 +492,17 @@ class _ClientQueryProtocol(asynchat.async_chat):
 		else:
 			LOG_ERROR("Not TS client query protocol")
 			self.close()
+
+	def log_info(self, message, type="info"):
+		'''Undocumented feature of asyncore. Called by asyncore to print log
+		messages. Converts the log message to WOT logging.
+		'''
+		if type == "info":
+			LOG_NOTE(message)
+		elif type == "error":
+			LOG_ERROR(message)
+		elif type == "warning":
+			LOG_WARNING(message)
 
 	def _handle_in_data_welcome_message(self, line):
 		'''Consumes welcome message.'''
@@ -528,10 +540,12 @@ class _ClientQueryProtocol(asynchat.async_chat):
 			except IndexError:
 				pass
 
-	def send_command(self, command, callback=noop, timeout=_COMMAND_WAIT_TIMEOUT):
+	def send_command(self, command, callback, timeout):
 		'''Queues command for sending to client query.'''
 		if self._data_in_handler == self._handle_in_data_actions:
 			self._commands.append(_ClientQueryCommand(command, callback, timeout))
+		else:
+			callback(CommandIgnoredError("Cannot send command '{0}', wrong state".format(command)), None)
 
 class _ClientQueryCommand(object):
 	'''Container for a single command, handles receiving response lines and
@@ -569,6 +583,9 @@ class _ClientQueryCommand(object):
 		self._callback(ProtocolClosed("Command discarded: {0}".format(self.command)), None)
 
 class ProtocolClosed(Exception):
+	pass
+
+class CommandIgnoredError(Exception):
 	pass
 
 class User(object):
