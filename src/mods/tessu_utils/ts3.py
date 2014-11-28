@@ -351,12 +351,14 @@ class TS3Client(object):
 
 	def on_notifyclientupdated_ts3_event(self, line):
 		client_id = int(clientquery.getParamValue(line, "clid"))
-		metadata = clientquery.getParamValue(line, "client_meta_data")
-		if client_id not in self.users:
-			return
-		user = self.users[client_id]
-		if metadata:
-			user.wot_nick = self._get_wot_nick_from_metadata(metadata)
+		if client_id in self.users:
+			user = self.users[client_id]
+			nick = clientquery.getParamValue(line, "client_nickname")
+			if nick:
+				user.nick = nick
+			metadata = clientquery.getParamValue(line, "client_meta_data")
+			if metadata:
+				user.wot_nick = self._get_wot_nick_from_metadata(metadata)
 
 	def on_notifycliententerview_ts3_event(self, line):
 		'''This event handler is called when a TS user enters to the TS server.'''
