@@ -14,7 +14,7 @@ Compatible with WOT version 0.9.4.
 
 Installation
 ------------
-1. [Download the mod](https://github.com/jhakonen/wot-teamspeak-mod/releases/download/0.4.0/TessuMod-0.4.0.zip) and extract it to your WOT folder.
+1. [Download the mod](https://github.com/jhakonen/wot-teamspeak-mod/releases/download/0.5.0/TessuMod-0.5.0.zip) and extract it to your WOT folder.
 2. Download and install TS 3 client from http://www.teamspeak.com/?page=downloads
 
 Usage
