@@ -139,7 +139,7 @@ class TS3Client(object):
 	def _send_command(self, command, callback=noop, timeout=_COMMAND_WAIT_TIMEOUT):
 		def on_command_finish(err, lines):
 			if err:
-				LOG_ERROR(type(err).__name__ + ": " + str(err))
+				LOG_DEBUG(type(err).__name__ + ": " + str(err))
 				if isinstance(err, clientquery.APINotConnectedError) or isinstance(err, clientquery.APIInvalidSchandlerIDError):
 					self._send_sm_event("not_connected_error")
 				else:
