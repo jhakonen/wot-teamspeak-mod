@@ -161,7 +161,7 @@ class TS3Client(object):
 		def get_currentschandlerid(callback):
 			def on_finish(err, lines):
 				if not err:
-					self._schandler_id = int(clientquery.getParamValue(lines[0], 'schandlerid'))
+					self._schandler_id = int(parse_client_query_parameter(lines[0], "schandlerid"))
 				callback(err, lines)
 			self._send_command("currentschandlerid", on_finish)
 		def register_talk_status_change(callback):
@@ -206,10 +206,10 @@ class TS3Client(object):
 				if not err:
 					for entry in entries:
 						self.users.add(
-							client_id  = int(clientquery.getParamValue(entry, 'clid')),
-							nick       = clientquery.getParamValue(entry, 'client_nickname'),
-							unique_id  = clientquery.getParamValue(entry, 'client_unique_identifier'),
-							channel_id = int(clientquery.getParamValue(entry, 'cid'))
+							client_id  = int(entry.get("clid")),
+							nick       = entry.get("client_nickname"),
+							unique_id  = entry.get("client_unique_identifier"),
+							channel_id = int(entry.get("cid"))
 						)
 				callback(err, entries)
 			self.get_clientlist(on_clientlist)
@@ -258,8 +258,9 @@ class TS3Client(object):
 	def _update_my_client_id(self, callback=noop):
 		def on_whoami(err, lines):
 			if not err and lines:
-				self._my_client_id = int(clientquery.getParamValue(lines[0], 'clid'))
-				new_channel_id = int(clientquery.getParamValue(lines[0], 'cid'))
+				[entry] = parse_client_query_parameters(lines[0])
+				self._my_client_id = int(entry.get("clid"))
+				new_channel_id = int(entry.get("cid"))
 				if new_channel_id != self._my_channel_id:
 					self._my_channel_id = new_channel_id
 					self.users_in_my_channel.invalidate()
@@ -271,7 +272,7 @@ class TS3Client(object):
 			if err:
 				callback(err, None)
 			else:
-				data = clientquery.getParamValue(lines[0], "client_meta_data")
+				data = parse_client_query_parameter(lines[0], "client_meta_data")
 				if data is None:
 					LOG_WARNING("get_client_meta_data failed, value:", data)
 					callback(None, "")
@@ -318,7 +319,7 @@ class TS3Client(object):
 			if err:
 				callback(err, None)
 			else:
-				callback(None, lines[0].split('|'))
+				callback(None, parse_client_query_parameters(lines[0]))
 		self._send_command("clientlist -uid", on_clientlist)
 
 	def _get_server_name(self, callback=noop):
@@ -326,7 +327,7 @@ class TS3Client(object):
 			if err:
 				callback(err, None)
 			else:
-				callback(None, clientquery.getParamValue(lines[0], "virtualserver_name"))
+				callback(None, parse_client_query_parameter(lines[0], "virtualserver_name"))
 		self._send_command("servervariable virtualserver_name", on_finish)
 
 	def on_user_entered_my_channel(self, client_id):
@@ -340,8 +341,9 @@ class TS3Client(object):
 		self._send_sm_event("tab_changed")
 
 	def on_notifytalkstatuschange_ts3_event(self, line):
-		client_id = int(clientquery.getParamValue(line, 'clid'))
-		speaking = int(clientquery.getParamValue(line, 'status')) == 1
+		[entry] = parse_client_query_parameters(line)
+		client_id = int(entry.get("clid"))
+		speaking = int(entry.get("status")) == 1
 		if client_id not in self.users:
 			return
 		user = self.users[client_id]
@@ -350,44 +352,49 @@ class TS3Client(object):
 			self.on_speak_status_changed(user)
 
 	def on_notifyclientupdated_ts3_event(self, line):
-		client_id = int(clientquery.getParamValue(line, "clid"))
+		[entry] = parse_client_query_parameters(line)
+		client_id = int(entry.get("clid"))
 		if client_id in self.users:
 			user = self.users[client_id]
-			nick = clientquery.getParamValue(line, "client_nickname")
+			nick = entry.get("client_nickname")
 			if nick:
 				user.nick = nick
-			metadata = clientquery.getParamValue(line, "client_meta_data")
+			metadata = entry.get("client_meta_data")
 			if metadata:
 				user.wot_nick = self._get_wot_nick_from_metadata(metadata)
 
 	def on_notifycliententerview_ts3_event(self, line):
 		'''This event handler is called when a TS user enters to the TS server.'''
-		client_id = int(clientquery.getParamValue(line, 'clid'))
-		self.users.add(
-			nick       = clientquery.getParamValue(line, 'client_nickname'),
-			wot_nick   = self._get_wot_nick_from_metadata(clientquery.getParamValue(line, 'client_meta_data')),
-			client_id  = client_id,
-			unique_id  = clientquery.getParamValue(line, 'client_unique_identifier'),
-			channel_id = int(clientquery.getParamValue(line, 'ctid'))
-		)
+		for entry in parse_client_query_parameters(line):
+			# only first entry has channel id
+			if "ctid" in entry:
+				channel_id = int(entry.get("ctid"))
+			self.users.add(
+				nick       = entry.get("client_nickname"),
+				wot_nick   = self._get_wot_nick_from_metadata(entry.get("client_meta_data")),
+				client_id  = int(entry.get("clid")),
+				unique_id  = entry.get("client_unique_identifier"),
+				channel_id = channel_id
+			)
 
 	def on_notifyclientleftview_ts3_event(self, line):
 		'''This event handler is called when a TS user leaves from the TS server.'''
-		client_id = int(clientquery.getParamValue(line, 'clid'))
-		if client_id not in self.users:
-			return
-		self.users.remove(client_id)
+		for entry in parse_client_query_parameters(line):
+			client_id = int(entry.get("clid"))
+			if client_id in self.users:
+				self.users.remove(client_id)
 
 	def on_notifyclientmoved_ts3_event(self, line):
 		'''This event handler is called when a TS user moves from one channel to another.'''
-		client_id = int(clientquery.getParamValue(line, 'clid'))
-		channel_id = int(clientquery.getParamValue(line, 'ctid'))
+		[entry] = parse_client_query_parameters(line)
+		client_id = int(entry.get("clid"))
+		channel_id = int(entry.get("ctid"))
 		if client_id not in self.users:
 			return
 		self.users.add(client_id=client_id, channel_id=channel_id)
 
 	def on_notifyconnectstatuschange_ts3_event(self, line):
-		status = clientquery.getParamValue(line, 'status')
+		status = parse_client_query_parameter(line, "status")
 		if status == "disconnected":
 			self._send_sm_event("server_disconnected")
 
@@ -714,3 +721,83 @@ class UserFilterProxy(object):
 	def _on_source_modified(self, client_id):
 		if client_id in self._client_ids:
 			self.on_modified(client_id)
+
+def parse_client_query_parameter(parameters_str, parameter):
+	# NOTE: this can raise error (too many values to unpack) if 'parameters_str'
+	# contains a list (separated with '|'), in such case the
+	# parse_client_query_parameters() function should be used
+	[entry] = parse_client_query_parameters(parameters_str)
+	return entry.get(parameter)
+
+def parse_client_query_parameters(parameters_str):
+	return ParamsParser().parse(parameters_str)
+
+class LineEnd(object):
+	pass
+
+class ParamsParser(object):
+
+	# see ESCAPING in http://media.teamspeak.com/ts3_literature/TeamSpeak%203%20Server%20Query%20Manual.pdf
+	_ESCAPE_LOOKUP = {
+		"\\": "\\",
+		"/": "/",
+		"s": " ",
+		"p": "|",
+		"a": "\a",
+		"b": "\b",
+		"f": "\f",
+		"n": "\n",
+		"r": "\r",
+		"t": "\t",
+		"v": "\v"
+	}
+
+	def parse(self, parameter_str):
+		self._entry = {}
+		self._entries = []
+		self._change_parse_state(self._parse_key)
+		for char in parameter_str:
+			self._char_parser(char)
+		self._char_parser(LineEnd)
+		return self._entries
+
+	def _parse_common(self, char):
+		if char == " ":
+			self._entry[self._key_name] = self._key_value
+			self._change_parse_state(self._parse_key)
+			return True
+		if char == LineEnd:
+			self._entry[self._key_name] = self._key_value
+			self._entries.append(self._entry)
+			return True
+		if char == "|":
+			self._entry[self._key_name] = self._key_value
+			self._entries.append(self._entry)
+			self._entry = {}
+			self._change_parse_state(self._parse_key)
+			return True
+		return False
+
+	def _parse_key(self, char):
+		if not self._parse_common(char):
+			if char == "=":
+				self._change_parse_state(self._parse_value)
+			else:
+				self._key_name += char
+
+	def _parse_value(self, char):
+		if not self._parse_common(char):
+			if char == "\\" and not self._escaping:
+				self._escaping = True
+			elif self._escaping:
+				self._key_value += self._ESCAPE_LOOKUP[char]
+				self._escaping = False
+			else:
+				self._key_value += char
+
+	def _change_parse_state(self, parse_func):
+		if parse_func == self._parse_key:
+			self._key_name = ""
+			self._key_value = ""
+			self._escaping = False
+		self._char_parser = parse_func
