@@ -47,7 +47,7 @@ SharedMemoryListener::SharedMemoryListener()
 	: timer( new QTimer( this ) ), memory( new QSharedMemory( this ) )
 {
 	connect( timer, SIGNAL( timeout()), this, SLOT( onTimeout() ) );
-	timer->setInterval( 500 );
+	timer->setInterval( 100 );
 	timer->setSingleShot( false );
 	memory->setNativeKey( "TessuModTSPlugin3dAudio" );
 }
