@@ -22,6 +22,7 @@ from gui.WindowsManager import g_windowsManager
 from messenger.storage import storage_getter
 from messenger.proto.bw import find_criteria
 import ResMgr
+import Event
 import os
 import functools
 import inspect
@@ -346,6 +347,30 @@ class MinimapMarkerAnimation(object):
 			g_windowsManager.battleWindow.minimap.showActionMarker(self._vehicle_id, self._action)
 		except AttributeError:
 			pass
+
+
+class RepeatTimer(object):
+
+	def __init__(self, timeout):
+		self._timeout   = timeout
+		self._stopped   = True
+		self.on_timeout = Event.Event()
+
+	def start(self):
+		self._stopped = False
+		self._do_call()
+
+	def stop(self):
+		self._stopped = True
+
+	def _do_call(self):
+		if not self._stopped:
+			BigWorld.callback(self._timeout, self._on_timeout)
+
+	def _on_timeout(self):
+		if not self._stopped:
+			self.on_timeout()
+			self._do_call()
 
 class LOG_LEVEL(object):
 	DEBUG = 0

@@ -209,7 +209,7 @@ def in_test_suite():
 	return "behave" in sys.argv[0]
 
 def load_mod():
-	global g_ts, g_talk_states, g_minimap_ctrl, g_user_cache
+	global g_ts, g_talk_states, g_minimap_ctrl, g_user_cache, g_positional_audio
 
 	# make sure that ini-folder exists
 	try:
@@ -245,12 +245,13 @@ def load_mod():
 	g_ts.users_in_my_channel.on_added += on_ts3_user_in_my_channel_added
 	utils.call_in_loop(settings().get_client_query_interval(), g_ts.check_events)
 
-	positional_audio.init(
-		big_world     = BigWorld,
-		player_events = g_playerEvents,
+	g_positional_audio = positional_audio.PositionalAudio(
 		ts_users      = g_ts.users_in_my_channel,
 		user_cache    = g_user_cache
 	)
+
+	g_playerEvents.onAvatarBecomePlayer    += g_positional_audio.on_become_player
+	g_playerEvents.onAvatarBecomeNonPlayer += g_positional_audio.on_become_nonplayer
 
 	# if nothing broke so far then it should be safe to patch the needed
 	# functions (modified functions have dependencies to g_* global variables)
