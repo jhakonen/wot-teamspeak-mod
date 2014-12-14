@@ -36,5 +36,3 @@ HEADERS +=\
 	src/structures.h \
 	src/sharedmemorylistener.h \
 	src/positionalaudio.h
-
-DLLDESTDIR = E:/Programs/TeamSpeak3Client/plugins
