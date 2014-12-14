@@ -24,6 +24,8 @@
 #include <public_errors.h>
 #include <iostream>
 
+static int lastDistance = 0;
+
 PositionalAudio::PositionalAudio( const TS3Functions ts3Interface, QObject *parent )
 	: QObject( parent ), ts3Interface( ts3Interface )
 {
@@ -38,7 +40,11 @@ void PositionalAudio::onCustom3dRolloffCalculationClientEvent( uint64 serverConn
 {
 	Q_UNUSED( serverConnectionHandlerID );
 	*volume = 1.0;
-	std::cout << "distance: " << clientID << " :: " << distance << std::endl;
+	if ( lastDistance != (int)distance )
+	{
+		lastDistance = distance;
+		std::cout << "distance: " << clientID << " :: " << distance << std::endl;
+	}
 }
 
 void PositionalAudio::onCustom3dRolloffCalculationWaveEvent( uint64 serverConnectionHandlerID, uint64 waveHandle, float distance, float *volume )
