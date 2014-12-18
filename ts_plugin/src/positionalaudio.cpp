@@ -19,7 +19,7 @@
  */
 
 #include "positionalaudio.h"
-#include "structures.h"
+#include "ts_helpers.h"
 
 #include <public_errors.h>
 #include <iostream>
@@ -27,23 +27,36 @@
 static int lastDistance = 0;
 
 PositionalAudio::PositionalAudio( const TS3Functions ts3Interface, QObject *parent )
-	: QObject( parent ), ts3Interface( ts3Interface )
+	: ModuleBase( parent ), ts3Interface( ts3Interface ), isEnabled( false )
 {
 }
 
-void PositionalAudio::setServerConnectionHandlerID( uint64 id )
+int PositionalAudio::getAudioBackend() const
 {
-	serverConnectionHandlerID = id;
+	return BuiltInBackend;
+}
+
+void PositionalAudio::enable()
+{
+	isEnabled = true;
+}
+
+void PositionalAudio::disable()
+{
+	isEnabled = false;
 }
 
 void PositionalAudio::onCustom3dRolloffCalculationClientEvent( uint64 serverConnectionHandlerID, anyID clientID, float distance, float *volume )
 {
 	Q_UNUSED( serverConnectionHandlerID );
-	*volume = 1.0;
-	if ( lastDistance != (int)distance )
+	if( isEnabled )
 	{
-		lastDistance = distance;
-		std::cout << "distance: " << clientID << " :: " << distance << std::endl;
+		*volume = 1.0;
+		if ( lastDistance != (int)distance )
+		{
+			lastDistance = distance;
+			std::cout << "distance: " << clientID << " :: " << distance << std::endl;
+		}
 	}
 }
 
@@ -52,37 +65,55 @@ void PositionalAudio::onCustom3dRolloffCalculationWaveEvent( uint64 serverConnec
 	Q_UNUSED( serverConnectionHandlerID );
 	Q_UNUSED( waveHandle );
 	Q_UNUSED( distance );
-	*volume = 1.0;
+	if( isEnabled )
+	{
+		*volume = 1.0;
+	}
 }
 
 void PositionalAudio::onCameraPositionChanged( TS3_VECTOR position )
 {
-	std::cout << "onCameraPositionChanged(): " << position << std::endl;
 	origo = position;
-	for ( auto iter = clientPositions.cbegin(); iter != clientPositions.cend(); ++iter )
+	if( isEnabled )
 	{
-		TS3_VECTOR relativePosition = (*iter).second - origo;
-		anyID clientID = (*iter).first;
-		ts3Interface.channelset3DAttributes( serverConnectionHandlerID, clientID, &relativePosition );
+		std::cout << "onCameraPositionChanged(): " << position << std::endl;
+		for ( auto iter = clientPositions.cbegin(); iter != clientPositions.cend(); ++iter )
+		{
+			TS3_VECTOR relativePosition = (*iter).second - origo;
+			anyID clientID = (*iter).first;
+			ts3Interface.channelset3DAttributes( getServerConnectionHandlerID(), clientID, &relativePosition );
+		}
 	}
 }
 
 void PositionalAudio::onCameraDirectionChanged( TS3_VECTOR direction )
 {
-	std::cout << "onCameraDirectionChanged(): " << direction << std::endl;
-	TS3_VECTOR position = {0, 0, 0};
-	TS3_VECTOR up = {0, 1, 0};
-	ts3Interface.systemset3DListenerAttributes( serverConnectionHandlerID, &position, &direction, &up );
+	if( isEnabled )
+	{
+		std::cout << "onCameraDirectionChanged(): " << direction << std::endl;
+		// cannot calculate up-vector if both x and z are zero
+		if( direction.x == 0 && direction.z == 0 )
+		{
+			return;
+		}
+
+		TS3_VECTOR position = {0, 0, 0};
+		TS3_VECTOR up = toUnitVector( crossProduct( direction, createVector( direction.z, 0, -direction.x ) ) );
+		ts3Interface.systemset3DListenerAttributes( getServerConnectionHandlerID(), &position, &direction, &up );
+	}
 }
 
 void PositionalAudio::onClientAdded( anyID clientID, TS3_VECTOR position )
 {
 	if( isNotMyClientID( clientID ) )
 	{
-		TS3_VECTOR relativePosition = position - origo;
-		std::cout << "onClientAdded(): " << clientID << ", " << position << std::endl;
 		clientPositions[clientID] = position;
-		ts3Interface.channelset3DAttributes( serverConnectionHandlerID, clientID, &relativePosition );
+		if( isEnabled )
+		{
+			std::cout << "onClientAdded(): " << clientID << ", " << position << std::endl;
+			TS3_VECTOR relativePosition = position - origo;
+			ts3Interface.channelset3DAttributes( getServerConnectionHandlerID(), clientID, &relativePosition );
+		}
 	}
 }
 
@@ -90,28 +121,31 @@ void PositionalAudio::onClientPositionChanged( anyID clientID, TS3_VECTOR positi
 {
 	if( isNotMyClientID( clientID ) )
 	{
-		TS3_VECTOR relativePosition = position - origo;
 		clientPositions[clientID] = position;
-		std::cout << "onClientPositionChanged(): " << clientID << ", " << relativePosition << std::endl;
-		ts3Interface.channelset3DAttributes( serverConnectionHandlerID, clientID, &relativePosition );
+		if( isEnabled )
+		{
+			TS3_VECTOR relativePosition = position - origo;
+			std::cout << "onClientPositionChanged(): " << clientID << ", " << relativePosition << std::endl;
+			ts3Interface.channelset3DAttributes( getServerConnectionHandlerID(), clientID, &relativePosition );
+		}
 	}
 }
 
 void PositionalAudio::onClientRemoved( anyID clientID )
 {
-	std::cout << "onClientRemoved(): " << clientID << std::endl;
 	clientPositions.erase( clientID );
-	if( isNotMyClientID( clientID ) )
+	if( isEnabled && isNotMyClientID( clientID ) )
 	{
+		std::cout << "onClientRemoved(): " << clientID << std::endl;
 		TS3_VECTOR zero = {0, 0, 0};
-		ts3Interface.channelset3DAttributes( serverConnectionHandlerID, clientID, &zero );
+		ts3Interface.channelset3DAttributes( getServerConnectionHandlerID(), clientID, &zero );
 	}
 }
 
 bool PositionalAudio::isNotMyClientID( anyID clientID ) const
 {
 	anyID myID;
-	if( ts3Interface.getClientID( serverConnectionHandlerID, &myID ) != ERROR_ok )
+	if( ts3Interface.getClientID( getServerConnectionHandlerID(), &myID ) != ERROR_ok )
 	{
 		return false;
 	}

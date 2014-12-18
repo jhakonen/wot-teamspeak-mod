@@ -21,12 +21,18 @@
 #include "plugin.h"
 #include "sharedmemorylistener.h"
 #include "positionalaudio.h"
+#include "positionalaudioopenal.h"
 
 #include <Windows.h>
+#include <iostream>
+#include <QCoreApplication>
+#include <QDir>
 
 static struct TS3Functions ts3Functions;
 static SharedMemoryListener* memoryListener;
-static PositionalAudio* positionalAudio;
+static std::list<ModuleBase*> modules;
+static int audioBackend = 0;
+static DLL_DIRECTORY_COOKIE dllSearchCookie;
 
 #define PLUGIN_API_VERSION 20
 
@@ -42,6 +48,19 @@ static int wcharToUtf8(const wchar_t* str, char** result) {
 	return 0;
 }
 #endif
+
+#define CALL_MODULES( call ) \
+	for( auto it = modules.begin(); it != modules.end(); ++it ) \
+	{ \
+		(*it)->call; \
+	}
+
+QString getPluginDataPath()
+{
+	char pluginPath[512];
+	ts3Functions.getPluginPath( pluginPath, 512 );
+	return QDir::cleanPath( QString( pluginPath ) + "/tessumod_plugin" );
+}
 
 /*********************************** Required functions ************************************/
 /*
@@ -83,20 +102,29 @@ void ts3plugin_setFunctionPointers(const struct TS3Functions funcs) {
  * If the function returns 1 on failure, the plugin will be unloaded again.
  */
 int ts3plugin_init() {
+	QString dataPath = QDir::toNativeSeparators( getPluginDataPath() );
+	dllSearchCookie = AddDllDirectory( (wchar_t*)dataPath.utf16() );
+
 	memoryListener = new SharedMemoryListener();
-	positionalAudio = new PositionalAudio( ts3Functions );
+	modules.push_back( new PositionalAudio( ts3Functions ) );
+	modules.push_back( new PositionalAudioOpenAL( ts3Functions ) );
 
-	QObject::connect( memoryListener, SIGNAL( cameraPositionChanged( TS3_VECTOR ) ),
-					  positionalAudio, SLOT( onCameraPositionChanged( TS3_VECTOR ) ) );
-	QObject::connect( memoryListener, SIGNAL( cameraDirectionChanged( TS3_VECTOR ) ),
-					  positionalAudio, SLOT( onCameraDirectionChanged( TS3_VECTOR ) ) );
+	for( auto it = modules.begin(); it != modules.end(); ++it )
+	{
+		(*it)->init();
+		QObject::connect( memoryListener, SIGNAL( cameraPositionChanged( TS3_VECTOR ) ),
+						  *it, SLOT( onCameraPositionChanged( TS3_VECTOR ) ) );
+		QObject::connect( memoryListener, SIGNAL( cameraDirectionChanged( TS3_VECTOR ) ),
+						  *it, SLOT( onCameraDirectionChanged( TS3_VECTOR ) ) );
+		QObject::connect( memoryListener, SIGNAL( clientAdded( anyID, TS3_VECTOR ) ),
+						  *it, SLOT( onClientAdded( anyID, TS3_VECTOR ) ) );
+		QObject::connect( memoryListener, SIGNAL( clientPositionChanged( anyID, TS3_VECTOR ) ),
+						  *it, SLOT( onClientPositionChanged( anyID, TS3_VECTOR ) ) );
+		QObject::connect( memoryListener, SIGNAL( clientRemoved( anyID ) ),
+						  *it, SLOT( onClientRemoved( anyID ) ) );
+	}
 
-	QObject::connect( memoryListener, SIGNAL( clientAdded( anyID, TS3_VECTOR ) ),
-					  positionalAudio, SLOT( onClientAdded( anyID, TS3_VECTOR ) ) );
-	QObject::connect( memoryListener, SIGNAL( clientPositionChanged( anyID, TS3_VECTOR ) ),
-					  positionalAudio, SLOT( onClientPositionChanged( anyID, TS3_VECTOR ) ) );
-	QObject::connect( memoryListener, SIGNAL( clientRemoved( anyID ) ),
-					  positionalAudio, SLOT( onClientRemoved( anyID ) ) );
+	QObject::connect( memoryListener, &SharedMemoryListener::audioBackendChanged, onAudioBackendChanged );
 
 	memoryListener->start();
 
@@ -108,9 +136,14 @@ int ts3plugin_init() {
 
 /* Custom code called right before the plugin is unloaded */
 void ts3plugin_shutdown() {
+	RemoveDllDirectory( dllSearchCookie );
+
 	memoryListener->stop();
 	delete memoryListener;
-	delete positionalAudio;
+	for( auto it = modules.begin(); it != modules.end(); ++it )
+	{
+		delete *it;
+	}
 }
 
 /****************************** Optional functions ********************************/
@@ -120,7 +153,7 @@ void ts3plugin_shutdown() {
 
 /* Client changed current server connection handler */
 void ts3plugin_currentServerConnectionChanged( uint64 serverConnectionHandlerID ) {
-	positionalAudio->setServerConnectionHandlerID( serverConnectionHandlerID );
+	CALL_MODULES( setServerConnectionHandlerID( serverConnectionHandlerID ) );
 }
 
 /*
@@ -130,6 +163,22 @@ void ts3plugin_currentServerConnectionChanged( uint64 serverConnectionHandlerID 
  */
 int ts3plugin_requestAutoload() {
 	return 1;  /* 1 = request autoloaded, 0 = do not request autoload */
+}
+
+void ts3plugin_onConnectStatusChangeEvent( uint64 serverConnectionHandlerID, int newStatus, unsigned int errorNumber )
+{
+	CALL_MODULES( onConnectStatusChangeEvent( serverConnectionHandlerID, newStatus, errorNumber ) );
+}
+
+void ts3plugin_onClientMoveEvent( uint64 serverConnectionHandlerID, anyID clientID, uint64 oldChannelID, uint64 newChannelID, int visibility, const char *moveMessage )
+{
+	std::cout << "onClientMoveEvent() :: "
+			  << "clientID: " << clientID << ", "
+			  << "oldChannelID: " << oldChannelID << ", "
+			  << "newChannelID: " << newChannelID << ", "
+			  << "visibility: " << visibility
+			  << std::endl;
+	CALL_MODULES( onClientMoveEvent( serverConnectionHandlerID, clientID, oldChannelID, newChannelID, visibility, moveMessage ) );
 }
 
 int ts3plugin_onServerErrorEvent(uint64 serverConnectionHandlerID, const char* errorMessage, unsigned int error, const char* returnCode, const char* extraMessage) {
@@ -146,9 +195,40 @@ int ts3plugin_onServerErrorEvent(uint64 serverConnectionHandlerID, const char* e
 }
 
 void ts3plugin_onCustom3dRolloffCalculationClientEvent( uint64 serverConnectionHandlerID, anyID clientID, float distance, float* volume ) {
-	positionalAudio->onCustom3dRolloffCalculationClientEvent( serverConnectionHandlerID, clientID, distance, volume );
+	CALL_MODULES( onCustom3dRolloffCalculationClientEvent( serverConnectionHandlerID, clientID, distance, volume ) );
 }
 
 void ts3plugin_onCustom3dRolloffCalculationWaveEvent( uint64 serverConnectionHandlerID, uint64 waveHandle, float distance, float* volume ) {
-	positionalAudio->onCustom3dRolloffCalculationWaveEvent( serverConnectionHandlerID, waveHandle, distance, volume );
+	CALL_MODULES( onCustom3dRolloffCalculationWaveEvent( serverConnectionHandlerID, waveHandle, distance, volume ) );
+}
+
+void ts3plugin_onEditPlaybackVoiceDataEvent( uint64 serverConnectionHandlerID, anyID clientID, short* samples, int sampleCount, int channels ) {
+	CALL_MODULES( onEditPlaybackVoiceDataEvent( serverConnectionHandlerID, clientID, samples, sampleCount, channels ) );
+}
+
+void ts3plugin_onEditPostProcessVoiceDataEvent( uint64 serverConnectionHandlerID, anyID clientID, short* samples, int sampleCount, int channels, const unsigned int* channelSpeakerArray, unsigned int* channelFillMask )
+{
+	CALL_MODULES( onEditPostProcessVoiceDataEvent( serverConnectionHandlerID, clientID, samples, sampleCount, channels, channelSpeakerArray, channelFillMask ) );
+}
+
+void ts3plugin_onEditMixedPlaybackVoiceDataEvent( uint64 serverConnectionHandlerID, short* samples, int sampleCount, int channels, const unsigned int* channelSpeakerArray, unsigned int* channelFillMask )
+{
+	CALL_MODULES( onEditMixedPlaybackVoiceDataEvent( serverConnectionHandlerID, samples, sampleCount, channels, channelSpeakerArray, channelFillMask ) );
+}
+
+void onAudioBackendChanged( int newBackend )
+{
+	std::cout << "onAudioBackendChanged(): " << newBackend << std::endl;
+	for( auto it = modules.begin(); it != modules.end(); ++it )
+	{
+		if( audioBackend == (*it)->getAudioBackend() )
+		{
+			(*it)->disable();
+		}
+		if( newBackend == (*it)->getAudioBackend() )
+		{
+			(*it)->enable();
+		}
+	}
+	audioBackend = newBackend;
 }

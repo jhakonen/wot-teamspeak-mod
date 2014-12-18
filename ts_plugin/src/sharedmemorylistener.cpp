@@ -20,16 +20,18 @@
  */
 
 #include "memoryareabuffer.h"
-#include "structures.h"
+#include "ts_helpers.h"
 
 #include <QTimer>
 #include <QSharedMemory>
 #include <QBuffer>
 #include <QDataStream>
 #include <QDebug>
+#include <QDateTime>
 #include <iostream>
 
 static const int VERSION_SIZE = 2;
+static const int TIME_LIMIT = 5;
 
 class MyDataStream : public QDataStream
 {
@@ -91,6 +93,18 @@ void SharedMemoryListener::onTimeout()
 	PositionalAudioData data;
 	stream >> data;
 
+	if( ( QDateTime::currentDateTime().toTime_t() - data.timestamp ) > TIME_LIMIT )
+	{
+		data.audioBackend = NoBackend;
+		data.cameraPosition = createVector( 0, 0, 0 );
+		data.cameraDirection = createVector( 0, 0, 0 );
+		data.clientPositions.clear();
+	}
+
+	if( data.audioBackend != previousData.audioBackend )
+	{
+		emit audioBackendChanged( data.audioBackend );
+	}
 	if ( data.cameraPosition != previousData.cameraPosition )
 	{
 		emit cameraPositionChanged( data.cameraPosition );

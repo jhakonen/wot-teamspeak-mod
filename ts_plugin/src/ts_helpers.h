@@ -26,10 +26,20 @@
 
 struct PositionalAudioData
 {
+	PositionalAudioData();
 	quint16 version;
+	quint32 timestamp;
+	quint8 audioBackend;
 	TS3_VECTOR cameraPosition;
 	TS3_VECTOR cameraDirection;
 	std::map<anyID, TS3_VECTOR> clientPositions;
+};
+
+enum AudioBackend
+{
+	NoBackend      = 0,
+	BuiltInBackend = 1,
+	OpenALBackend  = 2
 };
 
 QDataStream& operator>>( QDataStream &stream, TS3_VECTOR& vector );
@@ -38,5 +48,10 @@ QDataStream& operator>>( QDataStream &stream, PositionalAudioData& data );
 std::ostream& operator<<( std::ostream& stream, const TS3_VECTOR& vector );
 std::ostream& operator<<( std::ostream& stream, const PositionalAudioData& data );
 
+TS3_VECTOR createVector( float x, float y, float z );
 bool operator!=( const TS3_VECTOR& vector1, const TS3_VECTOR& vector2 );
 TS3_VECTOR operator-( const TS3_VECTOR& vector1, const TS3_VECTOR& vector2 );
+TS3_VECTOR operator/( const TS3_VECTOR& vector, float divider );
+TS3_VECTOR toUnitVector( const TS3_VECTOR& vector );
+float getLength( const TS3_VECTOR& vector );
+TS3_VECTOR crossProduct( const TS3_VECTOR &a, const TS3_VECTOR &b );

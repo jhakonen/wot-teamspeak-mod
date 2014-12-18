@@ -20,18 +20,19 @@
 
 #pragma once
 
-#include <QObject>
-#include <public_definitions.h>
+#include "modulebase.h"
 #include <ts3_functions.h>
 
-class PositionalAudio : public QObject
+class PositionalAudio : public ModuleBase
 {
 	Q_OBJECT
 
 public:
 	PositionalAudio( const TS3Functions ts3Interface, QObject *parent = 0 );
 
-	void setServerConnectionHandlerID( uint64 id );
+	int getAudioBackend() const;
+	void enable();
+	void disable();
 
 	void onCustom3dRolloffCalculationClientEvent( uint64 serverConnectionHandlerID, anyID clientID, float distance, float* volume );
 	void onCustom3dRolloffCalculationWaveEvent( uint64 serverConnectionHandlerID, uint64 waveHandle, float distance, float* volume );
@@ -48,7 +49,7 @@ private:
 
 private:
 	const TS3Functions ts3Interface;
-	uint64 serverConnectionHandlerID;
 	TS3_VECTOR origo;
 	std::map<anyID, TS3_VECTOR> clientPositions;
+	bool isEnabled;
 };

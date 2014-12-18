@@ -122,7 +122,7 @@ def on_connected_to_ts3():
 			shmem.close()
 
 	utils.push_system_message("Connected to TeamSpeak client", SystemMessages.SM_TYPE.Information)
-	if settings().is_3daudio_enabled():
+	if settings().is_positional_audio_enabled():
 		if not plugin_connected:
 			utils.push_system_message("TessuMod TS plugin is not installed, 3D audio is disabled", SystemMessages.SM_TYPE.Warning)
 		elif mod_out_of_date:
@@ -160,6 +160,7 @@ def load_settings():
 	utils.CURRENT_LOG_LEVEL = settings().get_log_level()
 	g_ts.HOST = settings().get_client_query_host()
 	g_ts.PORT = settings().get_client_query_port()
+	g_positional_audio.set_audio_backend(settings().get_audio_backend())
 
 def sync_configs():
 	g_user_cache.sync()
@@ -234,6 +235,11 @@ def load_mod():
 	g_minimap_ctrl = utils.MinimapMarkersController()
 	g_ts = TS3Client()
 
+	g_positional_audio = positional_audio.PositionalAudio(
+		ts_users      = g_ts.users_in_my_channel,
+		user_cache    = g_user_cache
+	)
+
 	load_settings()
 
 	g_ts.connect()
@@ -244,11 +250,6 @@ def load_mod():
 	g_ts.on_speak_status_changed += on_speak_status_changed
 	g_ts.users_in_my_channel.on_added += on_ts3_user_in_my_channel_added
 	utils.call_in_loop(settings().get_client_query_interval(), g_ts.check_events)
-
-	g_positional_audio = positional_audio.PositionalAudio(
-		ts_users      = g_ts.users_in_my_channel,
-		user_cache    = g_user_cache
-	)
 
 	g_playerEvents.onAvatarBecomePlayer    += g_positional_audio.on_become_player
 	g_playerEvents.onAvatarBecomeNonPlayer += g_positional_audio.on_become_nonplayer

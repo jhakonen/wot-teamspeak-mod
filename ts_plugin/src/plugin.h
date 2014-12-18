@@ -47,9 +47,16 @@ PLUGINS_EXPORTDLL void ts3plugin_currentServerConnectionChanged( uint64 serverCo
 PLUGINS_EXPORTDLL int ts3plugin_requestAutoload();
 
 /* Clientlib */
+PLUGINS_EXPORTDLL void ts3plugin_onConnectStatusChangeEvent( uint64 serverConnectionHandlerID, int newStatus, unsigned int errorNumber );
+PLUGINS_EXPORTDLL void ts3plugin_onClientMoveEvent( uint64 serverConnectionHandlerID, anyID clientID, uint64 oldChannelID, uint64 newChannelID, int visibility, const char* moveMessage );
 PLUGINS_EXPORTDLL int  ts3plugin_onServerErrorEvent( uint64 serverConnectionHandlerID, const char* errorMessage, unsigned int error, const char* returnCode, const char* extraMessage );
 PLUGINS_EXPORTDLL void ts3plugin_onCustom3dRolloffCalculationClientEvent( uint64 serverConnectionHandlerID, anyID clientID, float distance, float* volume );
 PLUGINS_EXPORTDLL void ts3plugin_onCustom3dRolloffCalculationWaveEvent( uint64 serverConnectionHandlerID, uint64 waveHandle, float distance, float* volume );
+PLUGINS_EXPORTDLL void ts3plugin_onEditPlaybackVoiceDataEvent( uint64 serverConnectionHandlerID, anyID clientID, short* samples, int sampleCount, int channels );
+PLUGINS_EXPORTDLL void ts3plugin_onEditPostProcessVoiceDataEvent( uint64 serverConnectionHandlerID, anyID clientID, short* samples, int sampleCount, int channels, const unsigned int* channelSpeakerArray, unsigned int* channelFillMask );
+PLUGINS_EXPORTDLL void ts3plugin_onEditMixedPlaybackVoiceDataEvent( uint64 serverConnectionHandlerID, short* samples, int sampleCount, int channels, const unsigned int* channelSpeakerArray, unsigned int* channelFillMask );
+
+void onAudioBackendChanged(int newBackend );
 
 #ifdef __cplusplus
 }

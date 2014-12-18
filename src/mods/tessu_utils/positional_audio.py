@@ -22,8 +22,9 @@ import os
 import BigWorld
 from utils import RepeatTimer
 import utils
+import time
 
-ENTITY_REFRESH_TIMEOUT = 5
+ENTITY_REFRESH_TIMEOUT = 1
 TS_UPDATE_TIMEOUT = 0.1
 
 class PositionalAudio(object):
@@ -37,6 +38,7 @@ class PositionalAudio(object):
 		self._camera_position = None
 		self._camera_direction = None
 		self._shared_memory = None
+		self._audio_backend = 0
 
 		ts_users.on_added     += self.on_ts_users_changed
 		ts_users.on_removed   += self.on_ts_users_changed
@@ -98,7 +100,7 @@ class PositionalAudio(object):
 		table for converting vehicle ID to position.
 		'''
 		for vehicle_id in self._arena().positions:
-			self._vehicle_positions[vehicle_id] = self._arena().positions[vehicle_id]
+			self._vehicle_positions[vehicle_id] = _Vector(*self._arena().positions[vehicle_id])
 		self._data_updated = True
 
 	def on_refresh_entity_positions(self):
@@ -130,10 +132,16 @@ class PositionalAudio(object):
 			data.deserialize(self._shared_memory)
 			if data.version == 1:
 				data = _DataV1()
+				data.audio_backend = self._audio_backend
 				data.camera_position = camera.position
 				data.camera_direction = camera.direction
 				data.client_positions = self._get_data_entries()
 				data.serialize(self._shared_memory)
+
+	def set_audio_backend(self, backend):
+		if self._audio_backend != backend:
+			self._audio_backend = backend
+			self._data_updated = True
 
 	def _get_data_entries(self):
 		entries = []
@@ -172,11 +180,14 @@ class _DataVersion(object):
 class _DataV1(object):
 
 	def __init__(self):
+		self.audio_backend = 0
 		self.camera_position = None
 		self.camera_direction = None
 		self.client_positions = {}
 
 	def serialize(self, destination):
+		destination.write(struct.pack("I", int(time.time())))
+		destination.write(struct.pack("B", self.audio_backend))
 		destination.write(self._pack_float_vector(self.camera_position))
 		destination.write(self._pack_float_vector(self.camera_direction))
 		destination.write(struct.pack("B", len(self.client_positions)))
@@ -186,3 +197,10 @@ class _DataV1(object):
 
 	def _pack_float_vector(self, vector):
 		return struct.pack("3f", vector.x, vector.y, vector.z)
+
+class _Vector(object):
+
+	def __init__(self, x, y, z):
+		self.x = x
+		self.y = y
+		self.z = z

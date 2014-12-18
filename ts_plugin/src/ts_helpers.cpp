@@ -18,9 +18,17 @@
  * USA
  */
 
-#include "structures.h"
+#include "ts_helpers.h"
 #include <QDataStream>
 #include <iostream>
+#include <cmath>
+
+PositionalAudioData::PositionalAudioData()
+	: version( 0 ), timestamp( 0 ), audioBackend( 0 ),
+	  cameraPosition( createVector( 0, 0, 0 ) ),
+	  cameraDirection( createVector( 0, 0, 0 ) )
+{
+}
 
 QDataStream& operator>>( QDataStream &stream, PositionalAudioData& data )
 {
@@ -28,6 +36,8 @@ QDataStream& operator>>( QDataStream &stream, PositionalAudioData& data )
 	TS3_VECTOR position;
 	quint8 clientCount;
 	stream >> data.version
+		   >> data.timestamp
+		   >> data.audioBackend
 		   >> data.cameraPosition
 		   >> data.cameraDirection
 		   >> clientCount;
@@ -64,6 +74,14 @@ std::ostream& operator<<( std::ostream& stream, const TS3_VECTOR& vector )
 	return stream;
 }
 
+TS3_VECTOR createVector( float x, float y, float z )
+{
+	TS3_VECTOR result;
+	result.x = x;
+	result.y = y;
+	result.z = z;
+	return result;
+}
 
 bool operator!=( const TS3_VECTOR &vector1, const TS3_VECTOR &vector2 )
 {
@@ -73,9 +91,33 @@ bool operator!=( const TS3_VECTOR &vector1, const TS3_VECTOR &vector2 )
 
 TS3_VECTOR operator-( const TS3_VECTOR &vector1, const TS3_VECTOR &vector2 )
 {
-	TS3_VECTOR subtracted = vector1;
-	subtracted.x -= vector2.x;
-	subtracted.y -= vector2.y;
-	subtracted.z -= vector2.z;
-	return subtracted;
+	return createVector( vector1.x - vector2.x, vector1.y - vector2.y, vector1.z - vector2.z );
 }
+
+TS3_VECTOR operator/( const TS3_VECTOR &vector, float divider )
+{
+	return createVector( vector.x / divider, vector.y / divider, vector.z / divider );
+}
+
+
+TS3_VECTOR toUnitVector( const TS3_VECTOR &vector )
+{
+	return vector / getLength( vector );
+}
+
+
+float getLength( const TS3_VECTOR &vector )
+{
+	return sqrt( pow( vector.x, 2 ) + pow( vector.y, 2 ) + pow( vector.z, 2 ) );
+}
+
+
+TS3_VECTOR crossProduct( const TS3_VECTOR &a, const TS3_VECTOR &b )
+{
+	return createVector(
+		a.y * b.z - a.z * b.y,
+		a.z * b.x - a.x * b.z,
+		a.x * b.y - a.y * b.x
+	);
+}
+

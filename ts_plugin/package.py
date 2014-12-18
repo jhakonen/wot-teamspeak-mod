@@ -107,5 +107,7 @@ if __name__ == "__main__":
 		files = {
 			"plugins\\tessumod_plugin_x86.dll": build_ts_plugin_binary(args.qtdir86[0], "x86"),
 			"plugins\\tessumod_plugin_x64.dll": build_ts_plugin_binary(args.qtdir64[0], "x64"),
+			"plugins\\tessumod_plugin\\OpenAL32.dll": os.path.join(SOURCE_DIR, "libs", "OpenAL32.dll"),
+			"plugins\\tessumod_plugin\\OpenAL64.dll": os.path.join(SOURCE_DIR, "libs", "OpenAL64.dll")
 		}
 	)

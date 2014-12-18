@@ -16,8 +16,6 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
 # USA
 
-QT -= gui
-
 TARGET = tessumod_plugin
 TEMPLATE = lib
 
@@ -26,13 +24,21 @@ INCLUDEPATH += include
 SOURCES += \
 	src/plugin.cpp \
 	src/memoryareabuffer.cpp \
-	src/structures.cpp \
 	src/sharedmemorylistener.cpp \
-	src/positionalaudio.cpp
+	src/positionalaudio.cpp \
+    src/positionalaudioopenal.cpp \
+    src/openal_helpers.cpp \
+    src/ts_helpers.cpp
 
 HEADERS +=\
 	src/plugin.h \
 	src/memoryareabuffer.h \
-	src/structures.h \
 	src/sharedmemorylistener.h \
-	src/positionalaudio.h
+	src/positionalaudio.h \
+    src/positionalaudioopenal.h \
+    src/modulebase.h \
+    src/openal_helpers.h \
+    src/ts_helpers.h
+
+RESOURCES += \
+	resources.qrc

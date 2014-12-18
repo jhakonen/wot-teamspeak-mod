@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/">
+        <file>etc/default-48000.mhr</file>
+        <file>etc/alsoft.ini</file>
+    </qresource>
+</RCC>
