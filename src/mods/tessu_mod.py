@@ -52,7 +52,7 @@ def update_player_speak_status(player_id):
 	'''Updates given 'player_id's talking status to VOIP system and minimap.''' 
 	try:
 		talking = is_voice_chat_speak_allowed(player_id) and talk_status(player_id)
-		VOIP.getVOIPManager().setPlayerTalking(player_id, talking)
+		VOIP.getVOIPManager().onPlayerSpeaking(player_id, talking)
 	except:
 		LOG_CURRENT_EXCEPTION()
 
@@ -96,7 +96,7 @@ def clear_speak_statuses():
 
 	for id in players_speaking:
 		try:
-			VOIP.getVOIPManager().setPlayerTalking(id, False)
+			VOIP.getVOIPManager().onPlayerSpeaking(id, False)
 		except:
 			pass
 

@@ -13,5 +13,5 @@ class VOIPManager(object):
 	def isParticipantTalking(self, dbid):
 		return True
 
-	def setPlayerTalking(self, dbid, state):
-		LOG_NOTE("TEST_SUITE: setPlayerTalking() called")
+	def onPlayerSpeaking(self, dbid, state):
+		LOG_NOTE("TEST_SUITE: onPlayerSpeaking() called")
