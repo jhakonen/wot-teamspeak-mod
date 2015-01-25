@@ -18,6 +18,7 @@
 
 TARGET = tessumod_plugin
 TEMPLATE = lib
+QT += widgets
 
 INCLUDEPATH += include
 
@@ -28,7 +29,9 @@ SOURCES += \
 	src/positionalaudio.cpp \
     src/positionalaudioopenal.cpp \
     src/openal_helpers.cpp \
-    src/ts_helpers.cpp
+    src/ts_helpers.cpp \
+    src/ui/settingsdialog.cpp \
+    src/settings.cpp
 
 HEADERS +=\
 	src/plugin.h \
@@ -38,7 +41,12 @@ HEADERS +=\
     src/positionalaudioopenal.h \
     src/modulebase.h \
     src/openal_helpers.h \
-    src/ts_helpers.h
+    src/ts_helpers.h \
+    src/ui/settingsdialog.h \
+    src/settings.h
 
 RESOURCES += \
 	resources.qrc
+
+FORMS += \
+    src/ui/settingsdialog.ui

@@ -23,13 +23,15 @@
 #include <QObject>
 #include <public_definitions.h>
 
+enum PluginMenuType;
+
 class ModuleBase : public QObject
 {
 	Q_OBJECT
 
 public:
 	ModuleBase( QObject *parent = 0 )
-		: QObject( parent )
+		: QObject( parent ), isEnabled( false )
 	{
 	}
 
@@ -43,9 +45,26 @@ public:
 		return serverConnectionHandlerID;
 	}
 
+	void setEnabled( bool enabled )
+	{
+		if( isEnabled != enabled )
+		{
+			isEnabled = enabled;
+			if( enabled )
+			{
+				enable();
+			}
+			else
+			{
+				disable();
+			}
+		}
+	}
+
 	virtual void init()	{}
 
-	virtual int getAudioBackend() const = 0;
+	virtual int providesAudioBackend() const = 0;
+	virtual void configure( void* /*handle*/, void* /*qParentWidget*/ ) {}
 	virtual void onConnectStatusChangeEvent( uint64 /*serverConnectionHandlerID*/, int /*newStatus*/, unsigned int /*errorNumber*/ ) {}
 	virtual void onClientMoveEvent( uint64 /*serverConnectionHandlerID*/, anyID /*clientID*/, uint64 /*oldChannelID*/, uint64 /*newChannelID*/, int /*visibility*/, const char * /*moveMessage*/ ) {}
 	virtual void onCustom3dRolloffCalculationClientEvent( uint64 /*serverConnectionHandlerID*/, anyID /*clientID*/, float /*distance*/, float* /*volume*/ ) {}
@@ -53,6 +72,7 @@ public:
 	virtual void onEditPlaybackVoiceDataEvent( uint64 /*serverConnectionHandlerID*/, anyID /*clientID*/, short* /*samples*/, int /*sampleCount*/, int /*channels*/ ) {}
 	virtual void onEditPostProcessVoiceDataEvent( uint64 /*serverConnectionHandlerID*/, anyID /*clientID*/, short* /*samples*/, int /*sampleCount*/, int /*channels*/, const unsigned int* /*channelSpeakerArray*/, unsigned int* /*channelFillMask*/ ) {}
 	virtual void onEditMixedPlaybackVoiceDataEvent( uint64 /*serverConnectionHandlerID*/, short* /*samples*/, int /*sampleCount*/, int /*channels*/, const unsigned int* /*channelSpeakerArray*/, unsigned int* /*channelFillMask*/ ) {}
+	virtual void onMenuItemEvent( uint64 /*serverConnectionHandlerID*/, PluginMenuType /*type*/, int /*menuItemID*/, uint64 /*selectedItemID*/ ) {}
 
 public slots:
 	virtual void onCameraPositionChanged( TS3_VECTOR /*position*/ ) {}
@@ -65,4 +85,5 @@ public slots:
 
 private:
 	uint64 serverConnectionHandlerID;
+	bool isEnabled;
 };

@@ -87,7 +87,7 @@ void PositionalAudioOpenAL::init()
 	}
 }
 
-int PositionalAudioOpenAL::getAudioBackend() const
+int PositionalAudioOpenAL::providesAudioBackend() const
 {
 	return OpenALBackend;
 }

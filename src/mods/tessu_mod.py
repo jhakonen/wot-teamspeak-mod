@@ -122,11 +122,10 @@ def on_connected_to_ts3():
 			shmem.close()
 
 	utils.push_system_message("Connected to TeamSpeak client", SystemMessages.SM_TYPE.Information)
-	if settings().is_positional_audio_enabled():
-		if not plugin_connected:
-			utils.push_system_message("TessuMod TS plugin is not installed, 3D audio is disabled", SystemMessages.SM_TYPE.Warning)
-		elif mod_out_of_date:
-			utils.push_system_message("TessuMod is out of date, 3D audio is disabled", SystemMessages.SM_TYPE.Warning)
+	if not plugin_connected:
+		utils.push_system_message("TessuMod TS plugin is not installed, 3D audio is disabled", SystemMessages.SM_TYPE.Warning)
+	elif mod_out_of_date:
+		utils.push_system_message("TessuMod is out of date, 3D audio is disabled", SystemMessages.SM_TYPE.Warning)
 
 def on_disconnected_from_ts3():
 	'''Called when TessuMod loses connection to TeamSpeak client.'''
@@ -160,7 +159,6 @@ def load_settings():
 	utils.CURRENT_LOG_LEVEL = settings().get_log_level()
 	g_ts.HOST = settings().get_client_query_host()
 	g_ts.PORT = settings().get_client_query_port()
-	g_positional_audio.set_audio_backend(settings().get_audio_backend())
 
 def sync_configs():
 	g_user_cache.sync()

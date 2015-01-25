@@ -157,19 +157,6 @@ action: attackSender
 ; Adjust this until the animation animates continuously while someone is
 ; speaking.
 repeat_interval: 3.5
-
-[PositionalAudio]
-; Enable or disable positional audio.
-enabled: on
-
-; Defines audio backend to use for audio positioning and playback.
-; Can be one of the following:
-;  - builtin :           use TeamSpeak's internal positioning & playback
-;  - openal :            use OpenAL Soft audio library
-;  - (any other value) : positioning disabled
-; OpenAL has also additional options in %APPDATA%\\alsoft.ini.
-; If you encounter issues with the playback try swithing the backend to 'builtin'.
-audio_backend: openal
 """
 
 _g_settings = None
@@ -222,9 +209,6 @@ class Settings(object):
 		self._parser.set("MinimapNotifications", "self_enabled", "on")
 		self._parser.set("MinimapNotifications", "action", "attackSender")
 		self._parser.set("MinimapNotifications", "repeat_interval", "3.5")
-		self._parser.add_section("PositionalAudio")
-		self._parser.set("PositionalAudio", "enabled", "on")
-		self._parser.set("PositionalAudio", "audio_backend", "openal")
 		if self._parser.read(self._ini_path):
 			self._load_time = self._get_modified_time()
 		else:
@@ -292,17 +276,6 @@ class Settings(object):
 
 	def is_self_minimap_notifications_enabled(self):
 		return self._parser.getboolean("MinimapNotifications", "self_enabled")
-
-	def is_positional_audio_enabled(self):
-		return self._parser.getboolean("PositionalAudio", "enabled")
-
-	def get_audio_backend(self):
-		str_value = self._parser.get("PositionalAudio", "audio_backend").lower()
-		if str_value == "builtin":
-			return 1
-		elif str_value == "openal":
-			return 2
-		return 0
 
 	def get_minimap_action(self):
 		return self._parser.get("MinimapNotifications", "action")

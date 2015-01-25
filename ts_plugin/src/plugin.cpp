@@ -22,17 +22,20 @@
 #include "sharedmemorylistener.h"
 #include "positionalaudio.h"
 #include "positionalaudioopenal.h"
+#include "settings.h"
 
 #include <Windows.h>
 #include <iostream>
+#include <cassert>
 #include <QCoreApplication>
 #include <QDir>
 
 static struct TS3Functions ts3Functions;
-static SharedMemoryListener* memoryListener;
+static QPointer<SharedMemoryListener> memoryListener;
+static QPointer<Settings> settings;
 static std::list<ModuleBase*> modules;
-static int audioBackend = 0;
 static DLL_DIRECTORY_COOKIE dllSearchCookie;
+static char* pluginID = NULL;
 
 #define PLUGIN_API_VERSION 20
 
@@ -106,8 +109,10 @@ int ts3plugin_init() {
 	dllSearchCookie = AddDllDirectory( (wchar_t*)dataPath.utf16() );
 
 	memoryListener = new SharedMemoryListener();
+	settings = new Settings();
 	modules.push_back( new PositionalAudio( ts3Functions ) );
 	modules.push_back( new PositionalAudioOpenAL( ts3Functions ) );
+	modules.push_back( settings );
 
 	for( auto it = modules.begin(); it != modules.end(); ++it )
 	{
@@ -124,9 +129,11 @@ int ts3plugin_init() {
 						  *it, SLOT( onClientRemoved( anyID ) ) );
 	}
 
-	QObject::connect( memoryListener, &SharedMemoryListener::audioBackendChanged, onAudioBackendChanged );
+	QObject::connect( settings, &Settings::audioBackendChanged, onAudioBackendChanged );
 
 	memoryListener->start();
+
+	enableAndDisableModules();
 
     return 0;  /* 0 = success, 1 = failure, -2 = failure but client will not show a "failed to load" warning */
 	/* -2 is a very special case and should only be used if a plugin displays a dialog (e.g. overlay) asking the user to disable
@@ -144,6 +151,10 @@ void ts3plugin_shutdown() {
 	{
 		delete *it;
 	}
+	modules.clear();
+
+	delete [] pluginID;
+	pluginID = NULL;
 }
 
 /****************************** Optional functions ********************************/
@@ -151,9 +162,46 @@ void ts3plugin_shutdown() {
  * Following functions are optional, if not needed you don't need to implement them.
  */
 
+/* Tell client if plugin offers a configuration window. If this function is not implemented, it's an assumed "does not offer" (PLUGIN_OFFERS_NO_CONFIGURE). */
+int ts3plugin_offersConfigure()
+{
+	/*
+	 * Return values:
+	 * PLUGIN_OFFERS_NO_CONFIGURE         - Plugin does not implement ts3plugin_configure
+	 * PLUGIN_OFFERS_CONFIGURE_NEW_THREAD - Plugin does implement ts3plugin_configure and requests to run this function in an own thread
+	 * PLUGIN_OFFERS_CONFIGURE_QT_THREAD  - Plugin does implement ts3plugin_configure and requests to run this function in the Qt GUI thread
+	 */
+	return PLUGIN_OFFERS_CONFIGURE_QT_THREAD;  /* In this case ts3plugin_configure does not need to be implemented */
+}
+
+/* Plugin might offer a configuration window. If ts3plugin_offersConfigure returns 0, this function does not need to be implemented. */
+void ts3plugin_configure( void* handle, void* qParentWidget )
+{
+	CALL_MODULES( configure( handle, qParentWidget ) );
+}
+
+/*
+ * If the plugin wants to use error return codes, plugin commands, hotkeys or menu items, it needs to register a command ID. This function will be
+ * automatically called after the plugin was initialized. This function is optional. If you don't use these features, this function can be omitted.
+ * Note the passed pluginID parameter is no longer valid after calling this function, so you must copy it and store it in the plugin.
+ */
+void ts3plugin_registerPluginID( const char* id )
+{
+	size_t size = strlen( id ) + 1;
+	pluginID = new char[strlen( id ) + 1];
+	strncpy_s( pluginID, size, id, size );
+	printf("PLUGIN: registerPluginID: %s\n", pluginID);
+}
+
 /* Client changed current server connection handler */
 void ts3plugin_currentServerConnectionChanged( uint64 serverConnectionHandlerID ) {
 	CALL_MODULES( setServerConnectionHandlerID( serverConnectionHandlerID ) );
+}
+
+/* Required to release the memory for parameter "data" allocated in ts3plugin_infoData and ts3plugin_initMenus */
+void ts3plugin_freeMemory( void* data )
+{
+	free( data );
 }
 
 /*
@@ -163,6 +211,59 @@ void ts3plugin_currentServerConnectionChanged( uint64 serverConnectionHandlerID 
  */
 int ts3plugin_requestAutoload() {
 	return 1;  /* 1 = request autoloaded, 0 = do not request autoload */
+}
+
+/* Helper function to create a menu item */
+static struct PluginMenuItem* createMenuItem( PluginMenuType type, int id, const char* text ) {
+	PluginMenuItem* menuItem = (PluginMenuItem*) malloc( sizeof( PluginMenuItem ) );
+	menuItem->type = type;
+	menuItem->id = id;
+	strncpy_s( menuItem->text, text, PLUGIN_MENU_BUFSZ );
+	menuItem->icon[0] = NULL;
+	return menuItem;
+}
+
+/* Some makros to make the code to create menu items a bit more readable */
+#define BEGIN_CREATE_MENUS( x ) const size_t sz = x + 1; size_t n = 0; *menuItems = (PluginMenuItem**) malloc( sizeof( PluginMenuItem* ) * sz );
+#define CREATE_MENU_ITEM( a, b, c ) (*menuItems)[n++] = createMenuItem( a, b, c );
+#define END_CREATE_MENUS (*menuItems)[n++] = NULL; assert( n == sz );
+
+/*
+ * Initialize plugin menus.
+ * This function is called after ts3plugin_init and ts3plugin_registerPluginID. A pluginID is required for plugin menus to work.
+ * Both ts3plugin_registerPluginID and ts3plugin_freeMemory must be implemented to use menus.
+ * If plugin menus are not used by a plugin, do not implement this function or return NULL.
+ */
+void ts3plugin_initMenus( PluginMenuItem*** menuItems, char** menuIcon )
+{
+	/*
+	 * Create the menus
+	 * There are three types of menu items:
+	 * - PLUGIN_MENU_TYPE_CLIENT:  Client context menu
+	 * - PLUGIN_MENU_TYPE_CHANNEL: Channel context menu
+	 * - PLUGIN_MENU_TYPE_GLOBAL:  "Plugins" menu in menu bar of main window
+	 *
+	 * Menu IDs are used to identify the menu item when ts3plugin_onMenuItemEvent is called
+	 *
+	 * The menu text is required, max length is 128 characters
+	 *
+	 * The icon is optional, max length is 128 characters. When not using icons, just pass an empty string.
+	 * Icons are loaded from a subdirectory in the TeamSpeak client plugins folder. The subdirectory must be named like the
+	 * plugin filename, without dll/so/dylib suffix
+	 * e.g. for "test_plugin.dll", icon "1.png" is loaded from <TeamSpeak 3 Client install dir>\plugins\test_plugin\1.png
+	 */
+
+	BEGIN_CREATE_MENUS( 1 );  /* IMPORTANT: Number of menu items must be correct! */
+	CREATE_MENU_ITEM( PLUGIN_MENU_TYPE_GLOBAL,  MENU_ID_GLOBAL_SETTINGS,  "Settings" );
+	END_CREATE_MENUS;  /* Includes an assert checking if the number of menu items matched */
+
+	/*
+	 * Specify an optional icon for the plugin. This icon is used for the plugins submenu within context and main menus
+	 * If unused, set menuIcon to NULL
+	 */
+	*menuIcon = NULL;
+
+	/* All memory allocated in this function will be automatically released by the TeamSpeak client later by calling ts3plugin_freeMemory */
 }
 
 void ts3plugin_onConnectStatusChangeEvent( uint64 serverConnectionHandlerID, int newStatus, unsigned int errorNumber )
@@ -216,19 +317,37 @@ void ts3plugin_onEditMixedPlaybackVoiceDataEvent( uint64 serverConnectionHandler
 	CALL_MODULES( onEditMixedPlaybackVoiceDataEvent( serverConnectionHandlerID, samples, sampleCount, channels, channelSpeakerArray, channelFillMask ) );
 }
 
+/*
+ * Called when a plugin menu item (see ts3plugin_initMenus) is triggered. Optional function, when not using plugin menus, do not implement this.
+ *
+ * Parameters:
+ * - serverConnectionHandlerID: ID of the current server tab
+ * - type: Type of the menu (PLUGIN_MENU_TYPE_CHANNEL, PLUGIN_MENU_TYPE_CLIENT or PLUGIN_MENU_TYPE_GLOBAL)
+ * - menuItemID: Id used when creating the menu item
+ * - selectedItemID: Channel or Client ID in the case of PLUGIN_MENU_TYPE_CHANNEL and PLUGIN_MENU_TYPE_CLIENT. 0 for PLUGIN_MENU_TYPE_GLOBAL.
+ */
+void ts3plugin_onMenuItemEvent( uint64 serverConnectionHandlerID, PluginMenuType type, int menuItemID, uint64 selectedItemID )
+{
+	CALL_MODULES( onMenuItemEvent( serverConnectionHandlerID, type, menuItemID, selectedItemID ) );
+}
+
 void onAudioBackendChanged( int newBackend )
 {
-	std::cout << "onAudioBackendChanged(): " << newBackend << std::endl;
+	Q_UNUSED( newBackend );
+	enableAndDisableModules();
+}
+
+void onPositionalAudioToggled( bool enabled )
+{
+	Q_UNUSED( enabled );
+	enableAndDisableModules();
+}
+
+void enableAndDisableModules()
+{
 	for( auto it = modules.begin(); it != modules.end(); ++it )
 	{
-		if( audioBackend == (*it)->getAudioBackend() )
-		{
-			(*it)->disable();
-		}
-		if( newBackend == (*it)->getAudioBackend() )
-		{
-			(*it)->enable();
-		}
+		(*it)->setEnabled( settings->isPositionalAudioEnabled() &&
+						   settings->getAudioBackend() == (*it)->providesAudioBackend() );
 	}
-	audioBackend = newBackend;
 }

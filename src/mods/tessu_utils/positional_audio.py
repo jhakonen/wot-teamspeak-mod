@@ -38,7 +38,6 @@ class PositionalAudio(object):
 		self._camera_position = None
 		self._camera_direction = None
 		self._shared_memory = None
-		self._audio_backend = 0
 
 		ts_users.on_added     += self.on_ts_users_changed
 		ts_users.on_removed   += self.on_ts_users_changed
@@ -132,16 +131,10 @@ class PositionalAudio(object):
 			data.deserialize(self._shared_memory)
 			if data.version == 1:
 				data = _DataV1()
-				data.audio_backend = self._audio_backend
 				data.camera_position = camera.position
 				data.camera_direction = camera.direction
 				data.client_positions = self._get_data_entries()
 				data.serialize(self._shared_memory)
-
-	def set_audio_backend(self, backend):
-		if self._audio_backend != backend:
-			self._audio_backend = backend
-			self._data_updated = True
 
 	def _get_data_entries(self):
 		entries = []
@@ -180,14 +173,12 @@ class _DataVersion(object):
 class _DataV1(object):
 
 	def __init__(self):
-		self.audio_backend = 0
 		self.camera_position = None
 		self.camera_direction = None
 		self.client_positions = {}
 
 	def serialize(self, destination):
 		destination.write(struct.pack("I", int(time.time())))
-		destination.write(struct.pack("B", self.audio_backend))
 		destination.write(self._pack_float_vector(self.camera_position))
 		destination.write(self._pack_float_vector(self.camera_direction))
 		destination.write(struct.pack("B", len(self.client_positions)))

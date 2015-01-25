@@ -29,7 +29,6 @@ struct PositionalAudioData
 	PositionalAudioData();
 	quint16 version;
 	quint32 timestamp;
-	quint8 audioBackend;
 	TS3_VECTOR cameraPosition;
 	TS3_VECTOR cameraDirection;
 	std::map<anyID, TS3_VECTOR> clientPositions;
@@ -40,6 +39,15 @@ enum AudioBackend
 	NoBackend      = 0,
 	BuiltInBackend = 1,
 	OpenALBackend  = 2
+};
+
+/*
+ * Menu IDs for this plugin. Pass these IDs when creating a menuitem to the TS3 client. When the menu item is triggered,
+ * ts3plugin_onMenuItemEvent will be called passing the menu ID of the triggered menu item.
+ * These IDs are freely choosable by the plugin author. It's not really needed to use an enum, it just looks prettier.
+ */
+enum {
+	MENU_ID_GLOBAL_SETTINGS
 };
 
 QDataStream& operator>>( QDataStream &stream, TS3_VECTOR& vector );

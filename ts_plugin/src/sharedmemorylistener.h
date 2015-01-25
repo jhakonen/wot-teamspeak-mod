@@ -43,7 +43,6 @@ signals:
 	void clientAdded( anyID clientID, TS3_VECTOR position );
 	void clientPositionChanged( anyID clientID, TS3_VECTOR position );
 	void clientRemoved( anyID clientID );
-	void audioBackendChanged( int backend );
 
 private slots:
 	void onTimeout();

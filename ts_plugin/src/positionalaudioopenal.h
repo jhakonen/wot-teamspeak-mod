@@ -103,7 +103,7 @@ public:
 	~PositionalAudioOpenAL();
 
 	void init();
-	int getAudioBackend() const;
+	int providesAudioBackend() const;
 
 	void onConnectStatusChangeEvent( uint64 serverConnectionHandlerID, int newStatus, unsigned int errorNumber );
 	void onClientMoveEvent( uint64 serverConnectionHandlerID, anyID clientID, uint64 oldChannelID, uint64 newChannelID, int visibility, const char *moveMessage );

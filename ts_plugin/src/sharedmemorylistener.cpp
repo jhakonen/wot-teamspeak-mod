@@ -95,16 +95,11 @@ void SharedMemoryListener::onTimeout()
 
 	if( ( QDateTime::currentDateTime().toTime_t() - data.timestamp ) > TIME_LIMIT )
 	{
-		data.audioBackend = NoBackend;
 		data.cameraPosition = createVector( 0, 0, 0 );
 		data.cameraDirection = createVector( 0, 0, 0 );
 		data.clientPositions.clear();
 	}
 
-	if( data.audioBackend != previousData.audioBackend )
-	{
-		emit audioBackendChanged( data.audioBackend );
-	}
 	if ( data.cameraPosition != previousData.cameraPosition )
 	{
 		emit cameraPositionChanged( data.cameraPosition );

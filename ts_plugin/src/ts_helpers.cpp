@@ -24,7 +24,7 @@
 #include <cmath>
 
 PositionalAudioData::PositionalAudioData()
-	: version( 0 ), timestamp( 0 ), audioBackend( 0 ),
+	: version( 0 ), timestamp( 0 ),
 	  cameraPosition( createVector( 0, 0, 0 ) ),
 	  cameraDirection( createVector( 0, 0, 0 ) )
 {
@@ -37,7 +37,6 @@ QDataStream& operator>>( QDataStream &stream, PositionalAudioData& data )
 	quint8 clientCount;
 	stream >> data.version
 		   >> data.timestamp
-		   >> data.audioBackend
 		   >> data.cameraPosition
 		   >> data.cameraDirection
 		   >> clientCount;

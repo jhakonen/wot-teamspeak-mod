@@ -30,7 +30,7 @@ class PositionalAudio : public ModuleBase
 public:
 	PositionalAudio( const TS3Functions ts3Interface, QObject *parent = 0 );
 
-	int getAudioBackend() const;
+	int providesAudioBackend() const;
 	void enable();
 	void disable();
 

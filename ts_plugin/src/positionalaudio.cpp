@@ -31,7 +31,7 @@ PositionalAudio::PositionalAudio( const TS3Functions ts3Interface, QObject *pare
 {
 }
 
-int PositionalAudio::getAudioBackend() const
+int PositionalAudio::providesAudioBackend() const
 {
 	return BuiltInBackend;
 }
