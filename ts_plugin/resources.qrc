@@ -2,5 +2,15 @@
     <qresource prefix="/">
         <file>etc/default-48000.mhr</file>
         <file>etc/alsoft.ini</file>
+        <file>audio/testsound.wav</file>
+        <file>etc/hrtfs/ciair-44100.mhr</file>
+        <file>etc/hrtfs/ciair-48000.mhr</file>
+        <file>etc/hrtfs/ciair-96000.mhr</file>
+        <file>etc/hrtfs/irc_1005-44100.mhr</file>
+        <file>etc/hrtfs/irc_1005-48000.mhr</file>
+        <file>etc/hrtfs/irc_1005-96000.mhr</file>
+        <file>etc/hrtfs/mit_kemar-44100.mhr</file>
+        <file>etc/hrtfs/mit_kemar-48000.mhr</file>
+        <file>etc/hrtfs/mit_kemar-96000.mhr</file>
     </qresource>
 </RCC>
