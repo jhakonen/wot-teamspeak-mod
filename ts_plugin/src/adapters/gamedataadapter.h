@@ -1,6 +1,6 @@
 /*
  * TessuMod: Mod for integrating TeamSpeak into World of Tanks
- * Copyright (C) 2014  Janne Hakonen
+ * Copyright (C) 2015  Janne Hakonen
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,24 +19,36 @@
  */
 
 #pragma once
-#include <QIODevice>
 
-class MemoryAreaBuffer : public QIODevice
+#include "../interfaces/adapters.h"
+#include "../interfaces/usecasefactory.h"
+#include "../interfaces/drivers.h"
+#include "../entities/vector.h"
+
+namespace Adapter
+{
+
+class GameDataAdapter : public QObject, public Interfaces::GameDataAdapter
 {
 	Q_OBJECT
 
 public:
-	MemoryAreaBuffer( QObject *parent = 0 );
+	GameDataAdapter( Interfaces::GameDataDriver* driver, Interfaces::UseCaseFactory *useCaseFactory, QObject *parent );
 
-	void setMemoryArea( void* data, int size );
-
-	virtual bool open( OpenMode mode );
-
-protected:
-	virtual qint64 readData( char* data, qint64 maxSize );
-	virtual qint64 writeData( const char* data, qint64 maxSize );
+private slots:
+	void onGameUserAdded( quint16 id );
+	void onGameUserRemoved( quint16 id );
+	void onGameUserPositionChanged( quint16 id, const Entity::Vector &position );
+	void onGameCameraPositionChanged( const Entity::Vector &position );
+	void onGameCameraDirectionChanged( const Entity::Vector &direction );
 
 private:
-	void* memoryData;
-	qint64 memorySize;
+	bool isCameraValid() const;
+
+private:
+	Interfaces::UseCaseFactory *useCaseFactory;
+	Entity::Vector cameraPosition;
+	Entity::Vector cameraDirection;
 };
+
+}

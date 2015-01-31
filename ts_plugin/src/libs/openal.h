@@ -59,15 +59,15 @@ ALCboolean alcMakeContextCurrent( ALCcontext *context );
 ALCenum alcGetError( ALCdevice *device );
 const ALCchar* alcGetString( ALCdevice *device, ALCenum param );
 
-class LibLoadFailure
+class Failure
 {
 public:
-	LibLoadFailure( const QString &error )
+	Failure( const QString &error )
 		: error( error )
 	{
 	}
 
-	QString what() const throw()
+	QString what() const
 	{
 		return error;
 	}
@@ -75,8 +75,22 @@ private:
 	QString error;
 };
 
-class LibNotLoadedFailure : public std::exception
+class LibLoadFailure : public Failure
 {
+public:
+	LibLoadFailure( const QString &error )
+		: Failure( error )
+	{
+	}
+};
+
+class LibNotLoadedFailure : public Failure
+{
+public:
+	LibNotLoadedFailure()
+		: Failure( "OpenAL library not loaded" )
+	{
+	}
 };
 
 }

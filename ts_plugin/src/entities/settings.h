@@ -19,29 +19,18 @@
  */
 
 #pragma once
+#include "enums.h"
 
-#include <QDialog>
-
-namespace Ui {
-class SettingsDialog;
-}
-
-class SettingsDialog : public QDialog
+namespace Entity
 {
-	Q_OBJECT
 
+class Settings
+{
 public:
-	SettingsDialog( QWidget *parent = 0 );
-	~SettingsDialog();
+	Settings();
 
-	bool getPositionalAudioEnabled() const;
-	void setPositionalAudioEnabled( bool enabled );
-	int getAudioBackend() const;
-	void setAudioBackend( int backend );
-
-signals:
-	void applied();
-
-private:
-	Ui::SettingsDialog *ui;
+	AudioBackend audioBackend;
+	bool positioningEnabled;
 };
+
+}

@@ -18,30 +18,30 @@
  * USA
  */
 
-#pragma once
+#include "settingsstorage.h"
+#include "../entities/settings.h"
+#include "../interfaces/drivers.h"
 
-#include <QDialog>
+namespace Storage
+{
 
-namespace Ui {
-class SettingsDialog;
+SettingsStorage::SettingsStorage( Interfaces::SettingsDriver *driver, QObject *parent )
+	: QObject( parent ), driver( driver )
+{
 }
 
-class SettingsDialog : public QDialog
+Entity::Settings SettingsStorage::get() const
 {
-	Q_OBJECT
+	Entity::Settings settings;
+	settings.audioBackend = (Entity::AudioBackend) driver->get( "General", "AudioBackend", (int)Entity::OpenALBackend ).toInt();
+	settings.positioningEnabled = driver->get( "General", "PositionalAudioEnabled", true ).toBool();
+	return settings;
+}
 
-public:
-	SettingsDialog( QWidget *parent = 0 );
-	~SettingsDialog();
+void SettingsStorage::set( const Entity::Settings &settings )
+{
+	driver->set( "General", "AudioBackend", (int)settings.audioBackend );
+	driver->set( "General", "PositionalAudioEnabled", settings.positioningEnabled );
+}
 
-	bool getPositionalAudioEnabled() const;
-	void setPositionalAudioEnabled( bool enabled );
-	int getAudioBackend() const;
-	void setAudioBackend( int backend );
-
-signals:
-	void applied();
-
-private:
-	Ui::SettingsDialog *ui;
-};
+}

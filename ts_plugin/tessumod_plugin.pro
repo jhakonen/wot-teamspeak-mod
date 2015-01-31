@@ -23,27 +23,54 @@ QT += widgets
 INCLUDEPATH += include
 
 SOURCES += \
-	src/plugin.cpp \
-	src/memoryareabuffer.cpp \
-	src/sharedmemorylistener.cpp \
-	src/positionalaudio.cpp \
-    src/positionalaudioopenal.cpp \
-    src/openal_helpers.cpp \
-    src/ts_helpers.cpp \
     src/ui/settingsdialog.cpp \
-    src/settings.cpp
+    src/entities/settings.cpp \
+    src/entities/user.cpp \
+    src/entities/vector.cpp \
+    src/entities/camera.cpp \
+    src/usecases/usecasefactory.cpp \
+    src/usecases/usecases.cpp \
+    src/storages/userstorage.cpp \
+    src/storages/camerastorage.cpp \
+    src/adapters/audioadapter.cpp \
+    src/adapters/voicechatadapter.cpp \
+    src/adapters/gamedataadapter.cpp \
+    src/storages/adapterstorage.cpp \
+    src/storages/settingsstorage.cpp \
+    src/drivers/inisettingsfile.cpp \
+    src/drivers/openalbackend.cpp \
+    src/drivers/teamspeakplugin.cpp \
+    src/drivers/wotconnector.cpp \
+    src/adapters/uiadapter.cpp \
+    src/main.cpp \
+    src/libs/openal.cpp
 
 HEADERS +=\
-	src/plugin.h \
-	src/memoryareabuffer.h \
-	src/sharedmemorylistener.h \
-	src/positionalaudio.h \
-    src/positionalaudioopenal.h \
-    src/modulebase.h \
-    src/openal_helpers.h \
-    src/ts_helpers.h \
     src/ui/settingsdialog.h \
-    src/settings.h
+    src/entities/settings.h \
+    src/entities/user.h \
+    src/entities/vector.h \
+    src/entities/camera.h \
+    src/usecases/usecasefactory.h \
+    src/usecases/usecases.h \
+    src/interfaces/storages.h \
+    src/interfaces/usecasefactory.h \
+    src/interfaces/adapters.h \
+    src/storages/userstorage.h \
+    src/storages/camerastorage.h \
+    src/interfaces/drivers.h \
+    src/adapters/audioadapter.h \
+    src/adapters/voicechatadapter.h \
+    src/adapters/gamedataadapter.h \
+    src/storages/adapterstorage.h \
+    src/storages/settingsstorage.h \
+    src/drivers/inisettingsfile.h \
+    src/drivers/openalbackend.h \
+    src/drivers/teamspeakplugin.h \
+    src/drivers/wotconnector.h \
+    src/adapters/uiadapter.h \
+    src/entities/enums.h \
+    src/libs/openal.h
 
 RESOURCES += \
 	resources.qrc

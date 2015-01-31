@@ -20,28 +20,25 @@
 
 #pragma once
 
-#include <QDialog>
+#include "../interfaces/storages.h"
+#include "../entities/camera.h"
+#include <QObject>
 
-namespace Ui {
-class SettingsDialog;
-}
+namespace Storage
+{
 
-class SettingsDialog : public QDialog
+class CameraStorage : public QObject, public Interfaces::CameraStorage
 {
 	Q_OBJECT
 
 public:
-	SettingsDialog( QWidget *parent = 0 );
-	~SettingsDialog();
+	CameraStorage( QObject *parent );
 
-	bool getPositionalAudioEnabled() const;
-	void setPositionalAudioEnabled( bool enabled );
-	int getAudioBackend() const;
-	void setAudioBackend( int backend );
-
-signals:
-	void applied();
+	Entity::Camera get() const;
+	void set( const Entity::Camera &camera );
 
 private:
-	Ui::SettingsDialog *ui;
+	Entity::Camera camera;
 };
+
+}

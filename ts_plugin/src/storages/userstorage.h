@@ -20,28 +20,29 @@
 
 #pragma once
 
-#include <QDialog>
+#include "../interfaces/storages.h"
+#include "../entities/user.h"
+#include <QMap>
+#include <QObject>
 
-namespace Ui {
-class SettingsDialog;
-}
+namespace Storage
+{
 
-class SettingsDialog : public QDialog
+class UserStorage : public QObject, public Interfaces::UserStorage
 {
 	Q_OBJECT
 
 public:
-	SettingsDialog( QWidget *parent = 0 );
-	~SettingsDialog();
+	UserStorage( QObject *parent );
 
-	bool getPositionalAudioEnabled() const;
-	void setPositionalAudioEnabled( bool enabled );
-	int getAudioBackend() const;
-	void setAudioBackend( int backend );
-
-signals:
-	void applied();
+	bool has( quint16 id ) const;
+	Entity::User get( quint16 id ) const;
+	QList<Entity::User> getAll() const;
+	void set( const Entity::User &user );
+	void remove( quint16 id );
 
 private:
-	Ui::SettingsDialog *ui;
+	QMap<quint16, Entity::User> users;
 };
+
+}

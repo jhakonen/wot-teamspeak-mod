@@ -18,8 +18,7 @@
  * USA
  */
 
-#include "openal_helpers.h"
-#include "ts_helpers.h"
+#include "openal.h"
 #include <Windows.h>
 #include <iostream>
 #include <QMutex>
@@ -55,7 +54,6 @@ LPALCGETERROR            g_alcGetError;
 LPALCGETSTRING           g_alcGetString;
 
 HMODULE g_openALLib = NULL;
-QMutex g_mutex( QMutex::Recursive );
 
 template <typename TFunction>
 TFunction resolveSymbol( const char *symbol )
@@ -91,6 +89,24 @@ QString getWin32ErrorMessage()
 	return message;
 }
 
+void testForALError()
+{
+	ALenum err = OpenAL::alGetError();
+	if( err != AL_NO_ERROR )
+	{
+		throw OpenAL::Failure( QString( "OpenAL error: %1, %2" ).arg( err ).arg( OpenAL::alGetString( err ) ) );
+	}
+}
+
+void testForALCError( ALCdevice *device )
+{
+	ALCenum err = OpenAL::alcGetError( device );
+	if( err != ALC_NO_ERROR )
+	{
+		throw OpenAL::Failure( QString( "OpenAL context error: %1, %2" ).arg( err ).arg( OpenAL::alcGetString( device, err ) ) );
+	}
+}
+
 }
 
 namespace OpenAL
@@ -98,7 +114,6 @@ namespace OpenAL
 
 void loadLib()
 {
-	QMutexLocker locker( &g_mutex );
 	if( !g_openALLib )
 	{
 		#if defined( _WIN64 )
@@ -141,7 +156,6 @@ void loadLib()
 
 void reloadLib()
 {
-	QMutexLocker locker( &g_mutex );
 	if( g_openALLib )
 	{
 		if( FreeLibrary( g_openALLib ) == FALSE )
@@ -155,169 +169,162 @@ void reloadLib()
 
 const ALchar *alGetString( ALenum param )
 {
-	QMutexLocker locker( &g_mutex );
 	throwIfNotLoaded();
 	return g_alGetString( param );
 }
 
 ALenum alGetError()
 {
-	QMutexLocker locker( &g_mutex );
 	throwIfNotLoaded();
 	return g_alGetError();
 }
 
 void alListenerf( ALenum param, ALfloat value )
 {
-	QMutexLocker locker( &g_mutex );
 	throwIfNotLoaded();
 	g_alListenerf( param, value );
+	testForALError();
 }
 
 void alListener3f( ALenum param, ALfloat value1, ALfloat value2, ALfloat value3 )
 {
-	QMutexLocker locker( &g_mutex );
 	throwIfNotLoaded();
 	g_alListener3f( param, value1, value2, value3 );
+	testForALError();
 }
 
 void alListenerfv( ALenum param, const ALfloat *values )
 {
-	QMutexLocker locker( &g_mutex );
 	throwIfNotLoaded();
 	g_alListenerfv( param, values );
+	testForALError();
 }
 
 void alGenSources( ALsizei n, ALuint *sources )
 {
-	QMutexLocker locker( &g_mutex );
 	throwIfNotLoaded();
 	g_alGenSources( n, sources );
+	testForALError();
 }
 
 void alDeleteSources( ALsizei n, const ALuint *sources )
 {
-	QMutexLocker locker( &g_mutex );
 	throwIfNotLoaded();
 	g_alDeleteSources( n, sources );
+	testForALError();
 }
 
 void alSourcef( ALuint source, ALenum param, ALfloat value )
 {
-	QMutexLocker locker( &g_mutex );
 	throwIfNotLoaded();
 	g_alSourcef( source, param, value );
+	testForALError();
 }
 
 void alSource3f( ALuint source, ALenum param, ALfloat value1, ALfloat value2, ALfloat value3 )
 {
-	QMutexLocker locker( &g_mutex );
 	throwIfNotLoaded();
 	g_alSource3f( source, param, value1, value2, value3 );
+	testForALError();
 }
 
 void alSourcei( ALuint source, ALenum param, ALint value )
 {
-	QMutexLocker locker( &g_mutex );
 	throwIfNotLoaded();
 	g_alSourcei( source, param, value );
-
+	testForALError();
 }
 
 void alGetSourcei( ALuint source, ALenum param, ALint *value )
 {
-	QMutexLocker locker( &g_mutex );
 	throwIfNotLoaded();
 	g_alGetSourcei( source, param, value );
 }
 
 void alBufferData( ALuint buffer, ALenum format, const ALvoid *data, ALsizei size, ALsizei freq )
 {
-	QMutexLocker locker( &g_mutex );
 	throwIfNotLoaded();
 	g_alBufferData( buffer, format, data, size, freq );
+	testForALError();
 }
 
 void alDeleteBuffers( ALsizei n, const ALuint *buffers )
 {
-	QMutexLocker locker( &g_mutex );
 	throwIfNotLoaded();
 	g_alDeleteBuffers( n, buffers );
+	testForALError();
 }
 
 void alGenBuffers( ALsizei n, ALuint *buffers )
 {
-	QMutexLocker locker( &g_mutex );
 	throwIfNotLoaded();
 	g_alGenBuffers( n, buffers );
+	testForALError();
 }
 
 void alSourceUnqueueBuffers( ALuint source, ALsizei nb, ALuint *buffers )
 {
-	QMutexLocker locker( &g_mutex );
 	throwIfNotLoaded();
 	g_alSourceUnqueueBuffers( source, nb, buffers );
+	testForALError();
 }
 
 void alSourceQueueBuffers( ALuint source, ALsizei nb, const ALuint *buffers )
 {
-	QMutexLocker locker( &g_mutex );
 	throwIfNotLoaded();
 	g_alSourceQueueBuffers( source, nb, buffers );
+	testForALError();
 }
 
 void alSourcePlay( ALuint source )
 {
-	QMutexLocker locker( &g_mutex );
 	throwIfNotLoaded();
 	g_alSourcePlay( source );
+	testForALError();
 }
 
 ALCdevice *alcOpenDevice( const ALCchar *devicename )
 {
-	QMutexLocker locker( &g_mutex );
 	throwIfNotLoaded();
-	return g_alcOpenDevice( devicename );
+	ALCdevice* device = g_alcOpenDevice( devicename );
+	testForALCError( device );
+	return device;
 }
 
 ALCboolean alcCloseDevice( ALCdevice *device )
 {
-	QMutexLocker locker( &g_mutex );
 	throwIfNotLoaded();
 	return g_alcCloseDevice( device );
 }
 
 ALCcontext *alcCreateContext( ALCdevice *device, const ALCint *attrlist )
 {
-	QMutexLocker locker( &g_mutex );
 	throwIfNotLoaded();
-	return g_alcCreateContext( device, attrlist );
+	ALCcontext *context = g_alcCreateContext( device, attrlist );
+	testForALCError( device );
+	return context;
 }
 
 void alcDestroyContext( ALCcontext *context )
 {
-	QMutexLocker locker( &g_mutex );
 	throwIfNotLoaded();
 	g_alcDestroyContext( context );
 }
 
 ALCboolean alcMakeContextCurrent( ALCcontext *context )
 {
-	QMutexLocker locker( &g_mutex );
 	throwIfNotLoaded();
 	return g_alcMakeContextCurrent( context );
 }
 
 ALCenum alcGetError( ALCdevice *device )
 {
-	QMutexLocker locker( &g_mutex );
 	throwIfNotLoaded();
 	return g_alcGetError( device );
 }
 
 const ALCchar *alcGetString( ALCdevice *device, ALCenum param )
 {
-	QMutexLocker locker( &g_mutex );
 	throwIfNotLoaded();
 	return g_alcGetString( device, param );
 }

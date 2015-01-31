@@ -20,28 +20,18 @@
 
 #pragma once
 
-#include <QDialog>
+#include "camera.h"
 
-namespace Ui {
-class SettingsDialog;
+namespace Entity
+{
+
+Camera::Camera()
+{
 }
 
-class SettingsDialog : public QDialog
+bool Camera::isSet() const
 {
-	Q_OBJECT
+	return direction != Entity::Vector() && position != Entity::Vector();
+}
 
-public:
-	SettingsDialog( QWidget *parent = 0 );
-	~SettingsDialog();
-
-	bool getPositionalAudioEnabled() const;
-	void setPositionalAudioEnabled( bool enabled );
-	int getAudioBackend() const;
-	void setAudioBackend( int backend );
-
-signals:
-	void applied();
-
-private:
-	Ui::SettingsDialog *ui;
-};
+}

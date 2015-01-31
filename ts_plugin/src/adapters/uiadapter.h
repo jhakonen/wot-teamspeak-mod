@@ -20,28 +20,37 @@
 
 #pragma once
 
-#include <QDialog>
+#include "../interfaces/adapters.h"
+#include "../entities/settings.h"
+#include <QObject>
+#include <QPointer>
 
-namespace Ui {
 class SettingsDialog;
+
+namespace Interfaces
+{
+class UseCaseFactory;
 }
 
-class SettingsDialog : public QDialog
+namespace Adapter
+{
+
+class UiAdapter : public QObject, public Interfaces::UiAdapter
 {
 	Q_OBJECT
 
 public:
-	SettingsDialog( QWidget *parent = 0 );
-	~SettingsDialog();
+	UiAdapter( Interfaces::UseCaseFactory *useCaseFactory, QObject *parent );
 
-	bool getPositionalAudioEnabled() const;
-	void setPositionalAudioEnabled( bool enabled );
-	int getAudioBackend() const;
-	void setAudioBackend( int backend );
+	void showSettingsUi( const Entity::Settings &settings, QWidget *parent );
 
-signals:
-	void applied();
+private slots:
+	void onSettingsChanged();
 
 private:
-	Ui::SettingsDialog *ui;
+	Interfaces::UseCaseFactory *useCaseFactory;
+	QPointer<SettingsDialog> settingsDialog;
+	Entity::Settings originalSettings;
 };
+
+}

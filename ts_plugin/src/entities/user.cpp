@@ -18,30 +18,34 @@
  * USA
  */
 
-#pragma once
+#include "user.h"
 
-#include <QDialog>
+namespace Entity
+{
 
-namespace Ui {
-class SettingsDialog;
+User::User()
+	: id( 0 ), inGame( false ), inChat( false )
+{
 }
 
-class SettingsDialog : public QDialog
+bool User::paired() const
 {
-	Q_OBJECT
+	return inGame && inChat;
+}
 
-public:
-	SettingsDialog( QWidget *parent = 0 );
-	~SettingsDialog();
+bool User::exists() const
+{
+	return inGame || inChat;
+}
 
-	bool getPositionalAudioEnabled() const;
-	void setPositionalAudioEnabled( bool enabled );
-	int getAudioBackend() const;
-	void setAudioBackend( int backend );
+bool User::hasPosition() const
+{
+	return position != Entity::Vector();
+}
 
-signals:
-	void applied();
+void User::clearPosition()
+{
+	position = Entity::Vector();
+}
 
-private:
-	Ui::SettingsDialog *ui;
-};
+}

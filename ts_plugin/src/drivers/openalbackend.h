@@ -20,28 +20,37 @@
 
 #pragma once
 
-#include <QDialog>
+#include "../interfaces/drivers.h"
 
-namespace Ui {
-class SettingsDialog;
-}
+namespace Driver
+{
 
-class SettingsDialog : public QDialog
+class OpenALBackendPrivate;
+
+class OpenALBackend : public QObject, public Interfaces::AudioDriver, public Interfaces::AudioSink
 {
 	Q_OBJECT
 
 public:
-	SettingsDialog( QWidget *parent = 0 );
-	~SettingsDialog();
+	OpenALBackend( QObject *parent );
+	~OpenALBackend();
 
-	bool getPositionalAudioEnabled() const;
-	void setPositionalAudioEnabled( bool enabled );
-	int getAudioBackend() const;
-	void setAudioBackend( int backend );
+	// from Interfaces::AudioDriver
+	void setEnabled( bool enabled );
+	bool isEnabled() const;
+	void removeUser( quint16 id );
+	void removeAllUsers();
+	void positionUser( quint16 id, const Entity::Vector &position );
+	void positionCamera( const Entity::Vector &position, const Entity::Vector &forward, const Entity::Vector &up );
+	void setPlaybackDeviceName( const QString &name );
+	void setPlaybackVolume( float volume );
 
-signals:
-	void applied();
+	// from Interfaces::AudioSink
+	void onEditPlaybackVoiceDataEvent( quint16 id, short *samples, int sampleCount, int channels );
 
 private:
-	Ui::SettingsDialog *ui;
+	OpenALBackendPrivate *const d_ptr;
+	Q_DECLARE_PRIVATE( OpenALBackend )
 };
+
+}

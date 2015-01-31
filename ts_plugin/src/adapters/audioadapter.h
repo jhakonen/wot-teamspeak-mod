@@ -20,28 +20,37 @@
 
 #pragma once
 
-#include <QDialog>
+#include "../interfaces/adapters.h"
+#include <QObject>
+#include <QSet>
 
-namespace Ui {
-class SettingsDialog;
+namespace Interfaces
+{
+class AudioDriver;
 }
 
-class SettingsDialog : public QDialog
+namespace Adapter
+{
+
+class AudioAdapter : public QObject, public Interfaces::AudioAdapter
 {
 	Q_OBJECT
 
 public:
-	SettingsDialog( QWidget *parent = 0 );
-	~SettingsDialog();
+	AudioAdapter( Interfaces::AudioDriver* driver, QObject *parent );
 
-	bool getPositionalAudioEnabled() const;
-	void setPositionalAudioEnabled( bool enabled );
-	int getAudioBackend() const;
-	void setAudioBackend( int backend );
+	void positionUser( const Entity::User &user );
+	void removeUser( const Entity::User &user );
+	void positionCamera( const Entity::Camera &camera );
 
-signals:
-	void applied();
+	void setPlaybackDeviceName( const QString &name );
+	void setPlaybackVolume( float volume );
+
+	void reset();
 
 private:
-	Ui::SettingsDialog *ui;
+	Interfaces::AudioDriver* driver;
+	QSet<quint16> userIds;
 };
+
+}

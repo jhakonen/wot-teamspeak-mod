@@ -20,28 +20,39 @@
 
 #pragma once
 
-#include <QDialog>
+#include "../interfaces/adapters.h"
+#include <QObject>
 
-namespace Ui {
-class SettingsDialog;
+namespace Interfaces
+{
+class UseCaseFactory;
+class VoiceChatDriver;
 }
 
-class SettingsDialog : public QDialog
+namespace Adapter
+{
+
+class VoiceChatAdapter : public QObject, public Interfaces::VoiceChatAdapter
 {
 	Q_OBJECT
 
 public:
-	SettingsDialog( QWidget *parent = 0 );
-	~SettingsDialog();
+	VoiceChatAdapter( Interfaces::VoiceChatDriver* driver, Interfaces::UseCaseFactory *useCaseFactory, QObject *parent );
 
-	bool getPositionalAudioEnabled() const;
-	void setPositionalAudioEnabled( bool enabled );
-	int getAudioBackend() const;
-	void setAudioBackend( int backend );
+	quint16 getMyUserId() const;
+	QString getPlaybackDeviceName() const;
+	float getPlaybackVolume() const;
 
-signals:
-	void applied();
+private slots:
+	void onChatUserAdded( quint16 id );
+	void onChatUserRemoved( quint16 id );
+	void onPlaybackDeviceChanged();
+	void onPlaybackVolumeChanged();
+	void onSettingsUiRequested( QWidget *parent );
 
 private:
-	Ui::SettingsDialog *ui;
+	Interfaces::VoiceChatDriver* driver;
+	Interfaces::UseCaseFactory *useCaseFactory;
 };
+
+}

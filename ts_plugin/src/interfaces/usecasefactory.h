@@ -20,28 +20,34 @@
 
 #pragma once
 
-#include <QDialog>
+#include <QtGlobal>
 
-namespace Ui {
-class SettingsDialog;
+class QWidget;
+
+namespace Entity
+{
+class Vector;
+class Settings;
 }
 
-class SettingsDialog : public QDialog
+namespace Interfaces
 {
-	Q_OBJECT
 
+class UseCaseFactory
+{
 public:
-	SettingsDialog( QWidget *parent = 0 );
-	~SettingsDialog();
-
-	bool getPositionalAudioEnabled() const;
-	void setPositionalAudioEnabled( bool enabled );
-	int getAudioBackend() const;
-	void setAudioBackend( int backend );
-
-signals:
-	void applied();
-
-private:
-	Ui::SettingsDialog *ui;
+	virtual ~UseCaseFactory() {}
+	virtual void applicationInitialize() = 0;
+	virtual void positionUser( quint16 id, const Entity::Vector& position ) = 0;
+	virtual void positionCamera( const Entity::Vector& position, const Entity::Vector& direction ) = 0;
+	virtual void addGameUser( quint16 id ) = 0;
+	virtual void removeGameUser( quint16 id ) = 0;
+	virtual void addChatUser( quint16 id ) = 0;
+	virtual void removeChatUser( quint16 id ) = 0;
+	virtual void changePlaybackDevice() = 0;
+	virtual void changePlaybackVolume() = 0;
+	virtual void showSettingsUi( QWidget *parent ) = 0;
+	virtual void saveSettings( const Entity::Settings &settings ) = 0;
 };
+
+}

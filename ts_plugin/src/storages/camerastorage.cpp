@@ -18,30 +18,24 @@
  * USA
  */
 
-#pragma once
+#include "camerastorage.h"
 
-#include <QDialog>
+namespace Storage
+{
 
-namespace Ui {
-class SettingsDialog;
+CameraStorage::CameraStorage( QObject *parent )
+	: QObject( parent )
+{
 }
 
-class SettingsDialog : public QDialog
+Entity::Camera CameraStorage::get() const
 {
-	Q_OBJECT
+	return camera;
+}
 
-public:
-	SettingsDialog( QWidget *parent = 0 );
-	~SettingsDialog();
+void CameraStorage::set( const Entity::Camera &camera )
+{
+	this->camera = camera;
+}
 
-	bool getPositionalAudioEnabled() const;
-	void setPositionalAudioEnabled( bool enabled );
-	int getAudioBackend() const;
-	void setAudioBackend( int backend );
-
-signals:
-	void applied();
-
-private:
-	Ui::SettingsDialog *ui;
-};
+}

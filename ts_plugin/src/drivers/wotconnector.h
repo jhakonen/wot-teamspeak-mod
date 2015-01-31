@@ -20,28 +20,50 @@
 
 #pragma once
 
-#include <QDialog>
+#include <QObject>
+#include "../interfaces/drivers.h"
 
-namespace Ui {
-class SettingsDialog;
+class QTimer;
+class QSharedMemory;
+
+namespace Entity
+{
+class Vector;
 }
 
-class SettingsDialog : public QDialog
+namespace Driver
+{
+class WotConnectorPrivate;
+
+class WotConnector : public QObject, public Interfaces::GameDataDriver
 {
 	Q_OBJECT
 
 public:
-	SettingsDialog( QWidget *parent = 0 );
-	~SettingsDialog();
+	WotConnector( QObject *parent );
+	~WotConnector();
 
-	bool getPositionalAudioEnabled() const;
-	void setPositionalAudioEnabled( bool enabled );
-	int getAudioBackend() const;
-	void setAudioBackend( int backend );
+	void initialize();
+
+	void start();
+	void stop();
+
+	// from Interfaces::GameDataDriver
+	QObject *qtObj();
 
 signals:
-	void applied();
+	void gameUserAdded( quint16 id );
+	void gameUserRemoved( quint16 id );
+	void gameUserPositionChanged( quint16 id, const Entity::Vector &position );
+	void gameCameraPositionChanged( const Entity::Vector &position );
+	void gameCameraDirectionChanged( const Entity::Vector &direction );
+
+private slots:
+	void onTimeout();
 
 private:
-	Ui::SettingsDialog *ui;
+	WotConnectorPrivate *const d_ptr;
+	Q_DECLARE_PRIVATE( WotConnector )
 };
+
+}

@@ -18,30 +18,14 @@
  * USA
  */
 
-#pragma once
+#include "settings.h"
 
-#include <QDialog>
+namespace Entity
+{
 
-namespace Ui {
-class SettingsDialog;
+Settings::Settings()
+	: audioBackend( OpenALBackend ), positioningEnabled( true )
+{
 }
 
-class SettingsDialog : public QDialog
-{
-	Q_OBJECT
-
-public:
-	SettingsDialog( QWidget *parent = 0 );
-	~SettingsDialog();
-
-	bool getPositionalAudioEnabled() const;
-	void setPositionalAudioEnabled( bool enabled );
-	int getAudioBackend() const;
-	void setAudioBackend( int backend );
-
-signals:
-	void applied();
-
-private:
-	Ui::SettingsDialog *ui;
-};
+}

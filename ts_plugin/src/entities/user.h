@@ -20,28 +20,26 @@
 
 #pragma once
 
-#include <QDialog>
+#include <QtGlobal>
+#include "vector.h"
 
-namespace Ui {
-class SettingsDialog;
-}
-
-class SettingsDialog : public QDialog
+namespace Entity
 {
-	Q_OBJECT
 
+class User
+{
 public:
-	SettingsDialog( QWidget *parent = 0 );
-	~SettingsDialog();
+	User();
 
-	bool getPositionalAudioEnabled() const;
-	void setPositionalAudioEnabled( bool enabled );
-	int getAudioBackend() const;
-	void setAudioBackend( int backend );
+	bool paired() const;
+	bool exists() const;
+	bool hasPosition() const;
+	void clearPosition();
 
-signals:
-	void applied();
-
-private:
-	Ui::SettingsDialog *ui;
+	quint16 id;
+	Vector position;
+	bool inGame;
+	bool inChat;
 };
+
+}

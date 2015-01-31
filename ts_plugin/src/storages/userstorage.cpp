@@ -18,30 +18,43 @@
  * USA
  */
 
-#pragma once
+#include "userstorage.h"
 
-#include <QDialog>
+namespace Storage
+{
 
-namespace Ui {
-class SettingsDialog;
+UserStorage::UserStorage( QObject *parent )
+	: QObject( parent )
+{
 }
 
-class SettingsDialog : public QDialog
+bool UserStorage::has( quint16 id ) const
 {
-	Q_OBJECT
+	return users.contains( id );
+}
 
-public:
-	SettingsDialog( QWidget *parent = 0 );
-	~SettingsDialog();
+Entity::User UserStorage::get( quint16 id ) const
+{
+	if( has( id ) )
+	{
+		return users[id];
+	}
+	throw new std::runtime_error( "User not found from storage" );
+}
 
-	bool getPositionalAudioEnabled() const;
-	void setPositionalAudioEnabled( bool enabled );
-	int getAudioBackend() const;
-	void setAudioBackend( int backend );
+QList<Entity::User> UserStorage::getAll() const
+{
+	return users.values();
+}
 
-signals:
-	void applied();
+void UserStorage::set( const Entity::User &user )
+{
+	users[user.id] = user;
+}
 
-private:
-	Ui::SettingsDialog *ui;
-};
+void UserStorage::remove( quint16 id )
+{
+	users.remove( id );
+}
+
+}

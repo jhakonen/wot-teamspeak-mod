@@ -1,6 +1,6 @@
 /*
  * TessuMod: Mod for integrating TeamSpeak into World of Tanks
- * Copyright (C) 2014  Janne Hakonen
+ * Copyright (C) 2015  Janne Hakonen
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,40 +19,30 @@
  */
 
 #pragma once
+
+#include "../interfaces/storages.h"
 #include <QObject>
-#include "ts_helpers.h"
 
-class QTimer;
-class QSharedMemory;
-class MemoryAreaBuffer;
+namespace Interfaces
+{
+class SettingsDriver;
+}
 
-class SharedMemoryListener : public QObject
+namespace Storage
+{
+
+class SettingsStorage : public QObject, public Interfaces::SettingsStorage
 {
 	Q_OBJECT
 
 public:
-	SharedMemoryListener();
-	virtual ~SharedMemoryListener();
+	SettingsStorage( Interfaces::SettingsDriver *driver, QObject *parent );
 
-	void start();
-	void stop();
-
-signals:
-	void cameraPositionChanged( TS3_VECTOR position );
-	void cameraDirectionChanged( TS3_VECTOR direction );
-	void clientAdded( anyID clientID, TS3_VECTOR position );
-	void clientPositionChanged( anyID clientID, TS3_VECTOR position );
-	void clientRemoved( anyID clientID );
-
-private slots:
-	void onTimeout();
+	Entity::Settings get() const;
+	void set( const Entity::Settings &settings );
 
 private:
-	bool connectToSharedMemory();
-
-private:
-	QTimer* timer;
-	QSharedMemory* memory;
-	MemoryAreaBuffer* memoryBuffer;
-	PositionalAudioData previousData;
+	Interfaces::SettingsDriver *driver;
 };
+
+}

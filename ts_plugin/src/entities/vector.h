@@ -20,28 +20,29 @@
 
 #pragma once
 
-#include <QDialog>
+#include <QtGlobal>
 
-namespace Ui {
-class SettingsDialog;
-}
-
-class SettingsDialog : public QDialog
+namespace Entity
 {
-	Q_OBJECT
 
+class Vector
+{
 public:
-	SettingsDialog( QWidget *parent = 0 );
-	~SettingsDialog();
+	Vector( qreal x = 0, qreal y = 0, qreal z = 0 );
 
-	bool getPositionalAudioEnabled() const;
-	void setPositionalAudioEnabled( bool enabled );
-	int getAudioBackend() const;
-	void setAudioBackend( int backend );
+	Vector getUnit() const;
+	qreal getLength() const;
+	Vector crossProduct( const Vector &other ) const;
+	Vector operator/( qreal divider ) const;
+	Vector operator-( const Vector &other ) const;
+	bool operator==( const Vector &other ) const;
+	bool operator!=( const Vector &other ) const;
 
-signals:
-	void applied();
-
-private:
-	Ui::SettingsDialog *ui;
+	qreal x;
+	qreal y;
+	qreal z;
 };
+
+std::ostream& operator<<( std::ostream& stream, const Vector& vector );
+
+}

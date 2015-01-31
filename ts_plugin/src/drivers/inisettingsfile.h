@@ -20,28 +20,26 @@
 
 #pragma once
 
-#include <QDialog>
+#include "../interfaces/drivers.h"
+#include <QPointer>
+class QSettings;
 
-namespace Ui {
-class SettingsDialog;
-}
+namespace Driver
+{
 
-class SettingsDialog : public QDialog
+class IniSettingsFile : public QObject, public Interfaces::SettingsDriver
 {
 	Q_OBJECT
 
 public:
-	SettingsDialog( QWidget *parent = 0 );
-	~SettingsDialog();
+	IniSettingsFile( QObject *parent );
+	virtual ~IniSettingsFile();
 
-	bool getPositionalAudioEnabled() const;
-	void setPositionalAudioEnabled( bool enabled );
-	int getAudioBackend() const;
-	void setAudioBackend( int backend );
-
-signals:
-	void applied();
+	QVariant get( const QString &section, const QString &name, const QVariant &defaultValue );
+	void set( const QString &section, const QString &name, const QVariant &value );
 
 private:
-	Ui::SettingsDialog *ui;
+	QPointer<QSettings> mySettings;
 };
+
+}
