@@ -39,4 +39,21 @@ enum {
 	MENU_ID_GLOBAL_SETTINGS
 };
 
+enum RotateMode
+{
+	RotateXAxis,
+	RotateYAxis,
+	RotateZAxis
+};
+
+enum Channels
+{
+	AutoChannels,
+	Stereo,
+	Surround40,
+	Surround51,
+	Surround61,
+	Surround71
+};
+
 }

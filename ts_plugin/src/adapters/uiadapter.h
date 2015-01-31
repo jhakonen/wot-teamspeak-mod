@@ -46,6 +46,10 @@ public:
 
 private slots:
 	void onSettingsChanged();
+	void onTestButtonClicked();
+
+private:
+	Entity::Settings collectSettingsFromUI() const;
 
 private:
 	Interfaces::UseCaseFactory *useCaseFactory;

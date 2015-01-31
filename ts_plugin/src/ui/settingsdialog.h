@@ -21,6 +21,7 @@
 #pragma once
 
 #include <QDialog>
+#include "../entities/enums.h"
 
 namespace Ui {
 class SettingsDialog;
@@ -36,11 +37,31 @@ public:
 
 	bool getPositionalAudioEnabled() const;
 	void setPositionalAudioEnabled( bool enabled );
+
 	int getAudioBackend() const;
 	void setAudioBackend( int backend );
 
+	Entity::RotateMode getRotateMode() const;
+	void setRotateMode( Entity::RotateMode mode );
+
+	Entity::Channels getChannels() const;
+	void setChannels( Entity::Channels channels );
+
+	bool isHrtfEnabled() const;
+	void setHrtfEnabled( bool enabled );
+
+	QString getHrtfDataSet() const;
+	void setHrtfDataSet( const QString &name );
+
+	bool isLoggingEnabled() const;
+	void setLoggingEnabled( bool enabled );
+
+	void on_testButton_clicked();
+	void on_showLogsButton_clicked();
+
 signals:
 	void applied();
+	void testButtonClicked();
 
 private:
 	Ui::SettingsDialog *ui;

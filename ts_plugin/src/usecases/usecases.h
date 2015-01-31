@@ -45,6 +45,7 @@ public:
 	void changePlaybackVolume();
 	void showSettingsUi( QWidget *parent );
 	void saveSettings( const Entity::Settings &settings );
+	void playTestAudioWithSettings( const Entity::Settings &settings );
 
 private:
 	void positionUserToAudioBackends( const Entity::User &user );

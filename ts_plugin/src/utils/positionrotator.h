@@ -20,35 +20,38 @@
 
 #pragma once
 
-#include <QtGlobal>
-
-class QWidget;
+#include <QObject>
 
 namespace Entity
 {
 class Vector;
-class Settings;
+enum RotateMode;
 }
 
-namespace Interfaces
-{
+class QTimer;
 
-class UseCaseFactory
+class PositionRotator : public QObject
 {
+	Q_OBJECT
+
 public:
-	virtual ~UseCaseFactory() {}
-	virtual void applicationInitialize() = 0;
-	virtual void positionUser( quint16 id, const Entity::Vector& position ) = 0;
-	virtual void positionCamera( const Entity::Vector& position, const Entity::Vector& direction ) = 0;
-	virtual void addGameUser( quint16 id ) = 0;
-	virtual void removeGameUser( quint16 id ) = 0;
-	virtual void addChatUser( quint16 id ) = 0;
-	virtual void removeChatUser( quint16 id ) = 0;
-	virtual void changePlaybackDevice() = 0;
-	virtual void changePlaybackVolume() = 0;
-	virtual void showSettingsUi( QWidget *parent ) = 0;
-	virtual void saveSettings( const Entity::Settings &settings ) = 0;
-	virtual void playTestAudioWithSettings( const Entity::Settings &settings ) = 0;
-};
+	PositionRotator( QObject *parent );
 
-}
+	void start( Entity::RotateMode mode );
+
+signals:
+	void started();
+	void positionChanged( const Entity::Vector &position );
+	void finished();
+
+private slots:
+	void onTimeout();
+
+private:
+	Entity::Vector getPosition() const;
+
+private:
+	QTimer *timer;
+	qreal angle;
+	Entity::RotateMode rotateMode;
+};
