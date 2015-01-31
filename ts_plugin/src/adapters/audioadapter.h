@@ -24,6 +24,9 @@
 #include <QObject>
 #include <QSet>
 
+class QTimer;
+
+class PositionRotator;
 namespace Interfaces
 {
 class AudioDriver;
@@ -48,9 +51,20 @@ public:
 
 	void setEnabled( bool enabled );
 
+	void setChannels( Entity::Channels channels );
+	void setHrtfEnabled( bool enabled );
+	void setHrtfDataSet( const QString &name );
+	void playTestSound( Entity::RotateMode mode );
+
+private slots:
+	void onStartTestSound();
+	void onPositionTestSound( const Entity::Vector &position );
+	void onFinishTestSound();
+
 private:
 	Interfaces::AudioDriver* driver;
 	QSet<quint16> userIds;
+	PositionRotator *rotator;
 };
 
 }

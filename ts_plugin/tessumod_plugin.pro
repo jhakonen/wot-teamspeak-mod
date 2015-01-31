@@ -49,7 +49,8 @@ SOURCES += \
     src/main.cpp \
     src/libs/openal.cpp \
     src/utils/logging.cpp \
-    src/libs/oallibrary.cpp
+    src/libs/oallibrary.cpp \
+    src/utils/positionrotator.cpp
 
 HEADERS +=\
     src/ui/settingsdialog.h \
@@ -78,7 +79,8 @@ HEADERS +=\
     src/entities/enums.h \
     src/libs/openal.h \
     src/utils/logging.h \
-    src/libs/oallibrary.h
+    src/libs/oallibrary.h \
+    src/utils/positionrotator.h
 
 RESOURCES += \
 	resources.qrc

@@ -26,6 +26,7 @@
 namespace Entity
 {
 class Vector;
+enum Channels;
 }
 
 namespace Interfaces
@@ -44,6 +45,13 @@ public:
 
 	virtual void setPlaybackDeviceName( const QString &name ) = 0;
 	virtual void setPlaybackVolume( float volume ) = 0;
+
+	virtual void setChannels( Entity::Channels channels ) = 0;
+	virtual void setHrtfEnabled( bool enabled ) = 0;
+	virtual void setHrtfDataSet( const QString &name ) = 0;
+	virtual void playTestSound() = 0;
+	virtual void positionTestSound( const Entity::Vector &position ) = 0;
+	virtual void stopTestSound() = 0;
 };
 
 class VoiceChatDriver

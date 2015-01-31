@@ -908,4 +908,19 @@ void TeamSpeakAudioBackend::positionCamera( const Entity::Vector &position, cons
 	}
 }
 
+void TeamSpeakAudioBackend::playTestSound()
+{
+	// TODO
+}
+
+void TeamSpeakAudioBackend::positionTestSound( const Entity::Vector &position )
+{
+	// TODO
+}
+
+void TeamSpeakAudioBackend::stopTestSound()
+{
+	// TODO
+}
+
 }

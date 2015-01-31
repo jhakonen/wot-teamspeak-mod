@@ -19,7 +19,9 @@
  */
 
 #pragma once
+
 #include "enums.h"
+#include <QString>
 
 namespace Entity
 {
@@ -31,6 +33,11 @@ public:
 
 	AudioBackend audioBackend;
 	bool positioningEnabled;
+	RotateMode testRotateMode;
+	Channels audioChannels;
+	bool hrtfEnabled;
+	QString hrtfDataSet;
+	bool audioLoggingEnabled;
 };
 
 }

@@ -22,13 +22,20 @@
 #include "../interfaces/drivers.h"
 #include "../entities/camera.h"
 #include "../entities/user.h"
+#include "../utils/positionrotator.h"
+
+#include <QTimer>
+#include <cmath>
 
 namespace Adapter
 {
 
 AudioAdapter::AudioAdapter( Interfaces::AudioDriver *driver, QObject *parent )
-	: QObject( parent ), driver( driver )
+	: QObject( parent ), driver( driver ), rotator( new PositionRotator( this ) )
 {
+	connect( rotator, SIGNAL(started()), this, SLOT(onStartTestSound()) );
+	connect( rotator, SIGNAL(positionChanged(Entity::Vector)), this, SLOT(onPositionTestSound(Entity::Vector)) );
+	connect( rotator, SIGNAL(finished()), this, SLOT(onFinishTestSound()) );
 }
 
 void AudioAdapter::removeUser( const Entity::User &user )
@@ -75,6 +82,44 @@ void AudioAdapter::setEnabled( bool enabled )
 	{
 		driver->setEnabled( false );
 	}
+}
+
+void AudioAdapter::setChannels( Entity::Channels channels )
+{
+	driver->setChannels( channels );
+}
+
+void AudioAdapter::setHrtfEnabled( bool enabled )
+{
+	driver->setHrtfEnabled( enabled );
+}
+
+void AudioAdapter::setHrtfDataSet( const QString &name )
+{
+	driver->setHrtfDataSet( name );
+}
+
+void AudioAdapter::playTestSound( Entity::RotateMode mode )
+{
+	rotator->start( mode );
+}
+
+void AudioAdapter::onStartTestSound()
+{
+	// TODO:
+	//    - save test wav-file from resource to temp folder
+	//    - pass path of the wav-file to driver->playTestSound()
+	driver->playTestSound();
+}
+
+void AudioAdapter::onPositionTestSound( const Entity::Vector &position )
+{
+	driver->positionTestSound( position );
+}
+
+void AudioAdapter::onFinishTestSound()
+{
+	driver->stopTestSound();
 }
 
 }

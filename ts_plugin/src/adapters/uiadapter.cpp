@@ -40,10 +40,19 @@ void UiAdapter::showSettingsUi( const Entity::Settings &settings, QWidget *paren
 	{
 		originalSettings = settings;
 		settingsDialog = new SettingsDialog( parent );
+
 		settingsDialog->setPositionalAudioEnabled( settings.positioningEnabled );
 		settingsDialog->setAudioBackend( settings.audioBackend );
+		settingsDialog->setRotateMode( settings.testRotateMode );
+		settingsDialog->setChannels( settings.audioChannels );
+		settingsDialog->setHrtfEnabled( settings.hrtfEnabled );
+		settingsDialog->setHrtfDataSet( settings.hrtfDataSet );
+		settingsDialog->setLoggingEnabled( settings.audioLoggingEnabled );
+
 		connect( settingsDialog, SIGNAL(applied()), this, SLOT(onSettingsChanged()) );
+		connect( settingsDialog, SIGNAL(testButtonClicked()), this, SLOT(onTestButtonClicked()) );
 		connect( settingsDialog, SIGNAL(finished(int)), settingsDialog, SLOT(deleteLater()) );
+
 		settingsDialog->setModal( true );
 		settingsDialog->show();
 	}
@@ -51,12 +60,28 @@ void UiAdapter::showSettingsUi( const Entity::Settings &settings, QWidget *paren
 
 void UiAdapter::onSettingsChanged()
 {
+	useCaseFactory->saveSettings( collectSettingsFromUI() );
+}
+
+void UiAdapter::onTestButtonClicked()
+{
+	useCaseFactory->playTestAudioWithSettings( collectSettingsFromUI() );
+}
+
+Entity::Settings UiAdapter::collectSettingsFromUI() const
+{
+	Entity::Settings settings = originalSettings;
 	if( settingsDialog )
 	{
-		originalSettings.positioningEnabled = settingsDialog->getPositionalAudioEnabled();
-		originalSettings.audioBackend = (Entity::AudioBackend) settingsDialog->getAudioBackend();
-		useCaseFactory->saveSettings( originalSettings );
+		settings.positioningEnabled = settingsDialog->getPositionalAudioEnabled();
+		settings.audioBackend = (Entity::AudioBackend) settingsDialog->getAudioBackend();
+		settings.testRotateMode = settingsDialog->getRotateMode();
+		settings.audioChannels = settingsDialog->getChannels();
+		settings.hrtfEnabled = settingsDialog->isHrtfEnabled();
+		settings.hrtfDataSet = settingsDialog->getHrtfDataSet();
+		settings.audioLoggingEnabled = settingsDialog->isLoggingEnabled();
 	}
+	return settings;
 }
 
 }

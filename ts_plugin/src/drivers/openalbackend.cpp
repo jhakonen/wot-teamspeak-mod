@@ -376,6 +376,36 @@ void OpenALBackend::setPlaybackVolume( float volume )
 	}
 }
 
+void OpenALBackend::setChannels( Entity::Channels channels )
+{
+	// TODO
+}
+
+void OpenALBackend::setHrtfEnabled( bool enabled )
+{
+	// TODO
+}
+
+void OpenALBackend::setHrtfDataSet( const QString &name )
+{
+	// TODO
+}
+
+void OpenALBackend::playTestSound()
+{
+	// TODO
+}
+
+void OpenALBackend::positionTestSound( const Entity::Vector &position )
+{
+	// TODO
+}
+
+void OpenALBackend::stopTestSound()
+{
+	// TODO
+}
+
 void OpenALBackend::onEditPlaybackVoiceDataEvent( quint16 id, short *samples, int sampleCount, int channels )
 {
 	Q_D( OpenALBackend );

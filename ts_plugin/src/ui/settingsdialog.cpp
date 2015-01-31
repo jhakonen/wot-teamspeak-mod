@@ -75,3 +75,67 @@ void SettingsDialog::setAudioBackend( int backend )
 		break;
 	}
 }
+
+Entity::RotateMode SettingsDialog::getRotateMode() const
+{
+	return ui->rotateXRadioButton->isChecked()? Entity::RotateXAxis:
+		ui->rotateYRadioButton->isChecked()? Entity::RotateYAxis:
+		Entity::RotateZAxis;
+}
+
+void SettingsDialog::setRotateMode( Entity::RotateMode mode )
+{
+	ui->rotateXRadioButton->setChecked( mode == Entity::RotateXAxis );
+	ui->rotateYRadioButton->setChecked( mode == Entity::RotateYAxis );
+	ui->rotateZRadioButton->setChecked( mode == Entity::RotateZAxis );
+}
+
+Entity::Channels SettingsDialog::getChannels() const
+{
+	return (Entity::Channels) ui->channelsComboBox->currentIndex();
+}
+
+void SettingsDialog::setChannels( Entity::Channels channels )
+{
+	ui->channelsComboBox->setCurrentIndex( channels );
+}
+
+bool SettingsDialog::isHrtfEnabled() const
+{
+	return ui->enableHrtfCheckBox->isChecked();
+}
+
+void SettingsDialog::setHrtfEnabled( bool enabled )
+{
+	ui->enableHrtfCheckBox->setChecked( enabled );
+}
+
+QString SettingsDialog::getHrtfDataSet() const
+{
+	// TODO
+	return "";
+}
+
+void SettingsDialog::setHrtfDataSet( const QString &name )
+{
+	// TODO
+}
+
+bool SettingsDialog::isLoggingEnabled() const
+{
+	return ui->enableLoggingCheckBox->isChecked();
+}
+
+void SettingsDialog::setLoggingEnabled( bool enabled )
+{
+	ui->enableLoggingCheckBox->setChecked( enabled );
+}
+
+void SettingsDialog::on_testButton_clicked()
+{
+	emit testButtonClicked();
+}
+
+void SettingsDialog::on_showLogsButton_clicked()
+{
+}

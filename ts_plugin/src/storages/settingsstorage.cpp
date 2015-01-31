@@ -33,15 +33,25 @@ SettingsStorage::SettingsStorage( Interfaces::SettingsDriver *driver, QObject *p
 Entity::Settings SettingsStorage::get() const
 {
 	Entity::Settings settings;
-	settings.audioBackend = (Entity::AudioBackend) driver->get( "General", "AudioBackend", (int)Entity::OpenALBackend ).toInt();
-	settings.positioningEnabled = driver->get( "General", "PositionalAudioEnabled", true ).toBool();
+	settings.audioBackend        = (Entity::AudioBackend) driver->get( "General", "AudioBackend", (int)Entity::OpenALBackend ).toInt();
+	settings.positioningEnabled  = driver->get( "General", "PositionalAudioEnabled", true ).toBool();
+	settings.testRotateMode      = (Entity::RotateMode) driver->get( "General", "TestRotateMode", Entity::RotateYAxis ).toInt();
+	settings.audioChannels       = (Entity::Channels) driver->get( "General", "AudioChannels", Entity::AutoChannels ).toInt();
+	settings.hrtfEnabled         = driver->get( "General", "HrtfEnabled", false ).toBool();
+	settings.hrtfDataSet         = driver->get( "General", "HrtfDataSet", "MIT_KEMAR" ).toString();
+	settings.audioLoggingEnabled = driver->get( "General", "AudioLoggingEnabled", false ).toBool();
 	return settings;
 }
 
 void SettingsStorage::set( const Entity::Settings &settings )
 {
-	driver->set( "General", "AudioBackend", (int)settings.audioBackend );
+	driver->set( "General", "AudioBackend",           (int)settings.audioBackend );
 	driver->set( "General", "PositionalAudioEnabled", settings.positioningEnabled );
+	driver->set( "General", "TestRotateMode",         (int)settings.testRotateMode );
+	driver->set( "General", "AudioChannels",          (int)settings.audioChannels );
+	driver->set( "General", "HrtfEnabled",            settings.hrtfEnabled );
+	driver->set( "General", "HrtfDataSet",            settings.hrtfDataSet );
+	driver->set( "General", "AudioLoggingEnabled",    settings.audioLoggingEnabled );
 }
 
 }

@@ -43,6 +43,12 @@ public:
 	void positionCamera( const Entity::Vector &position, const Entity::Vector &forward, const Entity::Vector &up );
 	void setPlaybackDeviceName( const QString &name );
 	void setPlaybackVolume( float volume );
+	void setChannels( Entity::Channels channels );
+	void setHrtfEnabled( bool enabled );
+	void setHrtfDataSet( const QString &name );
+	void playTestSound();
+	void positionTestSound( const Entity::Vector &position );
+	void stopTestSound();
 
 	// from Interfaces::AudioSink
 	void onEditPlaybackVoiceDataEvent( quint16 id, short *samples, int sampleCount, int channels );

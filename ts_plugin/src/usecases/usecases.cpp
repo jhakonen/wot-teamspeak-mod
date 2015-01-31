@@ -45,6 +45,14 @@ void UseCases::applicationInitialize()
 	{
 		updatePlaybackDeviceToBackends();
 		updatePlaybackVolumeToBackends();
+
+		foreach( Interfaces::AudioAdapter *backend, adapterStorage->getAudios() )
+		{
+			backend->setChannels( settings.audioChannels );
+			backend->setHrtfEnabled( settings.hrtfEnabled );
+			backend->setHrtfDataSet( settings.hrtfDataSet );
+		}
+
 		adapterStorage->getAudio( settings.audioBackend )->setEnabled( true );
 	}
 }
@@ -161,11 +169,17 @@ void UseCases::saveSettings( const Entity::Settings &settings )
 	settingsStorage->set( settings );
 	if( settings.positioningEnabled )
 	{
-		adapterStorage->getAudio( settings.audioBackend )->setEnabled( true );
 		if( originalSettings.audioBackend != settings.audioBackend )
 		{
 			adapterStorage->getAudio( originalSettings.audioBackend )->setEnabled( false );
 		}
+		foreach( Interfaces::AudioAdapter *backend, adapterStorage->getAudios() )
+		{
+			backend->setChannels( settings.audioChannels );
+			backend->setHrtfEnabled( settings.hrtfEnabled );
+			backend->setHrtfDataSet( settings.hrtfDataSet );
+		}
+		adapterStorage->getAudio( settings.audioBackend )->setEnabled( true );
 	}
 	else
 	{
@@ -175,6 +189,16 @@ void UseCases::saveSettings( const Entity::Settings &settings )
 			adapterStorage->getAudio( originalSettings.audioBackend )->setEnabled( false );
 		}
 	}
+}
+
+void UseCases::playTestAudioWithSettings( const Entity::Settings &settings )
+{
+	Interfaces::AudioAdapter *backend = adapterStorage->getTestAudio( settings.audioBackend );
+	backend->setChannels( settings.audioChannels );
+	backend->setHrtfEnabled( settings.hrtfEnabled );
+	backend->setHrtfDataSet( settings.hrtfDataSet );
+	backend->setEnabled( true );
+	backend->playTestSound( settings.testRotateMode );
 }
 
 void UseCases::positionUserToAudioBackends( const Entity::User &user )
