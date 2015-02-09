@@ -295,6 +295,10 @@ OpenALBackend::OpenALBackend( QObject *parent )
 OpenALBackend::~OpenALBackend()
 {
 	Q_D( OpenALBackend );
+	if( d->isEnabled )
+	{
+		d->disableAL();
+	}
 	delete d;
 }
 
