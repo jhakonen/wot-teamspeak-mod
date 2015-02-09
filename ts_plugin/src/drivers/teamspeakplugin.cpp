@@ -24,6 +24,7 @@
 #include <Windows.h>
 #include <iostream>
 #include <cassert>
+#include <functional>
 #include <public_errors.h>
 #include <ts3_functions.h>
 #include <QApplication>
@@ -84,6 +85,7 @@ static char* gPluginID = NULL;
 static TS3Functions gTs3Functions;
 static QPointer<Driver::TeamSpeakPlugin> gTeamSpeakPlugin;
 static QList<Driver::TeamSpeakAudioBackend*> gAudioBackends;
+static QMutex audioBackendMutex( QMutex::Recursive );
 
 #define PLUGIN_API_VERSION 20
 
@@ -138,6 +140,9 @@ LogLevel toTSLogLevel( Log::Severity severity )
 	}
 	return LogLevel_INFO;
 }
+
+typedef std::function<void()> OpFunc;
+typedef QList<OpFunc> OpFuncList;
 
 }
 
@@ -730,8 +735,33 @@ public:
 	{
 	}
 
+	OpFunc createTSCameraDirectionUpdate( const Entity::Vector &forward, const Entity::Vector &up ) const
+	{
+		TS3_VECTOR tsPosition = {0, 0, 0};
+		TS3_VECTOR tsForward = toTSVector( forward );
+		TS3_VECTOR tsUp = toTSVector( up );
+		return [=] {
+			gTs3Functions.systemset3DListenerAttributes( gTs3Functions.getCurrentServerConnectionHandlerID(), &tsPosition, &tsForward, &tsUp );
+		};
+	}
+
+	OpFunc createTSClientPositionUpdate( quint16 id, const Entity::Vector &position ) const
+	{
+		TS3_VECTOR tsPosition = toTSVector( position );
+		return [=] {
+			gTs3Functions.channelset3DAttributes( gTs3Functions.getCurrentServerConnectionHandlerID(), id, &tsPosition );
+		};
+	}
+
+	Entity::Vector getClientRelativePosition( quint16 id ) const
+	{
+		return clientPositions[id] - cameraPosition;
+	}
+
 public:
-	Entity::Vector origo;
+	Entity::Vector cameraPosition;
+	Entity::Vector cameraForward;
+	Entity::Vector cameraUp;
 	QMap<quint16, Entity::Vector> clientPositions;
 	bool isEnabled;
 };
@@ -753,6 +783,7 @@ void TeamSpeakAudioBackend::onCustom3dRolloffCalculationClientEvent( uint64 serv
 	Q_D( TeamSpeakAudioBackend );
 	Q_UNUSED( serverConnectionHandlerID );
 	Q_UNUSED( distance );
+	QMutexLocker locker( &audioBackendMutex );
 	if( d->isEnabled && gTs3Functions.getCurrentServerConnectionHandlerID() == serverConnectionHandlerID && d->clientPositions.contains( clientID ) )
 	{
 		*volume = 1.0;
@@ -765,6 +796,7 @@ void TeamSpeakAudioBackend::onCustom3dRolloffCalculationWaveEvent( uint64 server
 	Q_UNUSED( serverConnectionHandlerID );
 	Q_UNUSED( waveHandle );
 	Q_UNUSED( distance );
+	QMutexLocker locker( &audioBackendMutex );
 	if( d->isEnabled && gTs3Functions.getCurrentServerConnectionHandlerID() == serverConnectionHandlerID )
 	{
 		*volume = 1.0;
@@ -774,7 +806,32 @@ void TeamSpeakAudioBackend::onCustom3dRolloffCalculationWaveEvent( uint64 server
 void TeamSpeakAudioBackend::setEnabled( bool enabled )
 {
 	Q_D( TeamSpeakAudioBackend );
-	d->isEnabled = enabled;
+	OpFuncList ops;
+	{
+		QMutexLocker locker( &audioBackendMutex );
+		d->isEnabled = enabled;
+		if( enabled )
+		{
+			foreach( quint16 id, d->clientPositions.keys() )
+			{
+				ops.append( d->createTSClientPositionUpdate( id, d->getClientRelativePosition( id ) ) );
+			}
+			ops.append( d->createTSCameraDirectionUpdate( d->cameraForward, d->cameraUp ) );
+		}
+		else
+		{
+			foreach( quint16 id, d->clientPositions.keys() )
+			{
+				ops.append( d->createTSClientPositionUpdate( id, Entity::Vector() ) );
+			}
+			ops.append( d->createTSCameraDirectionUpdate( Entity::Vector( 0, 0, 1 ), Entity::Vector( 0, 1, 0 ) ) );
+		}
+	}
+	// execute operations outside of locked mutex to avoid deadlocks
+	foreach( OpFunc op, ops )
+	{
+		op();
+	}
 }
 
 bool TeamSpeakAudioBackend::isEnabled() const
@@ -787,6 +844,7 @@ void TeamSpeakAudioBackend::addUser( quint16 id )
 {
 	Q_D( TeamSpeakAudioBackend );
 	Log::debug() << "TeamSpeakAudioBackend::addUser() :: id: " << id;
+	QMutexLocker locker( &audioBackendMutex );
 	d->clientPositions[id] = Entity::Vector();
 }
 
@@ -794,35 +852,60 @@ void TeamSpeakAudioBackend::removeUser( quint16 id )
 {
 	Q_D( TeamSpeakAudioBackend );
 	Log::debug() << "TeamSpeakAudioBackend::removeUser() :: id: " << id;
-	d->clientPositions.remove( id );
-	TS3_VECTOR zero = {0, 0, 0};
-	gTs3Functions.channelset3DAttributes( gTs3Functions.getCurrentServerConnectionHandlerID(), id, &zero );
+	OpFunc op = []{};
+	{
+		QMutexLocker locker( &audioBackendMutex );
+		d->clientPositions.remove( id );
+		if( d->isEnabled )
+		{
+			op = d->createTSClientPositionUpdate( id, Entity::Vector() );
+		}
+	}
+	// execute operation outside of locked mutex to avoid deadlocks
+	op();
 }
-
 
 void TeamSpeakAudioBackend::positionUser( quint16 id, const Entity::Vector &position )
 {
 	Q_D( TeamSpeakAudioBackend );
 	//Log::debug() << "TeamSpeakAudioBackend::positionUser() :: id: " << id << ", pos: " << position;
-	d->clientPositions[id] = position;
-	TS3_VECTOR tsPosition = toTSVector( position - d->origo );
-	gTs3Functions.channelset3DAttributes( gTs3Functions.getCurrentServerConnectionHandlerID(), id, &tsPosition );
+	OpFunc op = []{};
+	{
+		QMutexLocker locker( &audioBackendMutex );
+		d->clientPositions[id] = position;
+		if( d->isEnabled )
+		{
+			op = d->createTSClientPositionUpdate( id, d->getClientRelativePosition( id ) );
+		}
+	}
+	// execute operation outside of locked mutex to avoid deadlocks
+	op();
 }
 
 void TeamSpeakAudioBackend::positionCamera( const Entity::Vector &position, const Entity::Vector &forward, const Entity::Vector &up )
 {
 	Q_D( TeamSpeakAudioBackend );
 	//Log::debug() << "TeamSpeakAudioBackend::positionCamera() :: pos: " << position << ", forward: " << forward << ", up: " << up;
-	d->origo = position;
-	foreach( quint16 id, d->clientPositions.keys() )
+	OpFuncList ops;
 	{
-		TS3_VECTOR tsPosition = toTSVector( d->clientPositions[id] - d->origo );
-		gTs3Functions.channelset3DAttributes( gTs3Functions.getCurrentServerConnectionHandlerID(), id, &tsPosition );
+		QMutexLocker locker( &audioBackendMutex );
+		d->cameraPosition = position;
+		d->cameraForward = forward;
+		d->cameraUp = up;
+		if( d->isEnabled )
+		{
+			foreach( quint16 id, d->clientPositions.keys() )
+			{
+				ops.append( d->createTSClientPositionUpdate( id, d->getClientRelativePosition( id ) ) );
+			}
+			ops.append( d->createTSCameraDirectionUpdate( forward, up ) );
+		}
 	}
-	TS3_VECTOR tsPosition = {0, 0, 0};
-	TS3_VECTOR tsForward = toTSVector( forward );
-	TS3_VECTOR tsUp = toTSVector( up );
-	gTs3Functions.systemset3DListenerAttributes( gTs3Functions.getCurrentServerConnectionHandlerID(), &tsPosition, &tsForward, &tsUp );
+	// execute operations outside of locked mutex to avoid deadlocks
+	foreach( OpFunc op, ops )
+	{
+		op();
+	}
 }
 
 }
