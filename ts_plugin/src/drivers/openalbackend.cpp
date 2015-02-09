@@ -191,9 +191,6 @@ public:
 
 	bool feedUserAudioToAL( quint16 id, const short *samples, int sampleCount, int channels )
 	{
-		int sampleDataLength = sampleCount * channels * 2;
-		ALuint source = userSources[id];
-		ALint state;
 		if( !isEnabled )
 		{
 			return false;
@@ -207,6 +204,11 @@ public:
 			// accept only mono source audio
 			return false;
 		}
+
+		ALuint source = userSources[id];
+		int sampleDataLength = sampleCount * channels * 2;
+		ALint state;
+
 		try
 		{
 			freeProcessedAudioData( source );
