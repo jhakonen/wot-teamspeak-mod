@@ -34,7 +34,9 @@ public:
 
 	// from Interfaces::AdapterStorage
 	Interfaces::AudioAdapter *getAudio( int backend ) const;
+	QList<Interfaces::AudioAdapter*> getAudios() const;
 	Interfaces::AudioAdapter *getTestAudio( int backend ) const;
+	QList<Interfaces::AudioAdapter*> getTestAudios() const;
 	Interfaces::VoiceChatAdapter *getVoiceChat() const;
 	Interfaces::GameDataAdapter *getGameData() const;
 	Interfaces::UiAdapter *getUi() const;

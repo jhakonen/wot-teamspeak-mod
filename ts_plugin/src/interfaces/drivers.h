@@ -39,7 +39,6 @@ public:
 	virtual bool isEnabled() const = 0;
 
 	virtual void removeUser( quint16 id ) = 0;
-	virtual void removeAllUsers() = 0;
 	virtual void positionUser( quint16 id, const Entity::Vector &position ) = 0;
 	virtual void positionCamera( const Entity::Vector &position, const Entity::Vector &forward, const Entity::Vector &up ) = 0;
 

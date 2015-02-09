@@ -753,7 +753,7 @@ void TeamSpeakAudioBackend::onCustom3dRolloffCalculationClientEvent( uint64 serv
 	Q_D( TeamSpeakAudioBackend );
 	Q_UNUSED( serverConnectionHandlerID );
 	Q_UNUSED( distance );
-	if( gTs3Functions.getCurrentServerConnectionHandlerID() == serverConnectionHandlerID && d->clientPositions.contains( clientID ) )
+	if( d->isEnabled && gTs3Functions.getCurrentServerConnectionHandlerID() == serverConnectionHandlerID && d->clientPositions.contains( clientID ) )
 	{
 		*volume = 1.0;
 	}
@@ -761,10 +761,11 @@ void TeamSpeakAudioBackend::onCustom3dRolloffCalculationClientEvent( uint64 serv
 
 void TeamSpeakAudioBackend::onCustom3dRolloffCalculationWaveEvent( uint64 serverConnectionHandlerID, uint64 waveHandle, float distance, float *volume )
 {
+	Q_D( TeamSpeakAudioBackend );
 	Q_UNUSED( serverConnectionHandlerID );
 	Q_UNUSED( waveHandle );
 	Q_UNUSED( distance );
-	if( gTs3Functions.getCurrentServerConnectionHandlerID() == serverConnectionHandlerID )
+	if( d->isEnabled && gTs3Functions.getCurrentServerConnectionHandlerID() == serverConnectionHandlerID )
 	{
 		*volume = 1.0;
 	}
@@ -798,15 +799,6 @@ void TeamSpeakAudioBackend::removeUser( quint16 id )
 	gTs3Functions.channelset3DAttributes( gTs3Functions.getCurrentServerConnectionHandlerID(), id, &zero );
 }
 
-void TeamSpeakAudioBackend::removeAllUsers()
-{
-	Q_D( TeamSpeakAudioBackend );
-	foreach( auto id, d->clientPositions.keys() )
-	{
-		TS3_VECTOR zero = {0, 0, 0};
-		gTs3Functions.channelset3DAttributes( gTs3Functions.getCurrentServerConnectionHandlerID(), id, &zero );
-	}
-}
 
 void TeamSpeakAudioBackend::positionUser( quint16 id, const Entity::Vector &position )
 {

@@ -22,6 +22,7 @@
 #include "../entities/user.h"
 #include "../entities/camera.h"
 #include "../entities/settings.h"
+#include "../utils/logging.h"
 #include <QList>
 #include <QString>
 
@@ -42,36 +43,32 @@ void UseCases::applicationInitialize()
 	Entity::Settings settings = settingsStorage->get();
 	if( settings.positioningEnabled )
 	{
-		updatePlaybackDeviceToBackends( settings.audioBackend );
-		updatePlaybackVolumeToBackends( settings.audioBackend );
+		updatePlaybackDeviceToBackends();
+		updatePlaybackVolumeToBackends();
+		adapterStorage->getAudio( settings.audioBackend )->setEnabled( true );
 	}
 }
 
 void UseCases::positionUser( quint16 id, const Entity::Vector& position )
 {
-	Entity::Settings settings = settingsStorage->get();
-	if( settings.positioningEnabled && userStorage->has( id ) )
+	if( userStorage->has( id ) )
 	{
 		Entity::User user = userStorage->get( id );
 		user.position = position;
 		userStorage->set( user );
-		if( user.paired() )
-		{
-			adapterStorage->getAudio( settings.audioBackend )->positionUser( user );
-		}
+		positionUserToAudioBackends( user );
 	}
 }
 
 void UseCases::positionCamera( const Entity::Vector& position, const Entity::Vector& direction )
 {
-	Entity::Settings settings = settingsStorage->get();
-	if( settings.positioningEnabled )
+	Entity::Camera camera = cameraStorage->get();
+	camera.position = position;
+	camera.direction = direction;
+	cameraStorage->set( camera );
+	foreach( Interfaces::AudioAdapter *backend, adapterStorage->getAudios() )
 	{
-		Entity::Camera camera = cameraStorage->get();
-		camera.position = position;
-		camera.direction = direction;
-		cameraStorage->set( camera );
-		adapterStorage->getAudio( settings.audioBackend )->positionCamera( camera );
+		backend->positionCamera( camera );
 	}
 }
 
@@ -81,7 +78,6 @@ void UseCases::addGameUser( quint16 id )
 	{
 		return;
 	}
-	Entity::Settings settings = settingsStorage->get();
 	Entity::User user;
 	if( userStorage->has( id ) )
 	{
@@ -93,10 +89,7 @@ void UseCases::addGameUser( quint16 id )
 	}
 	user.inGame = true;
 	userStorage->set( user );
-	if( user.paired() )
-	{
-		adapterStorage->getAudio( settings.audioBackend )->positionUser( user );
-	}
+	positionUserToAudioBackends( user );
 }
 
 void UseCases::removeGameUser( quint16 id )
@@ -105,12 +98,8 @@ void UseCases::removeGameUser( quint16 id )
 	{
 		return;
 	}
-	Entity::Settings settings = settingsStorage->get();
 	Entity::User user = userStorage->get( id );
-	if( user.paired() )
-	{
-		adapterStorage->getAudio( settings.audioBackend )->removeUser( user );
-	}
+	removeUserFromAudioBackends( user );
 	user.inGame = false;
 	if( !user.exists() )
 	{
@@ -132,10 +121,7 @@ void UseCases::addChatUser( quint16 id )
 	}
 	user.inChat = true;
 	userStorage->set( user );
-	if( user.paired() )
-	{
-		adapterStorage->getAudio( settings.audioBackend )->positionUser( user );
-	}
+	positionUserToAudioBackends( user );
 }
 
 void UseCases::removeChatUser( quint16 id )
@@ -144,12 +130,8 @@ void UseCases::removeChatUser( quint16 id )
 	{
 		return;
 	}
-	Entity::Settings settings = settingsStorage->get();
 	Entity::User user = userStorage->get( id );
-	if( user.paired() )
-	{
-		adapterStorage->getAudio( settings.audioBackend )->removeUser( user );
-	}
+	removeUserFromAudioBackends( user );
 	user.inChat = false;
 	if( !user.exists() )
 	{
@@ -159,14 +141,12 @@ void UseCases::removeChatUser( quint16 id )
 
 void UseCases::changePlaybackDevice()
 {
-	Entity::Settings settings = settingsStorage->get();
-	updatePlaybackDeviceToBackends( settings.audioBackend );
+	updatePlaybackDeviceToBackends();
 }
 
 void UseCases::changePlaybackVolume()
 {
-	Entity::Settings settings = settingsStorage->get();
-	updatePlaybackVolumeToBackends( settings.audioBackend );
+	updatePlaybackVolumeToBackends();
 }
 
 void UseCases::showSettingsUi( QWidget *parent )
@@ -181,21 +161,10 @@ void UseCases::saveSettings( const Entity::Settings &settings )
 	settingsStorage->set( settings );
 	if( settings.positioningEnabled )
 	{
+		adapterStorage->getAudio( settings.audioBackend )->setEnabled( true );
 		if( originalSettings.audioBackend != settings.audioBackend )
 		{
-			adapterStorage->getAudio( originalSettings.audioBackend )->reset();
-
-			updatePlaybackDeviceToBackends( settings.audioBackend );
-			updatePlaybackVolumeToBackends( settings.audioBackend );
-
-			adapterStorage->getAudio( settings.audioBackend )->positionCamera( cameraStorage->get() );
-			foreach( Entity::User user, userStorage->getAll() )
-			{
-				if( user.paired() && user.hasPosition() )
-				{
-					adapterStorage->getAudio( settings.audioBackend )->positionUser( user );
-				}
-			}
+			adapterStorage->getAudio( originalSettings.audioBackend )->setEnabled( false );
 		}
 	}
 	else
@@ -203,23 +172,57 @@ void UseCases::saveSettings( const Entity::Settings &settings )
 		// positioningEnabled: true --> false ?
 		if( originalSettings.positioningEnabled )
 		{
-			adapterStorage->getAudio( originalSettings.audioBackend )->reset();
+			adapterStorage->getAudio( originalSettings.audioBackend )->setEnabled( false );
 		}
 	}
 }
 
-void UseCases::updatePlaybackDeviceToBackends( int backend )
+void UseCases::positionUserToAudioBackends( const Entity::User &user )
 {
-	auto deviceName = adapterStorage->getVoiceChat()->getPlaybackDeviceName();
-	adapterStorage->getAudio( backend )->setPlaybackDeviceName( deviceName );
-	adapterStorage->getTestAudio( backend )->setPlaybackDeviceName( deviceName );
+	if( user.paired() )
+	{
+		foreach( Interfaces::AudioAdapter *backend, adapterStorage->getAudios() )
+		{
+			backend->positionUser( user );
+		}
+	}
 }
 
-void UseCases::updatePlaybackVolumeToBackends( int backend )
+void UseCases::removeUserFromAudioBackends( const Entity::User &user )
+{
+	if( user.paired() )
+	{
+		foreach( Interfaces::AudioAdapter *backend, adapterStorage->getAudios() )
+		{
+			backend->removeUser( user );
+		}
+	}
+}
+
+void UseCases::updatePlaybackDeviceToBackends()
+{
+	auto deviceName = adapterStorage->getVoiceChat()->getPlaybackDeviceName();
+	foreach( Interfaces::AudioAdapter *backend, adapterStorage->getAudios() )
+	{
+		backend->setPlaybackDeviceName( deviceName );
+	}
+	foreach( Interfaces::AudioAdapter *backend, adapterStorage->getTestAudios() )
+	{
+		backend->setPlaybackDeviceName( deviceName );
+	}
+}
+
+void UseCases::updatePlaybackVolumeToBackends()
 {
 	auto volume = adapterStorage->getVoiceChat()->getPlaybackVolume();
-	adapterStorage->getAudio( backend )->setPlaybackVolume( volume );
-	adapterStorage->getTestAudio( backend )->setPlaybackVolume( volume );
+	foreach( Interfaces::AudioAdapter *backend, adapterStorage->getAudios() )
+	{
+		backend->setPlaybackVolume( volume );
+	}
+	foreach( Interfaces::AudioAdapter *backend, adapterStorage->getTestAudios() )
+	{
+		backend->setPlaybackVolume( volume );
+	}
 }
 
 }

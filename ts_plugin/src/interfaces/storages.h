@@ -42,7 +42,9 @@ class AdapterStorage
 public:
 	virtual ~AdapterStorage() {}
 	virtual Interfaces::AudioAdapter* getAudio( int backend ) const = 0;
+	virtual QList<Interfaces::AudioAdapter*> getAudios() const = 0;
 	virtual Interfaces::AudioAdapter* getTestAudio( int backend ) const = 0;
+	virtual QList<Interfaces::AudioAdapter*> getTestAudios() const = 0;
 	virtual Interfaces::VoiceChatAdapter* getVoiceChat() const = 0;
 	virtual Interfaces::GameDataAdapter* getGameData() const = 0;
 	virtual Interfaces::UiAdapter* getUi() const = 0;

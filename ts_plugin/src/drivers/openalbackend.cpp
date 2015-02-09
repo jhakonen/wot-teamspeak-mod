@@ -309,11 +309,11 @@ void OpenALBackend::setEnabled( bool enabled )
 	Log::debug() << "OpenALBackend::setEnabled(" << enabled << "), state: " << d->isEnabled;
 	try
 	{
-		if( enabled && !d->isEnabled )
+		if( enabled )
 		{
 			d->enableAL();
 		}
-		else if( !enabled && d->isEnabled )
+		else
 		{
 			d->disableAL();
 		}
@@ -349,26 +349,6 @@ void OpenALBackend::removeUser( quint16 id )
 	catch( const OpenAL::Failure &error )
 	{
 		Log::error() << "Failed to remove user, reason: " << error.what();
-	}
-}
-
-void OpenALBackend::removeAllUsers()
-{
-	Q_D( OpenALBackend );
-	QMutexLocker locker( &mutex );
-	QList<quint16> existingUsers = d->userPositions.keys();
-	d->userPositions.clear();
-	try
-	{
-		d->changeALContext();
-		foreach( quint16 id, existingUsers )
-		{
-			d->updateUserToAL( id );
-		}
-	}
-	catch( const OpenAL::Failure &error )
-	{
-		std::cout << "Failed to remove users, reason: " << error.what().toStdString() << std::endl;
 	}
 }
 

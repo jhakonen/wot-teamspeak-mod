@@ -47,8 +47,10 @@ public:
 	void saveSettings( const Entity::Settings &settings );
 
 private:
-	void updatePlaybackDeviceToBackends( int backend );
-	void updatePlaybackVolumeToBackends( int backend );
+	void positionUserToAudioBackends( const Entity::User &user );
+	void removeUserFromAudioBackends( const Entity::User &user );
+	void updatePlaybackDeviceToBackends();
+	void updatePlaybackVolumeToBackends();
 
 public:
 	Interfaces::UserStorage* userStorage;

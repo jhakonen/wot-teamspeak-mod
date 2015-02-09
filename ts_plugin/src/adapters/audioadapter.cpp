@@ -35,35 +35,24 @@ void AudioAdapter::removeUser( const Entity::User &user )
 {
 	userIds.remove( user.id );
 	driver->removeUser( user.id );
-	if( userIds.isEmpty() && driver->isEnabled() )
-	{
-		driver->setEnabled( false );
-	}
 }
 
 void AudioAdapter::positionUser( const Entity::User &user )
 {
 	userIds.insert( user.id );
-	if( !driver->isEnabled() )
-	{
-		driver->setEnabled( true );
-	}
 	driver->positionUser( user.id, user.position );
 }
 
 void AudioAdapter::positionCamera( const Entity::Camera &camera )
 {
-	if( driver->isEnabled() )
+	Entity::Vector forward = camera.direction;
+	// cannot calculate up-vector if both x and z are zero
+	if( forward.x == 0 && forward.z == 0 )
 	{
-		Entity::Vector forward = camera.direction;
-		// cannot calculate up-vector if both x and z are zero
-		if( forward.x == 0 && forward.z == 0 )
-		{
-			return;
-		}
-		Entity::Vector up = forward.crossProduct( Entity::Vector( forward.z, 0, -forward.x ) ).getUnit();
-		driver->positionCamera( camera.position, forward, up );
+		return;
 	}
+	Entity::Vector up = forward.crossProduct( Entity::Vector( forward.z, 0, -forward.x ) ).getUnit();
+	driver->positionCamera( camera.position, forward, up );
 }
 
 void AudioAdapter::setPlaybackDeviceName( const QString &name )
@@ -76,14 +65,16 @@ void AudioAdapter::setPlaybackVolume( float volume )
 	driver->setPlaybackVolume( volume );
 }
 
-void AudioAdapter::reset()
+void AudioAdapter::setEnabled( bool enabled )
 {
-	if( driver->isEnabled() )
+	if( enabled && !driver->isEnabled() )
+	{
+		driver->setEnabled( true );
+	}
+	else if( !enabled && driver->isEnabled() )
 	{
 		driver->setEnabled( false );
 	}
-	driver->removeAllUsers();
-	driver->positionCamera( Entity::Vector(), Entity::Vector(), Entity::Vector() );
 }
 
 }

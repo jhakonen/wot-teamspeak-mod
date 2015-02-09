@@ -34,9 +34,19 @@ Interfaces::AudioAdapter *AdapterStorage::getAudio( int backend ) const
 	return audioAdapters.value( backend, NULL );
 }
 
+QList<Interfaces::AudioAdapter*> AdapterStorage::getAudios() const
+{
+	return audioAdapters.values();
+}
+
 Interfaces::AudioAdapter *AdapterStorage::getTestAudio( int backend ) const
 {
 	return testAudioAdapters.value( backend, NULL );
+}
+
+QList<Interfaces::AudioAdapter *> AdapterStorage::getTestAudios() const
+{
+	return testAudioAdapters.values();
 }
 
 Interfaces::VoiceChatAdapter *AdapterStorage::getVoiceChat() const

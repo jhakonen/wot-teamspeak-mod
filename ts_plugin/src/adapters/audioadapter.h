@@ -46,7 +46,7 @@ public:
 	void setPlaybackDeviceName( const QString &name );
 	void setPlaybackVolume( float volume );
 
-	void reset();
+	void setEnabled( bool enabled );
 
 private:
 	Interfaces::AudioDriver* driver;

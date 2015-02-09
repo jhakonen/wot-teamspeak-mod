@@ -39,7 +39,6 @@ public:
 	void setEnabled( bool enabled );
 	bool isEnabled() const;
 	void removeUser( quint16 id );
-	void removeAllUsers();
 	void positionUser( quint16 id, const Entity::Vector &position );
 	void positionCamera( const Entity::Vector &position, const Entity::Vector &forward, const Entity::Vector &up );
 	void setPlaybackDeviceName( const QString &name );

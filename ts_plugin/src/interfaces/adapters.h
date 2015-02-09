@@ -46,7 +46,7 @@ public:
 	virtual void setPlaybackDeviceName( const QString &name ) = 0;
 	virtual void setPlaybackVolume( float volume ) = 0;
 
-	virtual void reset() = 0;
+	virtual void setEnabled( bool enabled ) = 0;
 };
 
 class VoiceChatAdapter
