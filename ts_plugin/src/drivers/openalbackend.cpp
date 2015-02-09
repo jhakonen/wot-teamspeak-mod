@@ -21,6 +21,7 @@
 #include "openalbackend.h"
 #include "../entities/vector.h"
 #include "../libs/openal.h"
+#include "../utils/logging.h"
 
 #include <AL/alext.h>
 
@@ -69,12 +70,13 @@ public:
 
 	void enableAL()
 	{
+		Log::info() << "Enabling OpenALBackend";
 		QString hrtfInstallPath = getOALHRTFPath();
 		if( !QFile::exists( hrtfInstallPath ) )
 		{
 			if( !QFile::copy( QString(":/etc/default-%1.mhr").arg( AUDIO_FREQUENCY ), hrtfInstallPath ) )
 			{
-				std::cout << "Failed to install default HRTF file to " << hrtfInstallPath.toStdString() << std::endl;
+				Log::error() << "Failed to install default HRTF file to " << hrtfInstallPath;
 			}
 		}
 
@@ -85,6 +87,7 @@ public:
 		attrs[3] = AUDIO_FREQUENCY;
 		QByteArray deviceNameBytes = playbackDeviceName.toUtf8();
 
+		Log::info() << "OpenALBackend opens device: " << playbackDeviceName;
 		try
 		{
 			OpenAL::loadLib();
@@ -109,6 +112,7 @@ public:
 
 	void disableAL()
 	{
+		Log::info() << "Disabling OpenALBackend";
 		userSources.clear();
 		if( context )
 		{
@@ -140,6 +144,7 @@ public:
 		}
 		else if( userSources.contains( id ) )
 		{
+			Log::debug() << "alDeleteSources(): " << userSources[id];
 			OpenAL::alDeleteSources( 1, &userSources[id] );
 			userSources.remove( id );
 		}
@@ -162,7 +167,7 @@ public:
 			}
 			catch( const OpenAL::Failure &error )
 			{
-				std::cout << "Failed to disable OpenAL, reason: " << error.what().toStdString() << std::endl;
+				Log::warning() << "Failed to disable OpenAL, reason: " << error.what();
 			}
 			try
 			{
@@ -170,7 +175,7 @@ public:
 			}
 			catch( const OpenAL::Failure &error )
 			{
-				std::cout << "Failed to enable OpenAL, reason: " << error.what().toStdString() << std::endl;
+				Log::error() << "Failed to enable OpenAL, reason: " << error.what();
 				isEnabled = false;
 			}
 		}
@@ -208,7 +213,7 @@ public:
 		}
 		catch( const OpenAL::Failure &error )
 		{
-			std::cout << "Failed to free processed data, reason: " << error.what().toStdString() << std::endl;
+			Log::warning() << "Failed to free processed data, reason: " << error.what();
 		}
 		OpenAL::alGetSourcei( source, AL_SOURCE_STATE, &state );
 		try
@@ -222,7 +227,7 @@ public:
 		}
 		catch( const OpenAL::Failure &error )
 		{
-			std::cout << "Failed to queue audio delay, reason: " << error.what().toStdString() << std::endl;
+			Log::warning() << "Failed to queue audio delay, reason: " << error.what();
 		}
 		queueAudioData( source, samples, sampleDataLength );
 		if( state != AL_PLAYING )
@@ -295,6 +300,7 @@ void OpenALBackend::setEnabled( bool enabled )
 {
 	Q_D( OpenALBackend );
 	QMutexLocker locker( &mutex );
+	Log::debug() << "OpenALBackend::setEnabled(" << enabled << "), state: " << d->isEnabled;
 	try
 	{
 		if( enabled && !d->isEnabled )
@@ -309,7 +315,7 @@ void OpenALBackend::setEnabled( bool enabled )
 	}
 	catch( const OpenAL::Failure &error )
 	{
-		std::cout << "Enabling/disabling OpenAL backend failed, reason: " << error.what().toStdString() << std::endl;
+		Log::error() << "Enabling/disabling OpenAL backend failed, reason: " << error.what();
 	}
 }
 
@@ -324,6 +330,7 @@ void OpenALBackend::removeUser( quint16 id )
 {
 	Q_D( OpenALBackend );
 	QMutexLocker locker( &mutex );
+	Log::debug() << "OpenALBackend::removeUser(" << id << ")";
 	if( d->userPositions.contains( id ) )
 	{
 		d->userPositions.remove( id );
@@ -335,7 +342,7 @@ void OpenALBackend::removeUser( quint16 id )
 	}
 	catch( const OpenAL::Failure &error )
 	{
-		std::cout << "Failed to remove user, reason: " << error.what().toStdString() << std::endl;
+		Log::error() << "Failed to remove user, reason: " << error.what();
 	}
 }
 
@@ -363,6 +370,7 @@ void OpenALBackend::positionUser( quint16 id, const Entity::Vector &position )
 {
 	Q_D( OpenALBackend );
 	QMutexLocker locker( &mutex );
+	//Log::debug() << "OpenALBackend::positionUser(" << id << ", " << position << ")";
 	d->userPositions[id] = position;
 	try
 	{
@@ -371,7 +379,7 @@ void OpenALBackend::positionUser( quint16 id, const Entity::Vector &position )
 	}
 	catch( const OpenAL::Failure &error )
 	{
-		std::cout << "Failed to position user, reason: " << error.what().toStdString() << std::endl;
+		Log::error() << "Failed to position user, reason: " << error.what();
 	}
 }
 
@@ -379,6 +387,7 @@ void OpenALBackend::positionCamera( const Entity::Vector &position, const Entity
 {
 	Q_D( OpenALBackend );
 	QMutexLocker locker( &mutex );
+	Log::debug() << "OpenALBackend::positionCamera(" << position << ", " << forward << ", " << up << ")";
 	d->cameraPosition = position;
 	d->cameraForward = forward;
 	d->cameraUp = up;
@@ -391,7 +400,7 @@ void OpenALBackend::positionCamera( const Entity::Vector &position, const Entity
 		}
 		catch( const OpenAL::Failure &error )
 		{
-			std::cout << "Failed to position camera, reason: " << error.what().toStdString() << std::endl;
+			Log::error() << "Failed to position camera, reason: " << error.what();
 		}
 	}
 }
@@ -400,9 +409,10 @@ void OpenALBackend::setPlaybackDeviceName( const QString &name )
 {
 	Q_D( OpenALBackend );
 	QMutexLocker locker( &mutex );
+	Log::debug() << "OpenALBackend::setPlaybackDeviceName('" << name << "')";
 	if( d->playbackDeviceName != name )
 	{
-		d->playbackDeviceName == name;
+		d->playbackDeviceName = name;
 		try
 		{
 			d->changeALContext();
@@ -410,7 +420,7 @@ void OpenALBackend::setPlaybackDeviceName( const QString &name )
 		}
 		catch( const OpenAL::Failure &error )
 		{
-			std::cout << "Failed to change playback device, reason: " << error.what().toStdString() << std::endl;
+			Log::error() << "Failed to change playback device, reason: " << error.what();
 		}
 	}
 }
@@ -419,6 +429,7 @@ void OpenALBackend::setPlaybackVolume( float volume )
 {
 	Q_D( OpenALBackend );
 	QMutexLocker locker( &mutex );
+	Log::debug() << "OpenALBackend::setPlaybackVolume(" << volume << ")";
 	d->playbackVolume = volume;
 	try
 	{
@@ -427,7 +438,7 @@ void OpenALBackend::setPlaybackVolume( float volume )
 	}
 	catch( const OpenAL::Failure &error )
 	{
-		std::cout << "Failed to change playback volume, reason: " << error.what().toStdString() << std::endl;
+		Log::error() << "Failed to change playback volume, reason: " << error.what();
 	}
 }
 
@@ -447,7 +458,7 @@ void OpenALBackend::onEditPlaybackVoiceDataEvent( quint16 id, short *samples, in
 		}
 		catch( const OpenAL::Failure &error )
 		{
-			std::cout << "Failed to feed audio data to OpenAL, reason: " << error.what().toStdString() << std::endl;
+			Log::error() << "Failed to feed audio data to OpenAL, reason: " << error.what();
 		}
 	}
 }

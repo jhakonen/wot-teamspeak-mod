@@ -22,6 +22,7 @@
 #include "../interfaces/usecasefactory.h"
 #include "../entities/settings.h"
 #include "../ui/settingsdialog.h"
+#include "../utils/logging.h"
 #include <iostream>
 
 namespace Adapter
@@ -34,7 +35,7 @@ UiAdapter::UiAdapter( Interfaces::UseCaseFactory *useCaseFactory, QObject *paren
 
 void UiAdapter::showSettingsUi( const Entity::Settings &settings, QWidget *parent )
 {
-	std::cout << "UiAdapter::showSettingsUi()" << std::endl;
+	Log::info() << "UiAdapter::showSettingsUi()";
 	if( !settingsDialog )
 	{
 		originalSettings = settings;

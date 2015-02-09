@@ -43,7 +43,8 @@ SOURCES += \
     src/drivers/wotconnector.cpp \
     src/adapters/uiadapter.cpp \
     src/main.cpp \
-    src/libs/openal.cpp
+    src/libs/openal.cpp \
+    src/utils/logging.cpp
 
 HEADERS +=\
     src/ui/settingsdialog.h \
@@ -70,7 +71,8 @@ HEADERS +=\
     src/drivers/wotconnector.h \
     src/adapters/uiadapter.h \
     src/entities/enums.h \
-    src/libs/openal.h
+    src/libs/openal.h \
+    src/utils/logging.h
 
 RESOURCES += \
 	resources.qrc

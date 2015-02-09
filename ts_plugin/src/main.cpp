@@ -42,6 +42,7 @@ void pluginInit( QObject *parent )
 {
 	auto teamSpeakPlugin = Driver::TeamSpeakPlugin::singleton();
 
+	Log::setSink( teamSpeakPlugin );
 	QString dataPath = QDir::toNativeSeparators( teamSpeakPlugin->getPluginDataPath() );
 	dllSearchCookie = AddDllDirectory( (wchar_t*)dataPath.utf16() );
 

@@ -19,6 +19,7 @@
  */
 
 #include "inisettingsfile.h"
+#include "../utils/logging.h"
 #include <QSettings>
 #include <iostream>
 
@@ -34,7 +35,7 @@ IniSettingsFile::IniSettingsFile( QObject *parent )
 		"jhakonen.com",
 		"WOTTessuMod"
 	);
-	std::cout << "TessuMod settings are stored to: " << mySettings->fileName().toStdString() << std::endl;
+	Log::info() << "TessuMod settings are stored to: " << mySettings->fileName();
 }
 
 IniSettingsFile::~IniSettingsFile()

@@ -22,6 +22,7 @@
 
 #include "../interfaces/drivers.h"
 #include "../entities/vector.h"
+#include "../utils/logging.h"
 #include <ts3_functions.h>
 
 namespace Driver
@@ -30,13 +31,16 @@ class TeamSpeakPluginPrivate;
 class TeamSpeakAudioBackendPrivate;
 class TeamSpeakAudioBackend;
 
-class TeamSpeakPlugin : public QObject, public Interfaces::VoiceChatDriver
+class TeamSpeakPlugin : public QObject, public Log::Sink, public Interfaces::VoiceChatDriver
 {
 	Q_OBJECT
 
 public:
 	~TeamSpeakPlugin();
 	static TeamSpeakPlugin *singleton();
+
+	// from Log::Sink
+	void logMessage( const QString &message, Log::Severity severity );
 
 	// from Interfaces::VoiceChatDriver
 	quint16 getMyUserId() const;

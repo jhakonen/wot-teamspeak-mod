@@ -20,6 +20,8 @@
 
 #include "wotconnector.h"
 #include "../entities/vector.h"
+#include "../utils/logging.h"
+
 #include <QTimer>
 #include <QSharedMemory>
 #include <QDateTime>
@@ -191,9 +193,7 @@ void WotConnector::start()
 	d->timer->start();
 	if ( d->connectToSharedMemory() == false )
 	{
-		QString message = "Failed to connect to shared memory, reason: "
-				+ d->memory->errorString();
-		std::cout << message.toStdString() << std::endl;
+		Log::error() << "Failed to connect to shared memory, reason: " << d->memory->errorString();
 		stop();
 		return;
 	}
@@ -201,7 +201,7 @@ void WotConnector::start()
 	d->memoryBuffer->setMemoryArea( d->memory->data(), d->memory->size() );
 	if ( d->memoryBuffer->open( QIODevice::ReadWrite ) == false )
 	{
-		std::cout << "Failed to open buffer" << std::endl;
+		Log::error() << "Failed to open buffer";
 		return;
 	}
 	MyDataStream stream( d->memoryBuffer );

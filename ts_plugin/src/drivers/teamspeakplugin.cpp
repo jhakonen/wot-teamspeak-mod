@@ -123,6 +123,22 @@ QWidget* getMainWindowWidget()
 	return NULL;
 }
 
+LogLevel toTSLogLevel( Log::Severity severity )
+{
+	switch( severity )
+	{
+	case Log::Debug:
+		return LogLevel_DEBUG;
+	case Log::Info:
+		return LogLevel_INFO;
+	case Log::Warning:
+		return LogLevel_WARNING;
+	case Log::Error:
+		return LogLevel_ERROR;
+	}
+	return LogLevel_INFO;
+}
+
 }
 
 /*********************************** Required functions ************************************/
@@ -308,12 +324,11 @@ void ts3plugin_onConnectStatusChangeEvent( uint64 serverConnectionHandlerID, int
 
 void ts3plugin_onClientMoveEvent( uint64 serverConnectionHandlerID, anyID clientID, uint64 oldChannelID, uint64 newChannelID, int visibility, const char *moveMessage )
 {
-	std::cout << "onClientMoveEvent() :: "
-			  << "clientID: " << clientID << ", "
-			  << "oldChannelID: " << oldChannelID << ", "
-			  << "newChannelID: " << newChannelID << ", "
-			  << "visibility: " << visibility
-			  << std::endl;
+	Log::debug() << "onClientMoveEvent() :: "
+				 << "clientID: " << clientID << ", "
+				 << "oldChannelID: " << oldChannelID << ", "
+				 << "newChannelID: " << newChannelID << ", "
+				 << "visibility: " << visibility;
 	Driver::TeamSpeakPlugin::singleton()->onClientMoveEvent( serverConnectionHandlerID, clientID, oldChannelID, newChannelID, visibility, moveMessage );
 }
 
@@ -419,6 +434,12 @@ TeamSpeakPlugin *TeamSpeakPlugin::singleton()
 		gTeamSpeakPlugin = new TeamSpeakPlugin();
 	}
 	return gTeamSpeakPlugin;
+}
+
+void TeamSpeakPlugin::logMessage( const QString &message, Log::Severity severity )
+{
+	QByteArray utf8Message = message.toUtf8();
+	gTs3Functions.logMessage( utf8Message.data(), toTSLogLevel( severity ), "TessuMod Plugin", 0 );
 }
 
 quint16 TeamSpeakPlugin::getMyUserId() const
@@ -527,7 +548,7 @@ void TeamSpeakPlugin::onClientMoveEvent( uint64 serverConnectionHandlerID, anyID
 	// I moved to a new channel
 	if( getMyUserId() == clientID )
 	{
-		std::cout << "I moved to new channel" << std::endl;
+		Log::debug() << "I moved to new channel";
 		foreach( anyID clientID, d->clientsInChannel )
 		{
 			emit chatUserRemoved( clientID );
@@ -543,14 +564,14 @@ void TeamSpeakPlugin::onClientMoveEvent( uint64 serverConnectionHandlerID, anyID
 	// someone else moved to my channel
 	else if( getMyChannelID() == newChannelID )
 	{
-		std::cout << "Client " << clientID << " entered my channel" << std::endl;
+		Log::debug() << "Client " << clientID << " entered my channel";
 		emit chatUserAdded( clientID );
 		d->clientsInChannel.insert( clientID );
 	}
 	// someone else moved away from my channel
 	else if( getMyChannelID() == oldChannelID )
 	{
-		std::cout << "Client " << clientID << " left my channel" << std::endl;
+		Log::debug() << "Client " << clientID << " left my channel";
 		d->clientsInChannel.remove( clientID );
 		emit chatUserRemoved( clientID );
 	}
@@ -655,13 +676,13 @@ QString TeamSpeakPlugin::getTSDefaultPlaybackDeviceName() const
 		}
 		else
 		{
-			std::cout << "Failed to get default playback device" << std::endl;
+			Log::error() << "Failed to get default playback device";
 		}
 		gTs3Functions.freeMemory( defaultMode );
 	}
 	else
 	{
-		std::cout << "Failed to get default playback mode" << std::endl;
+		Log::error() << "Failed to get default playback mode";
 	}
 	return result;
 }
@@ -764,14 +785,14 @@ bool TeamSpeakAudioBackend::isEnabled() const
 void TeamSpeakAudioBackend::addUser( quint16 id )
 {
 	Q_D( TeamSpeakAudioBackend );
-	std::cout << "TeamspeakPlugin::addUser() :: id: " << id << std::endl;
+	Log::debug() << "TeamSpeakAudioBackend::addUser() :: id: " << id;
 	d->clientPositions[id] = Entity::Vector();
 }
 
 void TeamSpeakAudioBackend::removeUser( quint16 id )
 {
 	Q_D( TeamSpeakAudioBackend );
-	std::cout << "TeamspeakPlugin::removeUser() :: id: " << id << std::endl;
+	Log::debug() << "TeamSpeakAudioBackend::removeUser() :: id: " << id;
 	d->clientPositions.remove( id );
 	TS3_VECTOR zero = {0, 0, 0};
 	gTs3Functions.channelset3DAttributes( gTs3Functions.getCurrentServerConnectionHandlerID(), id, &zero );
@@ -790,7 +811,7 @@ void TeamSpeakAudioBackend::removeAllUsers()
 void TeamSpeakAudioBackend::positionUser( quint16 id, const Entity::Vector &position )
 {
 	Q_D( TeamSpeakAudioBackend );
-	std::cout << "TeamspeakPlugin::positionUser() :: id: " << id << ", pos: " << position << std::endl;
+	//Log::debug() << "TeamSpeakAudioBackend::positionUser() :: id: " << id << ", pos: " << position;
 	d->clientPositions[id] = position;
 	TS3_VECTOR tsPosition = toTSVector( position - d->origo );
 	gTs3Functions.channelset3DAttributes( gTs3Functions.getCurrentServerConnectionHandlerID(), id, &tsPosition );
@@ -799,7 +820,7 @@ void TeamSpeakAudioBackend::positionUser( quint16 id, const Entity::Vector &posi
 void TeamSpeakAudioBackend::positionCamera( const Entity::Vector &position, const Entity::Vector &forward, const Entity::Vector &up )
 {
 	Q_D( TeamSpeakAudioBackend );
-	std::cout << "TeamspeakPlugin::positionCamera() :: pos: " << position << ", forward: " << forward << ", up: " << up << std::endl;
+	//Log::debug() << "TeamSpeakAudioBackend::positionCamera() :: pos: " << position << ", forward: " << forward << ", up: " << up;
 	d->origo = position;
 	foreach( quint16 id, d->clientPositions.keys() )
 	{
