@@ -37,7 +37,6 @@ try:
 		#data.append(pack_float_vector(create_random_position(1000)))
 		#data.append(pack_float_vector(create_random_position(1000)))
 		data.append(struct.pack("I", int(time.time())))
-		data.append(struct.pack("B", 2)) # openal audio backend
 		data.append(pack_float_vector((0, 0, 0)))
 		data.append(pack_float_vector((0, 0, 1)))
 		data.append(struct.pack("B", 10))
