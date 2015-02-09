@@ -89,21 +89,21 @@ QString getWin32ErrorMessage()
 	return message;
 }
 
-void testForALError()
+void testForALError( const char *funcName )
 {
 	ALenum err = OpenAL::alGetError();
 	if( err != AL_NO_ERROR )
 	{
-		throw OpenAL::Failure( QString( "OpenAL error: %1, %2" ).arg( err ).arg( OpenAL::alGetString( err ) ) );
+		throw OpenAL::Failure( QString( "%1() failed, err=%2, text=%3" ).arg( funcName ).arg( err ).arg( OpenAL::alGetString( err ) ) );
 	}
 }
 
-void testForALCError( ALCdevice *device )
+void testForALCError( ALCdevice *device, const char *funcName )
 {
 	ALCenum err = OpenAL::alcGetError( device );
 	if( err != ALC_NO_ERROR )
 	{
-		throw OpenAL::Failure( QString( "OpenAL context error: %1, %2" ).arg( err ).arg( OpenAL::alcGetString( device, err ) ) );
+		throw OpenAL::Failure( QString( "%1() failed, err=%2, text=%3" ).arg( funcName ).arg( err ).arg( OpenAL::alcGetString( device, err ) ) );
 	}
 }
 
@@ -183,56 +183,56 @@ void alListenerf( ALenum param, ALfloat value )
 {
 	throwIfNotLoaded();
 	g_alListenerf( param, value );
-	testForALError();
+	testForALError( "alListenerf" );
 }
 
 void alListener3f( ALenum param, ALfloat value1, ALfloat value2, ALfloat value3 )
 {
 	throwIfNotLoaded();
 	g_alListener3f( param, value1, value2, value3 );
-	testForALError();
+	testForALError( "alListener3f" );
 }
 
 void alListenerfv( ALenum param, const ALfloat *values )
 {
 	throwIfNotLoaded();
 	g_alListenerfv( param, values );
-	testForALError();
+	testForALError( "alListenerfv" );
 }
 
 void alGenSources( ALsizei n, ALuint *sources )
 {
 	throwIfNotLoaded();
 	g_alGenSources( n, sources );
-	testForALError();
+	testForALError( "alGenSources" );
 }
 
 void alDeleteSources( ALsizei n, const ALuint *sources )
 {
 	throwIfNotLoaded();
 	g_alDeleteSources( n, sources );
-	testForALError();
+	testForALError( "alDeleteSources" );
 }
 
 void alSourcef( ALuint source, ALenum param, ALfloat value )
 {
 	throwIfNotLoaded();
 	g_alSourcef( source, param, value );
-	testForALError();
+	testForALError( "alSourcef" );
 }
 
 void alSource3f( ALuint source, ALenum param, ALfloat value1, ALfloat value2, ALfloat value3 )
 {
 	throwIfNotLoaded();
 	g_alSource3f( source, param, value1, value2, value3 );
-	testForALError();
+	testForALError( "alSource3f" );
 }
 
 void alSourcei( ALuint source, ALenum param, ALint value )
 {
 	throwIfNotLoaded();
 	g_alSourcei( source, param, value );
-	testForALError();
+	testForALError( "alSourcei" );
 }
 
 void alGetSourcei( ALuint source, ALenum param, ALint *value )
@@ -245,49 +245,49 @@ void alBufferData( ALuint buffer, ALenum format, const ALvoid *data, ALsizei siz
 {
 	throwIfNotLoaded();
 	g_alBufferData( buffer, format, data, size, freq );
-	testForALError();
+	testForALError( "alBufferData" );
 }
 
 void alDeleteBuffers( ALsizei n, const ALuint *buffers )
 {
 	throwIfNotLoaded();
 	g_alDeleteBuffers( n, buffers );
-	testForALError();
+	testForALError( "alDeleteBuffers" );
 }
 
 void alGenBuffers( ALsizei n, ALuint *buffers )
 {
 	throwIfNotLoaded();
 	g_alGenBuffers( n, buffers );
-	testForALError();
+	testForALError( "alGenBuffers" );
 }
 
 void alSourceUnqueueBuffers( ALuint source, ALsizei nb, ALuint *buffers )
 {
 	throwIfNotLoaded();
 	g_alSourceUnqueueBuffers( source, nb, buffers );
-	testForALError();
+	testForALError( "alSourceUnqueueBuffers" );
 }
 
 void alSourceQueueBuffers( ALuint source, ALsizei nb, const ALuint *buffers )
 {
 	throwIfNotLoaded();
 	g_alSourceQueueBuffers( source, nb, buffers );
-	testForALError();
+	testForALError( "alSourceQueueBuffers" );
 }
 
 void alSourcePlay( ALuint source )
 {
 	throwIfNotLoaded();
 	g_alSourcePlay( source );
-	testForALError();
+	testForALError( "alSourcePlay" );
 }
 
 ALCdevice *alcOpenDevice( const ALCchar *devicename )
 {
 	throwIfNotLoaded();
 	ALCdevice* device = g_alcOpenDevice( devicename );
-	testForALCError( device );
+	testForALCError( device, "alcOpenDevice" );
 	return device;
 }
 
@@ -301,7 +301,7 @@ ALCcontext *alcCreateContext( ALCdevice *device, const ALCint *attrlist )
 {
 	throwIfNotLoaded();
 	ALCcontext *context = g_alcCreateContext( device, attrlist );
-	testForALCError( device );
+	testForALCError( device, "alcCreateContext" );
 	return context;
 }
 
