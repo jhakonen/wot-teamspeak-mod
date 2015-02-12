@@ -174,9 +174,9 @@ def BattleReplay_play(orig_method):
 		return orig_method(*args, **kwargs)
 	return wrapper
 
-def on_users_rosters_received():
+def on_users_list_received(tags):
 	'''This function populates user cache with friends and clan members from
-	user storage when user rosters are received at start when player logs in to
+	user storage when user list is received at start when player logs in to
 	the game.
 	Users storage should be available and populated by now.
 	'''
@@ -231,7 +231,7 @@ def load_mod():
 	VOIP.VOIPManager.isParticipantTalking = VOIPManager_isParticipantTalking(VOIP.VOIPManager.isParticipantTalking)
 	BattleReplay.BattleReplay.play = BattleReplay_play(BattleReplay.BattleReplay.play)
 
-	g_messengerEvents.users.onUsersRosterReceived += on_users_rosters_received
+	g_messengerEvents.users.onUsersListReceived += on_users_list_received
 
 	utils.call_in_loop(settings().get_ini_check_interval, sync_configs)
 

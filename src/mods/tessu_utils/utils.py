@@ -20,7 +20,7 @@ import debug_utils
 from gui import SystemMessages
 from gui.WindowsManager import g_windowsManager
 from messenger.storage import storage_getter
-from messenger.proto.bw import find_criteria
+from messenger.proto.shared_find_criteria import FriendsFindCriteria
 import ResMgr
 import os
 import functools
@@ -265,7 +265,7 @@ def get_players(in_battle=False, in_prebattle=False, clanmembers=False, friends=
 			LOG_DEBUG("Found clan member", member.getName())
 			yield Player(member.getName(), member.getID())
 	if friends:
-		for friend in users_storage.getList(find_criteria.BWFriendFindCriteria()):
+		for friend in users_storage.getList(FriendsFindCriteria()):
 			LOG_DEBUG("Found friend", friend.getName())
 			yield Player(friend.getName(), friend.getID())
 
