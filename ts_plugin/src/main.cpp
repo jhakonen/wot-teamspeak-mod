@@ -79,5 +79,6 @@ void pluginInit( QObject *parent )
 
 void pluginShutdown()
 {
+	Log::setSink( NULL );
 	RemoveDllDirectory( dllSearchCookie );
 }
