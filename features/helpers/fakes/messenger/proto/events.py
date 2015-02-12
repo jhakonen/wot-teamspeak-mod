@@ -9,6 +9,6 @@ class Events(object):
 class Users(object):
 
 	def __init__(self):
-		self.onUsersRosterReceived = Event.Event()
+		self.onUsersListReceived = Event.Event()
 
 g_messengerEvents = Events()
