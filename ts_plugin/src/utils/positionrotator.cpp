@@ -20,6 +20,7 @@
 
 #include "positionrotator.h"
 #include "../entities/vector.h"
+#include "../entities/enums.h"
 
 #include <QTimer>
 #include <cmath>
@@ -30,6 +31,7 @@ const int TEST_UPDATE_INTERVAL = 100; // ms
 const int TEST_DURATION        = 10000; // ms
 const qreal PI                 = 3.14159265358979323846;
 const qreal TEST_DISTANCE      = 10; // meters
+const int START_ANGLE          = -90;
 }
 
 PositionRotator::PositionRotator( QObject *parent )
@@ -47,7 +49,7 @@ void PositionRotator::start( Entity::RotateMode mode )
 		return;
 	}
 	rotateMode = mode;
-	angle = 0;
+	angle = START_ANGLE;
 	timer->start();
 	emit started();
 	emit positionChanged( getPosition() );
@@ -55,7 +57,7 @@ void PositionRotator::start( Entity::RotateMode mode )
 
 void PositionRotator::onTimeout()
 {
-	if( angle >= 360 )
+	if( angle >= 360 + START_ANGLE )
 	{
 		timer->stop();
 		emit finished();
@@ -70,10 +72,28 @@ void PositionRotator::onTimeout()
 Entity::Vector PositionRotator::getPosition() const
 {
 	qreal radAngle = angle * PI / 180.0;
-	// TODO: different positions based on 'rotateMode'
-	return Entity::Vector(
-		TEST_DISTANCE * cos( radAngle ),
-		0,
-		TEST_DISTANCE * sin( radAngle )
-	);
+	switch( rotateMode )
+	{
+	case Entity::RotateXAxis:
+		return Entity::Vector(
+			0,
+			TEST_DISTANCE * sin( radAngle ),
+			TEST_DISTANCE * cos( radAngle )
+		);
+
+	case Entity::RotateYAxis:
+		return Entity::Vector(
+			TEST_DISTANCE * cos( radAngle ),
+			0,
+			TEST_DISTANCE * sin( radAngle )
+		);
+
+	case Entity::RotateZAxis:
+		return Entity::Vector(
+			TEST_DISTANCE * cos( radAngle ),
+			TEST_DISTANCE * sin( radAngle ),
+			0
+		);
+	}
+	return Entity::Vector();
 }

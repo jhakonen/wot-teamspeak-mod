@@ -731,7 +731,7 @@ class TeamSpeakAudioBackendPrivate
 {
 public:
 	TeamSpeakAudioBackendPrivate()
-		: isEnabled( false )
+		: isEnabled( false ), testWaveHandle( 0 ), testSchandlerId( 0 )
 	{
 	}
 
@@ -764,6 +764,8 @@ public:
 	Entity::Vector cameraUp;
 	QMap<quint16, Entity::Vector> clientPositions;
 	bool isEnabled;
+	uint64 testWaveHandle;
+	uint64 testSchandlerId;
 };
 
 TeamSpeakAudioBackend::TeamSpeakAudioBackend( QObject *parent )
@@ -908,19 +910,36 @@ void TeamSpeakAudioBackend::positionCamera( const Entity::Vector &position, cons
 	}
 }
 
-void TeamSpeakAudioBackend::playTestSound()
+void TeamSpeakAudioBackend::playTestSound( const QString &filePath )
 {
-	// TODO
+	Q_D( TeamSpeakAudioBackend );
+	QByteArray filePathUtf8 = filePath.toUtf8();
+	uint64 schandlerId = gTs3Functions.getCurrentServerConnectionHandlerID();
+	uint result = gTs3Functions.playWaveFileHandle( schandlerId, filePathUtf8.data(), 1, &d->testWaveHandle );
+	if( result != ERROR_ok )
+	{
+		Log::error() << "Failed to open wave handle, TS error: " << result;
+		return;
+	}
+	d->testSchandlerId = schandlerId;
 }
 
 void TeamSpeakAudioBackend::positionTestSound( const Entity::Vector &position )
 {
-	// TODO
+	Q_D( TeamSpeakAudioBackend );
+	TS3_VECTOR tsPosition = toTSVector( position );
+	gTs3Functions.set3DWaveAttributes( d->testSchandlerId, d->testWaveHandle, &tsPosition );
+	Log::debug() << "position: " << position;
 }
 
 void TeamSpeakAudioBackend::stopTestSound()
 {
-	// TODO
+	Q_D( TeamSpeakAudioBackend );
+	uint result = gTs3Functions.closeWaveFileHandle( d->testSchandlerId, d->testWaveHandle );
+	if( result != ERROR_ok )
+	{
+		Log::error() << "Failed to close wave handle, TS error: " << result;
+	}
 }
 
 }

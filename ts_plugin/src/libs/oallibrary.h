@@ -99,12 +99,15 @@ public:
 	void setRolloffFactor( ALfloat factor );
 	void setPosition( ALfloat x, ALfloat y, ALfloat z );
 	void setRelative( bool relative );
+	void setLooping( bool looping );
 
 	bool isPlaying() const;
 
+	void playbackAudioData(ALenum format, const ALvoid *data, ALsizei size, ALsizei frequency );
 	void queueAudioData( ALenum format, const ALvoid *data, ALsizei size, ALsizei frequency );
 
 	void play();
+	void stop();
 
 protected:
 	void timerEvent( QTimerEvent *event );
@@ -115,4 +118,5 @@ private:
 
 	ALuint source;
 	OALContext *context;
+	ALuint playbackBuffer;
 };

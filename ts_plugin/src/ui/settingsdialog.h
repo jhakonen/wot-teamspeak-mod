@@ -56,6 +56,7 @@ public:
 	bool isLoggingEnabled() const;
 	void setLoggingEnabled( bool enabled );
 
+private slots:
 	void on_testButton_clicked();
 	void on_showLogsButton_clicked();
 

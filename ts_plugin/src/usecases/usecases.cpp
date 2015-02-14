@@ -197,7 +197,7 @@ void UseCases::playTestAudioWithSettings( const Entity::Settings &settings )
 	backend->setChannels( settings.audioChannels );
 	backend->setHrtfEnabled( settings.hrtfEnabled );
 	backend->setHrtfDataSet( settings.hrtfDataSet );
-	backend->setEnabled( true );
+	backend->setEnabled( settings.positioningEnabled );
 	backend->playTestSound( settings.testRotateMode );
 }
 
