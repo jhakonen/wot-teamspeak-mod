@@ -25,6 +25,10 @@
 #include <public_definitions.h>
 #include <QString>
 
+#ifndef ALC_HRTF_SOFT
+#define ALC_HRTF_SOFT 0x1992
+#endif
+
 class QMutex;
 
 namespace OpenAL

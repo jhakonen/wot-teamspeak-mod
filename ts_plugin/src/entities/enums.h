@@ -46,14 +46,4 @@ enum RotateMode
 	RotateZAxis
 };
 
-enum Channels
-{
-	AutoChannels,
-	Stereo,
-	Surround40,
-	Surround51,
-	Surround61,
-	Surround71
-};
-
 }

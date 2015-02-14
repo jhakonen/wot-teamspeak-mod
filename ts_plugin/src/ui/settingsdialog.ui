@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>340</width>
-    <height>537</height>
+    <width>380</width>
+    <height>508</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -35,48 +35,6 @@
         </widget>
        </item>
        <item>
-        <spacer name="verticalSpacer_2">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
-         </property>
-         <property name="sizeType">
-          <enum>QSizePolicy::Fixed</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>10</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item>
-        <widget class="QGroupBox" name="groupBox">
-         <property name="title">
-          <string>Select Audio Backend</string>
-         </property>
-         <layout class="QVBoxLayout" name="verticalLayout_2">
-          <item>
-           <widget class="QRadioButton" name="builtinAudioRadioButton">
-            <property name="text">
-             <string>TeamSpeak's Built-in Audio</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QRadioButton" name="openALRadioButton">
-            <property name="text">
-             <string>OpenAL Soft</string>
-            </property>
-            <property name="checked">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-       </item>
-       <item>
         <spacer name="verticalSpacer">
          <property name="orientation">
           <enum>Qt::Vertical</enum>
@@ -93,38 +51,47 @@
      </widget>
      <widget class="QWidget" name="tab_2">
       <attribute name="title">
-       <string>OpenAL Soft</string>
+       <string>Audio</string>
       </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout_7">
+      <layout class="QVBoxLayout" name="verticalLayout_4">
        <item>
         <widget class="QGroupBox" name="groupBox_3">
          <property name="title">
-          <string>Play test sound</string>
+          <string>Test Speakers</string>
          </property>
-         <layout class="QVBoxLayout" name="verticalLayout_6">
+         <layout class="QHBoxLayout" name="horizontalLayout_2">
           <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_2">
-            <item>
-             <widget class="QPushButton" name="testButton">
-              <property name="text">
-               <string>Test</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <spacer name="horizontalSpacer">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>40</width>
-                <height>20</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
-           </layout>
+           <spacer name="horizontalSpacer">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QPushButton" name="testButton">
+            <property name="text">
+             <string>Test</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_3">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
           </item>
           <item>
            <widget class="QGroupBox" name="groupBox_4">
@@ -163,65 +130,51 @@
         </widget>
        </item>
        <item>
-        <widget class="QGroupBox" name="groupBox_6">
+        <widget class="QGroupBox" name="groupBox">
          <property name="title">
-          <string>Select channels</string>
+          <string>Select Audio Backend</string>
          </property>
-         <layout class="QHBoxLayout" name="horizontalLayout">
+         <layout class="QVBoxLayout" name="verticalLayout_2">
           <item>
-           <widget class="QComboBox" name="channelsComboBox">
-            <item>
-             <property name="text">
-              <string>Automatic (from alsoft.ini)</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>Stereo</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>4.0 Surround</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>5.1 Surround</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>6.1 Surround</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>7.1 Surround</string>
-             </property>
-            </item>
+           <widget class="QRadioButton" name="openALRadioButton">
+            <property name="text">
+             <string>OpenAL Soft</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QRadioButton" name="builtinAudioRadioButton">
+            <property name="text">
+             <string>TeamSpeak's Built-in Audio</string>
+            </property>
            </widget>
           </item>
          </layout>
         </widget>
        </item>
        <item>
-        <widget class="QGroupBox" name="groupBox_2">
-         <property name="title">
-          <string>HRTF (Headphones only)</string>
+        <widget class="QGroupBox" name="openALGroupBox">
+         <property name="enabled">
+          <bool>true</bool>
          </property>
-         <layout class="QVBoxLayout" name="verticalLayout_4">
+         <property name="title">
+          <string>OpenAL Soft Settings</string>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_7">
           <item>
            <widget class="QCheckBox" name="enableHrtfCheckBox">
             <property name="text">
-             <string>Enable HRTF</string>
+             <string>Enable HRTF (Headphones only)</string>
             </property>
            </widget>
           </item>
           <item>
            <widget class="QLabel" name="label">
             <property name="text">
-             <string>Select HRTF data set to use:</string>
+             <string>Select default HRTF data set:</string>
             </property>
            </widget>
           </item>
@@ -232,15 +185,6 @@
             </property>
            </widget>
           </item>
-         </layout>
-        </widget>
-       </item>
-       <item>
-        <widget class="QGroupBox" name="groupBox_5">
-         <property name="title">
-          <string>Logging</string>
-         </property>
-         <layout class="QHBoxLayout" name="horizontalLayout_3">
           <item>
            <widget class="QCheckBox" name="enableLoggingCheckBox">
             <property name="text">
@@ -249,24 +193,28 @@
            </widget>
           </item>
           <item>
-           <spacer name="horizontalSpacer_2">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item>
-           <widget class="QPushButton" name="showLogsButton">
-            <property name="text">
-             <string>Show Logs</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="horizontalLayout">
+            <item>
+             <spacer name="horizontalSpacer_2">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
+             <widget class="QPushButton" name="pushButton">
+              <property name="text">
+               <string>Advanced Settings</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
          </layout>
         </widget>

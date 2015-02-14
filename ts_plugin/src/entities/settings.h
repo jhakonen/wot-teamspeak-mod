@@ -34,7 +34,6 @@ public:
 	AudioBackend audioBackend;
 	bool positioningEnabled;
 	RotateMode testRotateMode;
-	Channels audioChannels;
 	bool hrtfEnabled;
 	QString hrtfDataSet;
 	bool audioLoggingEnabled;

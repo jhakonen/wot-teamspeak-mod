@@ -20,6 +20,7 @@
 
 #include "openalbackend.h"
 #include "../entities/vector.h"
+#include "../entities/enums.h"
 #include "../libs/oallibrary.h"
 #include "../utils/logging.h"
 #include "../utils/wavfile.h"
@@ -29,6 +30,7 @@
 #include <QStandardPaths>
 #include <QRegularExpression>
 #include <QDir>
+#include <QVector>
 #include <QPointer>
 
 #include <iostream>
@@ -66,7 +68,7 @@ class OpenALBackendPrivate
 {
 public:
 	OpenALBackendPrivate()
-		: isEnabled( false ), playbackVolume( 0 )
+		: isEnabled( false ), playbackVolume( 0 ), hrtfEnabled( false )
 	{
 	}
 
@@ -94,7 +96,7 @@ public:
 				oalLibrary = new OALLibrary();
 			}
 			auto device = oalLibrary->createDevice( playbackDeviceName );
-			oalContext = device->createContext();
+			oalContext = device->createContext( hrtfEnabled );
 		}
 		catch( ... )
 		{
@@ -267,6 +269,7 @@ public:
 	Entity::Vector cameraUp;
 	QString playbackDeviceName;
 	float playbackVolume;
+	bool hrtfEnabled;
 };
 
 OpenALBackend::OpenALBackend( QObject *parent )
@@ -409,14 +412,24 @@ void OpenALBackend::setPlaybackVolume( float volume )
 	}
 }
 
-void OpenALBackend::setChannels( Entity::Channels channels )
-{
-	// TODO
-}
-
 void OpenALBackend::setHrtfEnabled( bool enabled )
 {
-	// TODO
+	Q_D( OpenALBackend );
+
+	if( d->hrtfEnabled == enabled )
+	{
+		return;
+	}
+	d->hrtfEnabled = enabled;
+
+	try
+	{
+		d->restartAL();
+	}
+	catch( const OpenAL::Failure &error )
+	{
+		Log::error() << "Failed to change HRTF state, reason: " << error.what();
+	}
 }
 
 void OpenALBackend::setHrtfDataSet( const QString &name )

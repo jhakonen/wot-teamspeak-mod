@@ -48,7 +48,6 @@ void UseCases::applicationInitialize()
 
 		foreach( Interfaces::AudioAdapter *backend, adapterStorage->getAudios() )
 		{
-			backend->setChannels( settings.audioChannels );
 			backend->setHrtfEnabled( settings.hrtfEnabled );
 			backend->setHrtfDataSet( settings.hrtfDataSet );
 		}
@@ -175,7 +174,6 @@ void UseCases::saveSettings( const Entity::Settings &settings )
 		}
 		foreach( Interfaces::AudioAdapter *backend, adapterStorage->getAudios() )
 		{
-			backend->setChannels( settings.audioChannels );
 			backend->setHrtfEnabled( settings.hrtfEnabled );
 			backend->setHrtfDataSet( settings.hrtfDataSet );
 		}
@@ -194,7 +192,6 @@ void UseCases::saveSettings( const Entity::Settings &settings )
 void UseCases::playTestAudioWithSettings( const Entity::Settings &settings )
 {
 	Interfaces::AudioAdapter *backend = adapterStorage->getTestAudio( settings.audioBackend );
-	backend->setChannels( settings.audioChannels );
 	backend->setHrtfEnabled( settings.hrtfEnabled );
 	backend->setHrtfDataSet( settings.hrtfDataSet );
 	backend->setEnabled( settings.positioningEnabled );

@@ -51,7 +51,6 @@ public:
 
 	void setEnabled( bool enabled );
 
-	void setChannels( Entity::Channels channels );
 	void setHrtfEnabled( bool enabled );
 	void setHrtfDataSet( const QString &name );
 	void playTestSound( Entity::RotateMode mode );

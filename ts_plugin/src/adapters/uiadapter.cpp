@@ -44,7 +44,6 @@ void UiAdapter::showSettingsUi( const Entity::Settings &settings, QWidget *paren
 		settingsDialog->setPositionalAudioEnabled( settings.positioningEnabled );
 		settingsDialog->setAudioBackend( settings.audioBackend );
 		settingsDialog->setRotateMode( settings.testRotateMode );
-		settingsDialog->setChannels( settings.audioChannels );
 		settingsDialog->setHrtfEnabled( settings.hrtfEnabled );
 		settingsDialog->setHrtfDataSet( settings.hrtfDataSet );
 		settingsDialog->setLoggingEnabled( settings.audioLoggingEnabled );
@@ -76,7 +75,6 @@ Entity::Settings UiAdapter::collectSettingsFromUI() const
 		settings.positioningEnabled = settingsDialog->getPositionalAudioEnabled();
 		settings.audioBackend = (Entity::AudioBackend) settingsDialog->getAudioBackend();
 		settings.testRotateMode = settingsDialog->getRotateMode();
-		settings.audioChannels = settingsDialog->getChannels();
 		settings.hrtfEnabled = settingsDialog->isHrtfEnabled();
 		settings.hrtfDataSet = settingsDialog->getHrtfDataSet();
 		settings.audioLoggingEnabled = settingsDialog->isLoggingEnabled();

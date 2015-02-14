@@ -64,10 +64,10 @@ OALDevice::~OALDevice()
 	}
 }
 
-OALContext *OALDevice::createContext()
+OALContext *OALDevice::createContext( bool hrtfEnabled )
 {
 	OALContext defaultContext( this );
-	contexts.append( new OALContext( defaultContext.getFrequency(), this ) );
+	contexts.append( new OALContext( defaultContext.getFrequency(), hrtfEnabled, this ) );
 	return contexts.last();
 }
 
@@ -82,13 +82,15 @@ OALContext::OALContext( OALDevice *parent )
 	context = OpenAL::alcCreateContext( *device, NULL );
 }
 
-OALContext::OALContext( ALCint frequency, OALDevice *parent )
+OALContext::OALContext( ALCint frequency, bool hrtfEnabled, OALDevice *parent )
 	: QObject( parent ), context( NULL ), device( parent )
 {
 	ALCint attrs[6] = { 0 };
 	int i = 0;
 	attrs[i++] = ALC_FREQUENCY;
 	attrs[i++] = frequency;
+	attrs[i++] = ALC_HRTF_SOFT;
+	attrs[i++] = hrtfEnabled? ALC_TRUE: ALC_FALSE;
 	context = OpenAL::alcCreateContext( *device, attrs );
 }
 
@@ -287,7 +289,7 @@ void OALSource::playbackAudioData( ALenum format, const ALvoid *data, ALsizei si
 
 void OALSource::queueAudioData( ALenum format, const ALvoid *data, ALsizei size, ALsizei frequency )
 {
-	ALuint buffer = 0;
+	ALuint buffer;
 
 	cleanupProcessedBuffers();
 
@@ -302,6 +304,8 @@ void OALSource::queueAudioData( ALenum format, const ALvoid *data, ALsizei size,
 	catch( ... )
 	{
 		// something went wrong, release buffer if possible
+		ALuint buffer = playbackBuffer;
+		playbackBuffer = 0;
 		OpenAL::alDeleteBuffers( 1, &buffer );
 		throw;
 	}
