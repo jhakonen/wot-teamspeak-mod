@@ -94,4 +94,33 @@ Stream &operator<<( Stream &stream, const Entity::Vector &value )
 	return stream;
 }
 
+void qtMessageHandler( QtMsgType type, const QMessageLogContext &context, const QString &message )
+{
+	QString formattedMessage = QString( "%1 (%2:%3, %4)" )
+			.arg( message )
+			.arg( context.file )
+			.arg( context.line )
+			.arg( context.function );
+	switch( type )
+	{
+	case QtDebugMsg:
+		debug() << formattedMessage;
+		break;
+	case QtWarningMsg:
+		warning() << formattedMessage;
+		break;
+	case QtCriticalMsg:
+		error() << formattedMessage;
+		break;
+	case QtFatalMsg:
+		error() << formattedMessage;
+		abort();
+	}
+}
+
+void logQtMessages()
+{
+	qInstallMessageHandler( qtMessageHandler );
+}
+
 }

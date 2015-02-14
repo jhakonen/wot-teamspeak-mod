@@ -48,6 +48,8 @@ Stream error();
 
 void setSink( Sink *sink );
 
+void logQtMessages();
+
 class Sink
 {
 public:
