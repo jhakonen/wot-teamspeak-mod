@@ -30,7 +30,6 @@ class User;
 class Camera;
 class Vector;
 class Settings;
-enum Channels;
 enum RotateMode;
 }
 
@@ -50,7 +49,6 @@ public:
 
 	virtual void setEnabled( bool enabled ) = 0;
 
-	virtual void setChannels( Entity::Channels channels ) = 0;
 	virtual void setHrtfEnabled( bool enabled ) = 0;
 	virtual void setHrtfDataSet( const QString &name ) = 0;
 	virtual void playTestSound( Entity::RotateMode mode ) = 0;

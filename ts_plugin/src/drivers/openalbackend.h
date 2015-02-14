@@ -43,7 +43,6 @@ public:
 	void positionCamera( const Entity::Vector &position, const Entity::Vector &forward, const Entity::Vector &up );
 	void setPlaybackDeviceName( const QString &name );
 	void setPlaybackVolume( float volume );
-	void setChannels( Entity::Channels channels );
 	void setHrtfEnabled( bool enabled );
 	void setHrtfDataSet( const QString &name );
 	void playTestSound( const QString &filePath );

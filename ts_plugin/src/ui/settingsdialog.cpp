@@ -90,16 +90,6 @@ void SettingsDialog::setRotateMode( Entity::RotateMode mode )
 	ui->rotateZRadioButton->setChecked( mode == Entity::RotateZAxis );
 }
 
-Entity::Channels SettingsDialog::getChannels() const
-{
-	return (Entity::Channels) ui->channelsComboBox->currentIndex();
-}
-
-void SettingsDialog::setChannels( Entity::Channels channels )
-{
-	ui->channelsComboBox->setCurrentIndex( channels );
-}
-
 bool SettingsDialog::isHrtfEnabled() const
 {
 	return ui->enableHrtfCheckBox->isChecked();
@@ -136,6 +126,7 @@ void SettingsDialog::on_testButton_clicked()
 	emit testButtonClicked();
 }
 
-void SettingsDialog::on_showLogsButton_clicked()
+void SettingsDialog::on_openALRadioButton_toggled( bool checked )
 {
+	ui->openALGroupBox->setEnabled( checked );
 }

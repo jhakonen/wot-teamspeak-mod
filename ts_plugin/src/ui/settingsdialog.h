@@ -44,9 +44,6 @@ public:
 	Entity::RotateMode getRotateMode() const;
 	void setRotateMode( Entity::RotateMode mode );
 
-	Entity::Channels getChannels() const;
-	void setChannels( Entity::Channels channels );
-
 	bool isHrtfEnabled() const;
 	void setHrtfEnabled( bool enabled );
 
@@ -58,7 +55,8 @@ public:
 
 private slots:
 	void on_testButton_clicked();
-	void on_showLogsButton_clicked();
+
+	void on_openALRadioButton_toggled(bool checked);
 
 signals:
 	void applied();

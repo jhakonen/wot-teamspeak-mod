@@ -89,11 +89,6 @@ void AudioAdapter::setEnabled( bool enabled )
 	}
 }
 
-void AudioAdapter::setChannels( Entity::Channels channels )
-{
-	driver->setChannels( channels );
-}
-
 void AudioAdapter::setHrtfEnabled( bool enabled )
 {
 	driver->setHrtfEnabled( enabled );
