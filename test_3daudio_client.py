@@ -52,6 +52,4 @@ try:
 
 finally:
 	if shmem:
-		shmem.seek(0)
-		shmem.write("\0" * 1024)
 		shmem.close()
