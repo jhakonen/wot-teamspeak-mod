@@ -23,8 +23,13 @@
 #include "../entities/camera.h"
 #include "../entities/user.h"
 #include "../utils/positionrotator.h"
+#include "../utils/logging.h"
 
 #include <QTimer>
+#include <QStandardPaths>
+#include <QDir>
+#include <QFile>
+
 #include <cmath>
 
 namespace Adapter
@@ -106,10 +111,25 @@ void AudioAdapter::playTestSound( Entity::RotateMode mode )
 
 void AudioAdapter::onStartTestSound()
 {
-	// TODO:
-	//    - save test wav-file from resource to temp folder
-	//    - pass path of the wav-file to driver->playTestSound()
-	driver->playTestSound();
+	QString tempPath = QStandardPaths::writableLocation( QStandardPaths::TempLocation ) + "/TessuMod";
+	if( !QDir().mkpath( tempPath ) )
+	{
+		Log::error() << "Failed to create folder for test sound: " + QDir::toNativeSeparators( tempPath );
+		return;
+	}
+
+	QString testSoundPath = tempPath + "/testsound.wav";
+	QFile testSoundFile( testSoundPath );
+	testSoundFile.setPermissions( testSoundFile.permissions() | QFile::WriteUser );
+	testSoundFile.remove( testSoundPath );
+
+	if( !QFile::copy( ":/audio/testsound.wav", testSoundPath ) )
+	{
+		Log::error() << "Failed to save test sound file to path: " + QDir::toNativeSeparators( testSoundPath );
+		return;
+	}
+
+	driver->playTestSound( testSoundPath );
 }
 
 void AudioAdapter::onPositionTestSound( const Entity::Vector &position )

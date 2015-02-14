@@ -46,7 +46,7 @@ public:
 	void setChannels( Entity::Channels channels );
 	void setHrtfEnabled( bool enabled );
 	void setHrtfDataSet( const QString &name );
-	void playTestSound();
+	void playTestSound( const QString &filePath );
 	void positionTestSound( const Entity::Vector &position );
 	void stopTestSound();
 

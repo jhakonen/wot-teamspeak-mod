@@ -22,6 +22,7 @@
 #include "../entities/vector.h"
 #include "../libs/oallibrary.h"
 #include "../utils/logging.h"
+#include "../utils/wavfile.h"
 
 #include <AL/alext.h>
 
@@ -223,11 +224,43 @@ public:
 		memset( samples, 0, sampleDataLength );
 	}
 
+	ALenum getALFormat( quint16 channels, quint16 samples ) const
+	{
+		switch( channels )
+		{
+		case 1:
+			switch( samples )
+			{
+			case 8:
+				return AL_MONO8_SOFT;
+			case 16:
+				return AL_MONO16_SOFT;
+			default:
+				throw OpenAL::Failure( "Unsupported bits per sample value" );
+			}
+
+		case 2:
+			switch( samples )
+			{
+			case 8:
+				return AL_STEREO8_SOFT;
+			case 16:
+				return AL_STEREO16_SOFT;
+			default:
+				throw OpenAL::Failure( "Unsupported bits per sample value" );
+			}
+
+		default:
+			throw OpenAL::Failure( "Unsupported channel count" );
+		}
+	}
+
 public:
 	QPointer<OALLibrary> oalLibrary;
 	QPointer<OALContext> oalContext;
 	QMap<quint16, Entity::Vector> userPositions;
 	QMap<quint16, QPointer<OALSource>> userSources;
+	QPointer<OALSource> testSoundSource;
 	bool isEnabled;
 	Entity::Vector cameraPosition;
 	Entity::Vector cameraForward;
@@ -391,19 +424,60 @@ void OpenALBackend::setHrtfDataSet( const QString &name )
 	// TODO
 }
 
-void OpenALBackend::playTestSound()
+void OpenALBackend::playTestSound( const QString &filePath )
 {
-	// TODO
+	Q_D( OpenALBackend );
+	if( d->oalContext )
+	{
+		try
+		{
+			delete d->testSoundSource;
+			d->testSoundSource = d->oalContext->createSource();
+			d->testSoundSource->setRelative( true );
+			d->testSoundSource->setRolloffFactor( 0 );
+			d->testSoundSource->setLooping( true );
+
+			WavFile file( filePath );
+			if( !file.open( WavFile::ReadOnly ) )
+			{
+				Log::error() << "Failed to open test sound file, reason: " << file.errorString();
+				return;
+			}
+			QByteArray audioData = file.readAll();
+
+			d->testSoundSource->playbackAudioData( d->getALFormat( file.getChannels(), file.getBitsPerSample() ),
+												   audioData.data(),
+												   audioData.size(),
+												   file.getSampleRate() );
+			d->testSoundSource->play();
+		}
+		catch( const OpenAL::Failure &error )
+		{
+			Log::error() << "Failed to start test sound playback, reason: " << error.what();
+		}
+	}
 }
 
 void OpenALBackend::positionTestSound( const Entity::Vector &position )
 {
-	// TODO
+	Q_D( OpenALBackend );
+	if( d->testSoundSource )
+	{
+		try
+		{
+			d->testSoundSource->setPosition( position.x, position.y, -position.z );
+		}
+		catch( const OpenAL::Failure &error )
+		{
+			Log::error() << "Failed to position test sound, reason: " << error.what();
+		}
+	}
 }
 
 void OpenALBackend::stopTestSound()
 {
-	// TODO
+	Q_D( OpenALBackend );
+	delete d->testSoundSource;
 }
 
 void OpenALBackend::onEditPlaybackVoiceDataEvent( quint16 id, short *samples, int sampleCount, int channels )

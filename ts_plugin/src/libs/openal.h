@@ -50,6 +50,7 @@ void alGenBuffers( ALsizei n, ALuint *buffers );
 void alSourceUnqueueBuffers( ALuint source, ALsizei nb, ALuint *buffers );
 void alSourceQueueBuffers( ALuint source, ALsizei nb, const ALuint *buffers );
 void alSourcePlay( ALuint source );
+void alSourceStop( ALuint source );
 
 ALCdevice* alcOpenDevice( const ALCchar *devicename );
 ALCboolean alcCloseDevice( ALCdevice *device );

@@ -50,7 +50,8 @@ SOURCES += \
     src/libs/openal.cpp \
     src/utils/logging.cpp \
     src/libs/oallibrary.cpp \
-    src/utils/positionrotator.cpp
+    src/utils/positionrotator.cpp \
+    src/utils/wavfile.cpp
 
 HEADERS +=\
     src/ui/settingsdialog.h \
@@ -80,7 +81,8 @@ HEADERS +=\
     src/libs/openal.h \
     src/utils/logging.h \
     src/libs/oallibrary.h \
-    src/utils/positionrotator.h
+    src/utils/positionrotator.h \
+    src/utils/wavfile.h
 
 RESOURCES += \
 	resources.qrc

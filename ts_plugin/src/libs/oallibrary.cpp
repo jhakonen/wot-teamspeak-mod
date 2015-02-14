@@ -160,7 +160,7 @@ OALContext::operator ALCcontext*() const
 }
 
 OALSource::OALSource( OALContext *parent )
-	: QObject( parent ), source( 0 ), context( parent )
+	: QObject( parent ), source( 0 ), context( parent ), playbackBuffer( 0 )
 {
 	OpenAL::alcSetThreadContext( *context );
 	OpenAL::alGenSources( 1, &source );
@@ -190,6 +190,31 @@ void OALSource::cleanupProcessedBuffers()
 OALSource::~OALSource()
 {
 	OpenAL::alcSetThreadContext( *context );
+
+	try
+	{
+		if( isPlaying() )
+		{
+			stop();
+		}
+	}
+	catch( const OpenAL::Failure &error )
+	{
+		Log::warning() << "Failed to stop OpenAL playback, reason: " << error.what();
+	}
+
+	if( playbackBuffer )
+	{
+		try
+		{
+			OpenAL::alSourcei( source, AL_BUFFER, 0 );
+			OpenAL::alDeleteBuffers( 1, &playbackBuffer );
+		}
+		catch( const OpenAL::Failure &error )
+		{
+			Log::warning() << "Failed to destroy OpenAL playback buffer, reason: " << error.what();
+		}
+	}
 
 	cleanupProcessedBuffers();
 
@@ -221,12 +246,43 @@ void OALSource::setRelative( bool relative )
 	OpenAL::alSourcei( source, AL_SOURCE_RELATIVE, relative? AL_TRUE: AL_FALSE );
 }
 
+void OALSource::setLooping( bool looping )
+{
+	OpenAL::alcSetThreadContext( *context );
+	OpenAL::alSourcei( source, AL_LOOPING, looping? AL_TRUE: AL_FALSE );
+}
+
 bool OALSource::isPlaying() const
 {
 	ALint state;
 	OpenAL::alcSetThreadContext( *context );
 	OpenAL::alGetSourcei( source, AL_SOURCE_STATE, &state );
 	return state == AL_PLAYING;
+}
+
+void OALSource::playbackAudioData( ALenum format, const ALvoid *data, ALsizei size, ALsizei frequency )
+{
+	if( playbackBuffer )
+	{
+		throw OpenAL::Failure( "Playback buffer is already assigned" );
+	}
+
+	OpenAL::alcSetThreadContext( *context );
+	OpenAL::alGenBuffers( 1, &playbackBuffer );
+
+	try
+	{
+		OpenAL::alBufferData( playbackBuffer, format, data, size, frequency );
+		OpenAL::alSourcei( source, AL_BUFFER, playbackBuffer );
+	}
+	catch( ... )
+	{
+		// something went wrong, release buffer if possible
+		ALuint buffer = playbackBuffer;
+		playbackBuffer = 0;
+		OpenAL::alDeleteBuffers( 1, &buffer );
+		throw;
+	}
 }
 
 void OALSource::queueAudioData( ALenum format, const ALvoid *data, ALsizei size, ALsizei frequency )
@@ -255,6 +311,12 @@ void OALSource::play()
 {
 	OpenAL::alcSetThreadContext( *context );
 	OpenAL::alSourcePlay( source );
+}
+
+void OALSource::stop()
+{
+	OpenAL::alcSetThreadContext( *context );
+	OpenAL::alSourceStop( source );
 }
 
 void OALSource::timerEvent( QTimerEvent *event )
