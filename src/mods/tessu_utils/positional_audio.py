@@ -139,13 +139,14 @@ class PositionalAudio(object):
 	def _get_data_entries(self):
 		entries = []
 		for user in self._ts_users.itervalues():
-			position = self._get_vehicle_id_position(self._player_id_to_vehicle_id(self._ts_user_to_player_id(user)))
-			if position:
-				entries.append((user.client_id, position))
+			for player_id in self._ts_user_to_player_ids(user):
+				position = self._get_vehicle_id_position(self._player_id_to_vehicle_id(player_id))
+				if position:
+					entries.append((user.client_id, position))
 		return entries
 
-	def _ts_user_to_player_id(self, ts_user):
-		return next(self._user_cache.get_paired_player_ids(ts_user.unique_id), None)
+	def _ts_user_to_player_ids(self, ts_user):
+		return self._user_cache.get_paired_player_ids(ts_user.unique_id)
 
 	def _player_id_to_vehicle_id(self, player_id):
 		return self._player_vehicle_ids.get(player_id)
