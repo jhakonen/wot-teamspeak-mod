@@ -20,7 +20,7 @@
 
 #include "openalbackend.h"
 #include "../entities/vector.h"
-#include "../libs/openal.h"
+#include "../libs/oallibrary.h"
 #include "../utils/logging.h"
 
 #include <AL/alext.h>
@@ -28,6 +28,7 @@
 #include <QStandardPaths>
 #include <QRegularExpression>
 #include <QDir>
+#include <QPointer>
 
 #include <iostream>
 
@@ -64,12 +65,16 @@ class OpenALBackendPrivate
 {
 public:
 	OpenALBackendPrivate()
-		: isEnabled( false ), playbackVolume( 0 ), device( NULL ), context( NULL )
+		: isEnabled( false ), playbackVolume( 0 )
 	{
 	}
 
 	void enableAL()
 	{
+		if( oalContext )
+		{
+			return;
+		}
 		Log::info() << "Enabling OpenALBackend";
 		QString hrtfInstallPath = getOALHRTFPath();
 		if( !QFile::exists( hrtfInstallPath ) )
@@ -80,20 +85,15 @@ public:
 			}
 		}
 
-		ALCint attrs[6] = { 0 };
-		attrs[0] = ALC_FORMAT_TYPE_SOFT;
-		attrs[1] = ALC_SHORT_SOFT;
-		attrs[2] = ALC_FREQUENCY;
-		attrs[3] = AUDIO_FREQUENCY;
-		QByteArray deviceNameBytes = playbackDeviceName.toUtf8();
-
 		Log::info() << "OpenALBackend opens device: " << playbackDeviceName;
 		try
 		{
-			OpenAL::loadLib();
-			device = OpenAL::alcOpenDevice( deviceNameBytes.data() );
-			context = OpenAL::alcCreateContext( device, attrs );
-			OpenAL::alcMakeContextCurrent( context );
+			if( !oalLibrary )
+			{
+				oalLibrary = new OALLibrary();
+			}
+			auto device = oalLibrary->createDevice( playbackDeviceName );
+			oalContext = device->createContext();
 		}
 		catch( ... )
 		{
@@ -101,8 +101,8 @@ public:
 			throw;
 		}
 
-		OpenAL::alListener3f( AL_VELOCITY, 0, 0, 0 );
-		OpenAL::alListenerf( AL_GAIN, tsVolumeModifierToOALGain( playbackVolume ) );
+		oalContext->setListenerVelocity( 0, 0, 0 );
+		oalContext->setListenerGain( tsVolumeModifierToOALGain( playbackVolume ) );
 		updateCameraToAL();
 		foreach( quint16 id, userPositions.keys() )
 		{
@@ -114,17 +114,7 @@ public:
 	{
 		Log::info() << "Disabling OpenALBackend";
 		userSources.clear();
-		if( context )
-		{
-			OpenAL::alcMakeContextCurrent( NULL );
-			OpenAL::alcDestroyContext( context );
-			context = NULL;
-		}
-		if( device )
-		{
-			OpenAL::alcCloseDevice( device );
-			device = NULL;
-		}
+		delete oalLibrary;
 	}
 
 	void updateUserToAL( quint16 id )
@@ -132,32 +122,33 @@ public:
 		if( userPositions.contains( id ) )
 		{
 			Entity::Vector position = userPositions[id];
-			if( !userSources.contains( id ) )
+			if( oalContext )
 			{
-				ALuint source = 0;
-				OpenAL::alGenSources( 1, &source );
-				userSources[id] = source;
-				OpenAL::alSourcei( source, AL_SOURCE_RELATIVE, AL_FALSE );
-				OpenAL::alSourcef( source, AL_ROLLOFF_FACTOR, 0 );
+				if( !userSources[id] )
+				{
+					userSources[id] = oalContext->createSource();
+					userSources[id]->setRelative( false );
+					userSources[id]->setRolloffFactor( 0 );
+				}
+				userSources[id]->setPosition( position.x, position.y, -position.z );
 			}
-			OpenAL::alSource3f( userSources[id], AL_POSITION, position.x, position.y, -position.z );
 		}
 		else if( userSources.contains( id ) )
 		{
-			Log::debug() << "alDeleteSources(): " << userSources[id];
-			OpenAL::alDeleteSources( 1, &userSources[id] );
-			userSources.remove( id );
+			delete userSources.take( id );
 		}
 	}
 
 	void updateCameraToAL()
 	{
-		ALfloat orientation[] = { cameraForward.x, cameraForward.y, -cameraForward.z, cameraUp.x, cameraUp.y, -cameraUp.z };
-		OpenAL::alListener3f( AL_POSITION, cameraPosition.x, cameraPosition.y, -cameraPosition.z );
-		OpenAL::alListenerfv( AL_ORIENTATION, orientation );
+		if( oalContext )
+		{
+			oalContext->setListenerOrientation( cameraForward.x, cameraForward.y, -cameraForward.z, cameraUp.x, cameraUp.y, -cameraUp.z );
+			oalContext->setListenerPosition( cameraPosition.x, cameraPosition.y, -cameraPosition.z );
+		}
 	}
 
-	void changeALPlaybackDevice()
+	void restartAL()
 	{
 		if( isEnabled )
 		{
@@ -181,14 +172,6 @@ public:
 		}
 	}
 
-	void changeALPlaybackVolume()
-	{
-		if( isEnabled )
-		{
-			OpenAL::alListenerf( AL_GAIN, tsVolumeModifierToOALGain( playbackVolume ) );
-		}
-	}
-
 	bool feedUserAudioToAL( quint16 id, const short *samples, int sampleCount, int channels )
 	{
 		if( !isEnabled )
@@ -205,58 +188,32 @@ public:
 			return false;
 		}
 
-		ALuint source = userSources[id];
 		int sampleDataLength = sampleCount * channels * 2;
-		ALint state;
 
-		try
+		if( userSources[id] )
 		{
-			freeProcessedAudioData( source );
-		}
-		catch( const OpenAL::Failure &error )
-		{
-			Log::warning() << "Failed to free processed data, reason: " << error.what();
-		}
-		OpenAL::alGetSourcei( source, AL_SOURCE_STATE, &state );
-		try
-		{
-			// delay start of playback a bit so that we don't starve the playback device
-			if( state != AL_PLAYING )
+			bool isPlaying = userSources[id]->isPlaying();
+			try
 			{
-				short silence[AUDIO_FREQUENCY / 10] = {}; // 0.1 seconds worth of silence
-				queueAudioData( source, silence, sizeof( silence ) );
+				if( !isPlaying )
+				{
+					// delay start of playback a bit so that we don't starve the playback device
+					short silence[AUDIO_FREQUENCY / 10] = {}; // 0.1 seconds worth of silence
+					userSources[id]->queueAudioData( AL_FORMAT_MONO16, silence, sizeof( silence ), AUDIO_FREQUENCY );
+				}
+			}
+			catch( const OpenAL::Failure &error )
+			{
+				Log::warning() << "Failed to queue audio delay, reason: " << error.what();
+			}
+
+			userSources[id]->queueAudioData( AL_FORMAT_MONO16, samples, sampleDataLength, AUDIO_FREQUENCY );
+			if( !isPlaying )
+			{
+				userSources[id]->play();
 			}
 		}
-		catch( const OpenAL::Failure &error )
-		{
-			Log::warning() << "Failed to queue audio delay, reason: " << error.what();
-		}
-		queueAudioData( source, samples, sampleDataLength );
-		if( state != AL_PLAYING )
-		{
-			OpenAL::alSourcePlay( source );
-		}
 		return true;
-	}
-
-	void freeProcessedAudioData( ALuint source )
-	{
-		ALint processedCount = 0;
-		OpenAL::alGetSourcei( source, AL_BUFFERS_PROCESSED, &processedCount );
-		if( processedCount > 0 )
-		{
-			QScopedArrayPointer<ALuint> buffers( new ALuint[processedCount] );
-			OpenAL::alSourceUnqueueBuffers( source, processedCount, buffers.data() );
-			OpenAL::alDeleteBuffers( processedCount, buffers.data() );
-		}
-	}
-
-	void queueAudioData( ALuint source, const short *data, int length )
-	{
-		ALuint buffer;
-		OpenAL::alGenBuffers( 1, &buffer );
-		OpenAL::alBufferData( buffer, AL_FORMAT_MONO16, data, length, AUDIO_FREQUENCY );
-		OpenAL::alSourceQueueBuffers( source, 1, &buffer );
 	}
 
 	void writeSilence( short *samples, int sampleCount, int channels )
@@ -266,25 +223,17 @@ public:
 		memset( samples, 0, sampleDataLength );
 	}
 
-	void changeALContext()
-	{
-		if( isEnabled && context )
-		{
-			OpenAL::alcMakeContextCurrent( context );
-		}
-	}
-
 public:
+	QPointer<OALLibrary> oalLibrary;
+	QPointer<OALContext> oalContext;
 	QMap<quint16, Entity::Vector> userPositions;
-	QMap<quint16, ALuint> userSources;
+	QMap<quint16, QPointer<OALSource>> userSources;
 	bool isEnabled;
 	Entity::Vector cameraPosition;
 	Entity::Vector cameraForward;
 	Entity::Vector cameraUp;
 	QString playbackDeviceName;
 	float playbackVolume;
-	ALCdevice *device;
-	ALCcontext *context;
 };
 
 OpenALBackend::OpenALBackend( QObject *parent )
@@ -295,10 +244,7 @@ OpenALBackend::OpenALBackend( QObject *parent )
 OpenALBackend::~OpenALBackend()
 {
 	Q_D( OpenALBackend );
-	if( d->isEnabled )
-	{
-		d->disableAL();
-	}
+	d->disableAL();
 	delete d;
 }
 
@@ -343,7 +289,6 @@ void OpenALBackend::removeUser( quint16 id )
 	}
 	try
 	{
-		d->changeALContext();
 		d->updateUserToAL( id );
 	}
 	catch( const OpenAL::Failure &error )
@@ -360,7 +305,6 @@ void OpenALBackend::positionUser( quint16 id, const Entity::Vector &position )
 	d->userPositions[id] = position;
 	try
 	{
-		d->changeALContext();
 		d->updateUserToAL( id );
 	}
 	catch( const OpenAL::Failure &error )
@@ -377,17 +321,14 @@ void OpenALBackend::positionCamera( const Entity::Vector &position, const Entity
 	d->cameraPosition = position;
 	d->cameraForward = forward;
 	d->cameraUp = up;
-	if( d->isEnabled )
+
+	try
 	{
-		try
-		{
-			d->changeALContext();
-			d->updateCameraToAL();
-		}
-		catch( const OpenAL::Failure &error )
-		{
-			Log::error() << "Failed to position camera, reason: " << error.what();
-		}
+		d->updateCameraToAL();
+	}
+	catch( const OpenAL::Failure &error )
+	{
+		Log::error() << "Failed to position camera, reason: " << error.what();
 	}
 }
 
@@ -396,18 +337,20 @@ void OpenALBackend::setPlaybackDeviceName( const QString &name )
 	Q_D( OpenALBackend );
 	QMutexLocker locker( &mutex );
 	Log::debug() << "OpenALBackend::setPlaybackDeviceName('" << name << "')";
-	if( d->playbackDeviceName != name )
+
+	if( d->playbackDeviceName == name )
 	{
-		d->playbackDeviceName = name;
-		try
-		{
-			d->changeALContext();
-			d->changeALPlaybackDevice();
-		}
-		catch( const OpenAL::Failure &error )
-		{
-			Log::error() << "Failed to change playback device, reason: " << error.what();
-		}
+		return;
+	}
+	d->playbackDeviceName = name;
+
+	try
+	{
+		d->restartAL();
+	}
+	catch( const OpenAL::Failure &error )
+	{
+		Log::error() << "Failed to change playback device, reason: " << error.what();
 	}
 }
 
@@ -417,10 +360,15 @@ void OpenALBackend::setPlaybackVolume( float volume )
 	QMutexLocker locker( &mutex );
 	Log::debug() << "OpenALBackend::setPlaybackVolume(" << volume << ")";
 	d->playbackVolume = volume;
+
+	if( !d->oalContext )
+	{
+		return;
+	}
+
 	try
 	{
-		d->changeALContext();
-		d->changeALPlaybackVolume();
+		d->oalContext->setListenerGain( tsVolumeModifierToOALGain( volume ) );
 	}
 	catch( const OpenAL::Failure &error )
 	{
@@ -436,7 +384,6 @@ void OpenALBackend::onEditPlaybackVoiceDataEvent( quint16 id, short *samples, in
 	{
 		try
 		{
-			d->changeALContext();
 			if( d->feedUserAudioToAL( id, samples, sampleCount, channels ) )
 			{
 				d->writeSilence( samples, sampleCount, channels );

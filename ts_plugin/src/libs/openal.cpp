@@ -36,6 +36,7 @@ LPALGETERROR             g_alGetError;
 LPALGETSOURCEI           g_alGetSourcei;
 LPALGETSTRING            g_alGetString;
 LPALSOURCEPLAY           g_alSourcePlay;
+LPALSOURCESTOP           g_alSourceStop;
 LPALSOURCEQUEUEBUFFERS   g_alSourceQueueBuffers;
 LPALLISTENER3F           g_alListener3f;
 LPALLISTENERF            g_alListenerf;
@@ -47,9 +48,11 @@ LPALSOURCEUNQUEUEBUFFERS g_alSourceUnqueueBuffers;
 
 LPALCOPENDEVICE          g_alcOpenDevice;
 LPALCCREATECONTEXT       g_alcCreateContext;
-LPALCMAKECONTEXTCURRENT  g_alcMakeContextCurrent;
+LPALCMAKECONTEXTCURRENT  g_alcSetThreadContext;
 LPALCDESTROYCONTEXT      g_alcDestroyContext;
+LPALCGETCURRENTCONTEXT   g_alcGetCurrentContext;
 LPALCCLOSEDEVICE         g_alcCloseDevice;
+LPALCGETINTEGERV         g_alcGetIntegerv;
 LPALCGETERROR            g_alcGetError;
 LPALCGETSTRING           g_alcGetString;
 
@@ -136,6 +139,7 @@ void loadLib()
 		g_alGetSourcei           = resolveSymbol<LPALGETSOURCEI>( "alGetSourcei" );
 		g_alGetString            = resolveSymbol<LPALGETSTRING>( "alGetString" );
 		g_alSourcePlay           = resolveSymbol<LPALSOURCEPLAY>( "alSourcePlay" );
+		g_alSourceStop           = resolveSymbol<LPALSOURCESTOP>( "alSourceStop" );
 		g_alSourceQueueBuffers   = resolveSymbol<LPALSOURCEQUEUEBUFFERS>( "alSourceQueueBuffers" );
 		g_alListener3f           = resolveSymbol<LPALLISTENER3F>( "alListener3f" );
 		g_alListenerf            = resolveSymbol<LPALLISTENERF>( "alListenerf" );
@@ -146,9 +150,11 @@ void loadLib()
 		g_alSourceUnqueueBuffers = resolveSymbol<LPALSOURCEUNQUEUEBUFFERS>( "alSourceUnqueueBuffers" );
 		g_alcOpenDevice          = resolveSymbol<LPALCOPENDEVICE>( "alcOpenDevice" );
 		g_alcCreateContext       = resolveSymbol<LPALCCREATECONTEXT>( "alcCreateContext" );
-		g_alcMakeContextCurrent  = resolveSymbol<LPALCMAKECONTEXTCURRENT>( "alcMakeContextCurrent" );
+		g_alcSetThreadContext    = resolveSymbol<LPALCMAKECONTEXTCURRENT>( "alcSetThreadContext" );
 		g_alcDestroyContext      = resolveSymbol<LPALCDESTROYCONTEXT>( "alcDestroyContext" );
+		g_alcGetCurrentContext   = resolveSymbol<LPALCGETCURRENTCONTEXT>( "alcGetCurrentContext" );
 		g_alcCloseDevice         = resolveSymbol<LPALCCLOSEDEVICE>( "alcCloseDevice" );
+		g_alcGetIntegerv         = resolveSymbol<LPALCGETINTEGERV>( "alcGetIntegerv" );
 		g_alcGetError            = resolveSymbol<LPALCGETERROR>( "alcGetError" );
 		g_alcGetString           = resolveSymbol<LPALCGETSTRING>( "alcGetString" );
 	}
@@ -283,6 +289,13 @@ void alSourcePlay( ALuint source )
 	testForALError( "alSourcePlay" );
 }
 
+void alSourceStop( ALuint source )
+{
+	throwIfNotLoaded();
+	g_alSourceStop( source );
+	testForALError( "alSourceStop" );
+}
+
 ALCdevice *alcOpenDevice( const ALCchar *devicename )
 {
 	throwIfNotLoaded();
@@ -311,10 +324,23 @@ void alcDestroyContext( ALCcontext *context )
 	g_alcDestroyContext( context );
 }
 
-ALCboolean alcMakeContextCurrent( ALCcontext *context )
+ALCcontext *alcGetCurrentContext()
 {
 	throwIfNotLoaded();
-	return g_alcMakeContextCurrent( context );
+	return g_alcGetCurrentContext();
+}
+
+ALCboolean alcSetThreadContext( ALCcontext *context )
+{
+	throwIfNotLoaded();
+	return g_alcSetThreadContext( context );
+}
+
+void alcGetIntegerv( ALCdevice *device, ALCenum param, ALCsizei size, ALCint *values )
+{
+	throwIfNotLoaded();
+	g_alcGetIntegerv( device, param, size, values );
+	testForALCError( device, "alcGetIntegerv" );
 }
 
 ALCenum alcGetError( ALCdevice *device )

@@ -55,7 +55,9 @@ ALCdevice* alcOpenDevice( const ALCchar *devicename );
 ALCboolean alcCloseDevice( ALCdevice *device );
 ALCcontext* alcCreateContext( ALCdevice *device, const ALCint* attrlist );
 void alcDestroyContext( ALCcontext *context );
-ALCboolean alcMakeContextCurrent( ALCcontext *context );
+ALCcontext *alcGetCurrentContext();
+ALCboolean alcSetThreadContext( ALCcontext *context );
+void alcGetIntegerv( ALCdevice *device, ALCenum param, ALCsizei size, ALCint *values );
 ALCenum alcGetError( ALCdevice *device );
 const ALCchar* alcGetString( ALCdevice *device, ALCenum param );
 

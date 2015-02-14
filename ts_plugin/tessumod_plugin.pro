@@ -48,7 +48,8 @@ SOURCES += \
     src/adapters/uiadapter.cpp \
     src/main.cpp \
     src/libs/openal.cpp \
-    src/utils/logging.cpp
+    src/utils/logging.cpp \
+    src/libs/oallibrary.cpp
 
 HEADERS +=\
     src/ui/settingsdialog.h \
@@ -76,7 +77,8 @@ HEADERS +=\
     src/adapters/uiadapter.h \
     src/entities/enums.h \
     src/libs/openal.h \
-    src/utils/logging.h
+    src/utils/logging.h \
+    src/libs/oallibrary.h
 
 RESOURCES += \
 	resources.qrc
