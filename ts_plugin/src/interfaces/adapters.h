@@ -21,8 +21,10 @@
 #pragma once
 
 #include <QtGlobal>
+#include <functional>
 
 class QWidget;
+class QVariant;
 
 namespace Entity
 {
@@ -39,6 +41,8 @@ namespace Interfaces
 class AudioAdapter
 {
 public:
+	typedef std::function<void(QVariant)> Callback;
+
 	virtual ~AudioAdapter() {}
 	virtual void positionUser( const Entity::User &user ) = 0;
 	virtual void removeUser( const Entity::User &user ) = 0;
@@ -51,7 +55,7 @@ public:
 
 	virtual void setHrtfEnabled( bool enabled ) = 0;
 	virtual void setHrtfDataSet( const QString &name ) = 0;
-	virtual void playTestSound( Entity::RotateMode mode ) = 0;
+	virtual void playTestSound( Entity::RotateMode mode, Callback result ) = 0;
 };
 
 class VoiceChatAdapter

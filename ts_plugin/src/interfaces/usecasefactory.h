@@ -21,8 +21,10 @@
 #pragma once
 
 #include <QtGlobal>
+#include <functional>
 
 class QWidget;
+class QVariant;
 
 namespace Entity
 {
@@ -36,6 +38,8 @@ namespace Interfaces
 class UseCaseFactory
 {
 public:
+	typedef std::function<void(QVariant)> Callback;
+
 	virtual ~UseCaseFactory() {}
 	virtual void applicationInitialize() = 0;
 	virtual void positionUser( quint16 id, const Entity::Vector& position ) = 0;
@@ -48,7 +52,7 @@ public:
 	virtual void changePlaybackVolume() = 0;
 	virtual void showSettingsUi( QWidget *parent ) = 0;
 	virtual void saveSettings( const Entity::Settings &settings ) = 0;
-	virtual void playTestAudioWithSettings( const Entity::Settings &settings ) = 0;
+	virtual void playTestAudioWithSettings( const Entity::Settings &settings, Callback result ) = 0;
 };
 
 }

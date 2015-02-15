@@ -22,9 +22,11 @@
 #include "../entities/user.h"
 #include "../entities/camera.h"
 #include "../entities/settings.h"
+#include "../entities/failures.h"
 #include "../utils/logging.h"
 #include <QList>
 #include <QString>
+#include <QVariant>
 
 namespace {
 
@@ -54,6 +56,7 @@ void UseCases::applicationInitialize()
 
 		adapterStorage->getAudio( settings.audioBackend )->setEnabled( true );
 	}
+	deleteLater();
 }
 
 void UseCases::positionUser( quint16 id, const Entity::Vector& position )
@@ -65,6 +68,7 @@ void UseCases::positionUser( quint16 id, const Entity::Vector& position )
 		userStorage->set( user );
 		positionUserToAudioBackends( user );
 	}
+	deleteLater();
 }
 
 void UseCases::positionCamera( const Entity::Vector& position, const Entity::Vector& direction )
@@ -77,6 +81,7 @@ void UseCases::positionCamera( const Entity::Vector& position, const Entity::Vec
 	{
 		backend->positionCamera( camera );
 	}
+	deleteLater();
 }
 
 void UseCases::addGameUser( quint16 id )
@@ -97,6 +102,7 @@ void UseCases::addGameUser( quint16 id )
 	user.inGame = true;
 	userStorage->set( user );
 	positionUserToAudioBackends( user );
+	deleteLater();
 }
 
 void UseCases::removeGameUser( quint16 id )
@@ -112,6 +118,7 @@ void UseCases::removeGameUser( quint16 id )
 	{
 		userStorage->remove( id );
 	}
+	deleteLater();
 }
 
 void UseCases::addChatUser( quint16 id )
@@ -129,6 +136,7 @@ void UseCases::addChatUser( quint16 id )
 	user.inChat = true;
 	userStorage->set( user );
 	positionUserToAudioBackends( user );
+	deleteLater();
 }
 
 void UseCases::removeChatUser( quint16 id )
@@ -144,22 +152,26 @@ void UseCases::removeChatUser( quint16 id )
 	{
 		userStorage->remove( id );
 	}
+	deleteLater();
 }
 
 void UseCases::changePlaybackDevice()
 {
 	updatePlaybackDeviceToBackends();
+	deleteLater();
 }
 
 void UseCases::changePlaybackVolume()
 {
 	updatePlaybackVolumeToBackends();
+	deleteLater();
 }
 
 void UseCases::showSettingsUi( QWidget *parent )
 {
 	Entity::Settings settings = settingsStorage->get();
 	adapterStorage->getUi()->showSettingsUi( settings, parent );
+	deleteLater();
 }
 
 void UseCases::saveSettings( const Entity::Settings &settings )
@@ -187,15 +199,19 @@ void UseCases::saveSettings( const Entity::Settings &settings )
 			adapterStorage->getAudio( originalSettings.audioBackend )->setEnabled( false );
 		}
 	}
+	deleteLater();
 }
 
-void UseCases::playTestAudioWithSettings( const Entity::Settings &settings )
+void UseCases::playTestAudioWithSettings(const Entity::Settings &settings, Callback callback )
 {
 	Interfaces::AudioAdapter *backend = adapterStorage->getTestAudio( settings.audioBackend );
 	backend->setHrtfEnabled( settings.hrtfEnabled );
 	backend->setHrtfDataSet( settings.hrtfDataSet );
 	backend->setEnabled( settings.positioningEnabled );
-	backend->playTestSound( settings.testRotateMode );
+	backend->playTestSound( settings.testRotateMode, [=]( QVariant result ) {
+		deleteLater();
+		callback( result );
+	} );
 }
 
 void UseCases::positionUserToAudioBackends( const Entity::User &user )

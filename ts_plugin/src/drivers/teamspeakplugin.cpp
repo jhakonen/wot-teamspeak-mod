@@ -20,6 +20,7 @@
 
 #include "teamspeakplugin.h"
 #include "../entities/enums.h"
+#include "../entities/failures.h"
 
 #include <Windows.h>
 #include <iostream>
@@ -758,6 +759,18 @@ public:
 		return clientPositions[id] - cameraPosition;
 	}
 
+	bool isConnectedToServer( uint64 schandlerId ) const
+	{
+		int connected = 0;
+		uint result = gTs3Functions.getConnectionStatus( schandlerId, &connected );
+		if( result != ERROR_ok )
+		{
+			Log::error() << "Failed to query getConnectionStatus() from TS, reason: " << result;
+			return false;
+		}
+		return connected == 1;
+	}
+
 public:
 	Entity::Vector cameraPosition;
 	Entity::Vector cameraForward;
@@ -914,21 +927,33 @@ void TeamSpeakAudioBackend::playTestSound( const QString &filePath )
 {
 	Q_D( TeamSpeakAudioBackend );
 	QByteArray filePathUtf8 = filePath.toUtf8();
-	uint64 schandlerId = gTs3Functions.getCurrentServerConnectionHandlerID();
-	uint result = gTs3Functions.playWaveFileHandle( schandlerId, filePathUtf8.data(), 1, &d->testWaveHandle );
+	d->testSchandlerId = gTs3Functions.getCurrentServerConnectionHandlerID();
+	uint result = gTs3Functions.playWaveFileHandle( d->testSchandlerId, filePathUtf8.data(), 1, &d->testWaveHandle );
 	if( result != ERROR_ok )
 	{
 		Log::error() << "Failed to open wave handle, TS error: " << result;
-		return;
+		if( !d->isConnectedToServer( d->testSchandlerId ) )
+		{
+			throw Entity::Failure( Entity::Failure::NotConnectedToServer );
+		}
+		throw Entity::Failure( "Failed to start test tone playback" );
 	}
-	d->testSchandlerId = schandlerId;
 }
 
 void TeamSpeakAudioBackend::positionTestSound( const Entity::Vector &position )
 {
 	Q_D( TeamSpeakAudioBackend );
 	TS3_VECTOR tsPosition = toTSVector( position );
-	gTs3Functions.set3DWaveAttributes( d->testSchandlerId, d->testWaveHandle, &tsPosition );
+	uint result = gTs3Functions.set3DWaveAttributes( d->testSchandlerId, d->testWaveHandle, &tsPosition );
+	if( result != ERROR_ok )
+	{
+		Log::error() << "Failed to position wave handle, TS error: " << result;
+		if( !d->isConnectedToServer( d->testSchandlerId ) )
+		{
+			throw Entity::Failure( Entity::Failure::NotConnectedToServer );
+		}
+		throw Entity::Failure( "Failed to position test tone" );
+	}
 	Log::debug() << "position: " << position;
 }
 
@@ -939,6 +964,11 @@ void TeamSpeakAudioBackend::stopTestSound()
 	if( result != ERROR_ok )
 	{
 		Log::error() << "Failed to close wave handle, TS error: " << result;
+		if( !d->isConnectedToServer( d->testSchandlerId ) )
+		{
+			throw Entity::Failure( Entity::Failure::NotConnectedToServer );
+		}
+		throw Entity::Failure( "Failed to stop test tone playback" );
 	}
 }
 

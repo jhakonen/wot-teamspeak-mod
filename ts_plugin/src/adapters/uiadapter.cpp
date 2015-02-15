@@ -21,9 +21,12 @@
 #include "uiadapter.h"
 #include "../interfaces/usecasefactory.h"
 #include "../entities/settings.h"
+#include "../entities/failures.h"
 #include "../ui/settingsdialog.h"
 #include "../utils/logging.h"
+
 #include <iostream>
+#include <QVariant>
 
 namespace Adapter
 {
@@ -64,7 +67,31 @@ void UiAdapter::onSettingsChanged()
 
 void UiAdapter::onTestButtonClicked()
 {
-	useCaseFactory->playTestAudioWithSettings( collectSettingsFromUI() );
+	settingsDialog->setTestButtonEnabled( false );
+	useCaseFactory->playTestAudioWithSettings( collectSettingsFromUI(), [=](QVariant result) {
+		if( settingsDialog )
+		{
+			bool done = true;
+			if( result.canConvert<Entity::Failure>() )
+			{
+				Entity::Failure failure = result.value<Entity::Failure>();
+				switch( failure.getCode() )
+				{
+				case Entity::Failure::NotConnectedToServer:
+					settingsDialog->showTestAudioError( tr("Failed to play test tone.\nYou need to connect to TeamSpeak server first.") );
+					break;
+				case Entity::Failure::TestSoundInProgress:
+					settingsDialog->showTestAudioError( tr("Test tone playback already in progress.") );
+					done = false;
+					break;
+				case Entity::Failure::General:
+					settingsDialog->showTestAudioError( tr("Unknown error occured.\nSee TeamSpeak client logs for details.") );
+					break;
+				}
+			}
+			settingsDialog->setTestButtonEnabled( done );
+		}
+	} );
 }
 
 Entity::Settings UiAdapter::collectSettingsFromUI() const
