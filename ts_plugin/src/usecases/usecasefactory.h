@@ -48,7 +48,7 @@ public:
 	void changePlaybackVolume();
 	void showSettingsUi( QWidget *parent );
 	void saveSettings( const Entity::Settings &settings );
-	void playTestAudioWithSettings( const Entity::Settings &settings );
+	void playTestAudioWithSettings( const Entity::Settings &settings, Callback result );
 
 private:
 	UseCases* createUseCases() const;

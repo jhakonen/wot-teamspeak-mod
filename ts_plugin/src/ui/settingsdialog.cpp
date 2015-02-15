@@ -23,6 +23,7 @@
 #include "../entities/enums.h"
 
 #include <QPushButton>
+#include <QTooltip>
 #include <iostream>
 
 SettingsDialog::SettingsDialog( QWidget *parent )
@@ -119,6 +120,18 @@ bool SettingsDialog::isLoggingEnabled() const
 void SettingsDialog::setLoggingEnabled( bool enabled )
 {
 	ui->enableLoggingCheckBox->setChecked( enabled );
+}
+
+void SettingsDialog::showTestAudioError( const QString &error )
+{
+	QSize quarter = ui->testButton->size() / 2;
+	QPoint center = QPoint( quarter.width(), quarter.height() );
+	QToolTip::showText( ui->testButton->mapToGlobal( center ), error, ui->testButton );
+}
+
+void SettingsDialog::setTestButtonEnabled( bool enabled )
+{
+	ui->testButton->setEnabled( enabled );
 }
 
 void SettingsDialog::on_testButton_clicked()

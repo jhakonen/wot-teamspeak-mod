@@ -53,7 +53,7 @@ public:
 
 	void setHrtfEnabled( bool enabled );
 	void setHrtfDataSet( const QString &name );
-	void playTestSound( Entity::RotateMode mode );
+	void playTestSound( Entity::RotateMode mode, Callback result );
 
 private slots:
 	void onStartTestSound();
@@ -61,9 +61,13 @@ private slots:
 	void onFinishTestSound();
 
 private:
+	void notifyPlayTestSoundResult( const QVariant &result );
+
+private:
 	Interfaces::AudioDriver* driver;
 	QSet<quint16> userIds;
 	PositionRotator *rotator;
+	Callback playTestSoundCallback;
 };
 
 }

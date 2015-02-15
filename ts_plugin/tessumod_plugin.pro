@@ -51,7 +51,8 @@ SOURCES += \
     src/utils/logging.cpp \
     src/libs/oallibrary.cpp \
     src/utils/positionrotator.cpp \
-    src/utils/wavfile.cpp
+    src/utils/wavfile.cpp \
+    src/entities/failures.cpp
 
 HEADERS +=\
     src/ui/settingsdialog.h \
@@ -82,7 +83,8 @@ HEADERS +=\
     src/utils/logging.h \
     src/libs/oallibrary.h \
     src/utils/positionrotator.h \
-    src/utils/wavfile.h
+    src/utils/wavfile.h \
+    src/entities/failures.h
 
 RESOURCES += \
 	resources.qrc

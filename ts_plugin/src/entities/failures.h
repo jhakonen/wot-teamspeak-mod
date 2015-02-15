@@ -20,39 +20,35 @@
 
 #pragma once
 
-#include <QObject>
+#include <QString>
+#include <QMetaType>
 
 namespace Entity
 {
-class Vector;
-enum RotateMode;
+
+class Failure
+{
+public:
+	enum Code
+	{
+		General,
+		NotConnectedToServer,
+		TestSoundInProgress
+	};
+
+	Failure( Code code = General );
+	Failure( const QString &error );
+
+	Code getCode() const;
+	QString what() const;
+
+	operator QVariant() const;
+
+private:
+	Code code;
+	QString error;
+};
+
 }
 
-class QTimer;
-
-class PositionRotator : public QObject
-{
-	Q_OBJECT
-
-public:
-	PositionRotator( QObject *parent );
-
-	void start( Entity::RotateMode mode );
-	void stop();
-
-signals:
-	void started();
-	void positionChanged( const Entity::Vector &position );
-	void finished();
-
-private slots:
-	void onTimeout();
-
-private:
-	Entity::Vector getPosition() const;
-
-private:
-	QTimer *timer;
-	qreal angle;
-	Entity::RotateMode rotateMode;
-};
+Q_DECLARE_METATYPE( Entity::Failure )

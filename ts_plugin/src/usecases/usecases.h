@@ -23,6 +23,8 @@
 #include "../interfaces/storages.h"
 #include "../interfaces/adapters.h"
 
+#include <QObject>
+
 namespace Entity
 {
 class Vector;
@@ -31,9 +33,13 @@ class Vector;
 namespace UseCase
 {
 
-class UseCases
+class UseCases : public QObject
 {
+	Q_OBJECT
+
 public:
+	typedef std::function<void(QVariant)> Callback;
+
 	void applicationInitialize();
 	void positionUser( quint16 id, const Entity::Vector& position );
 	void positionCamera( const Entity::Vector& position, const Entity::Vector& direction );
@@ -45,7 +51,7 @@ public:
 	void changePlaybackVolume();
 	void showSettingsUi( QWidget *parent );
 	void saveSettings( const Entity::Settings &settings );
-	void playTestAudioWithSettings( const Entity::Settings &settings );
+	void playTestAudioWithSettings(const Entity::Settings &settings, Callback callback );
 
 private:
 	void positionUserToAudioBackends( const Entity::User &user );

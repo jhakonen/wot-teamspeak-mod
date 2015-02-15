@@ -53,6 +53,9 @@ public:
 	bool isLoggingEnabled() const;
 	void setLoggingEnabled( bool enabled );
 
+	void showTestAudioError( const QString &error );
+	void setTestButtonEnabled( bool enabled );
+
 private slots:
 	void on_testButton_clicked();
 

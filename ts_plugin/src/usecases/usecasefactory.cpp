@@ -84,9 +84,9 @@ void UseCaseFactory::saveSettings( const Entity::Settings &settings )
 	createUseCases()->saveSettings( settings );
 }
 
-void UseCaseFactory::playTestAudioWithSettings( const Entity::Settings &settings )
+void UseCaseFactory::playTestAudioWithSettings(const Entity::Settings &settings, Callback result )
 {
-	createUseCases()->playTestAudioWithSettings( settings );
+	createUseCases()->playTestAudioWithSettings( settings, result );
 }
 
 UseCases *UseCaseFactory::createUseCases() const

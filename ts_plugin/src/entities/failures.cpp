@@ -18,41 +18,35 @@
  * USA
  */
 
-#pragma once
-
-#include <QObject>
+#include "failures.h"
+#include <QVariant>
 
 namespace Entity
 {
-class Vector;
-enum RotateMode;
+
+Failure::Failure( Code code )
+	: code( code )
+{
 }
 
-class QTimer;
-
-class PositionRotator : public QObject
+Failure::Failure( const QString &error )
+	: code( General ), error( error )
 {
-	Q_OBJECT
+}
 
-public:
-	PositionRotator( QObject *parent );
+Failure::Code Failure::getCode() const
+{
+	return code;
+}
 
-	void start( Entity::RotateMode mode );
-	void stop();
+QString Failure::what() const
+{
+	return error;
+}
 
-signals:
-	void started();
-	void positionChanged( const Entity::Vector &position );
-	void finished();
+Failure::operator QVariant() const
+{
+	return QVariant::fromValue( *this );
+}
 
-private slots:
-	void onTimeout();
-
-private:
-	Entity::Vector getPosition() const;
-
-private:
-	QTimer *timer;
-	qreal angle;
-	Entity::RotateMode rotateMode;
-};
+}

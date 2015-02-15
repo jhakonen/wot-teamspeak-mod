@@ -22,6 +22,7 @@
 #include "../interfaces/drivers.h"
 #include "../entities/camera.h"
 #include "../entities/user.h"
+#include "../entities/failures.h"
 #include "../utils/positionrotator.h"
 #include "../utils/logging.h"
 
@@ -99,8 +100,14 @@ void AudioAdapter::setHrtfDataSet( const QString &name )
 	driver->setHrtfDataSet( name );
 }
 
-void AudioAdapter::playTestSound( Entity::RotateMode mode )
+void AudioAdapter::playTestSound( Entity::RotateMode mode, Callback result )
 {
+	if( playTestSoundCallback )
+	{
+		result( Entity::Failure( Entity::Failure::TestSoundInProgress ) );
+		return;
+	}
+	playTestSoundCallback = result;
 	rotator->start( mode );
 }
 
@@ -124,17 +131,50 @@ void AudioAdapter::onStartTestSound()
 		return;
 	}
 
-	driver->playTestSound( testSoundPath );
+	try
+	{
+		driver->playTestSound( testSoundPath );
+	}
+	catch( const Entity::Failure &failure )
+	{
+		notifyPlayTestSoundResult( failure );
+		rotator->stop();
+	}
 }
 
 void AudioAdapter::onPositionTestSound( const Entity::Vector &position )
 {
-	driver->positionTestSound( position );
+	try
+	{
+		driver->positionTestSound( position );
+	}
+	catch( const Entity::Failure &failure )
+	{
+		notifyPlayTestSoundResult( failure );
+		rotator->stop();
+	}
 }
 
 void AudioAdapter::onFinishTestSound()
 {
-	driver->stopTestSound();
+	try
+	{
+		driver->stopTestSound();
+		notifyPlayTestSoundResult( QVariant() );
+	}
+	catch( const Entity::Failure &failure )
+	{
+		notifyPlayTestSoundResult( failure );
+	}
+}
+
+void AudioAdapter::notifyPlayTestSoundResult( const QVariant &result )
+{
+	if( playTestSoundCallback )
+	{
+		playTestSoundCallback( result );
+		playTestSoundCallback = Callback();
+	}
 }
 
 }

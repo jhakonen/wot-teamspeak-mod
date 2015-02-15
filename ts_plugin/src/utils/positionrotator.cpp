@@ -55,6 +55,12 @@ void PositionRotator::start( Entity::RotateMode mode )
 	emit positionChanged( getPosition() );
 }
 
+void PositionRotator::stop()
+{
+	timer->stop();
+	emit finished();
+}
+
 void PositionRotator::onTimeout()
 {
 	if( angle >= 360 + START_ANGLE )
