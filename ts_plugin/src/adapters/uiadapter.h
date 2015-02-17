@@ -42,7 +42,7 @@ class UiAdapter : public QObject, public Interfaces::UiAdapter
 public:
 	UiAdapter( Interfaces::UseCaseFactory *useCaseFactory, QObject *parent );
 
-	void showSettingsUi( const Entity::Settings &settings, QWidget *parent );
+	void showSettingsUi( const Entity::Settings &settings, const QStringList &hrtfDataNames, QWidget *parent );
 
 private slots:
 	void onSettingsChanged();

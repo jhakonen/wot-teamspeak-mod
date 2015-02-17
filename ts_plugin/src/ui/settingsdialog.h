@@ -56,6 +56,8 @@ public:
 	void showTestAudioError( const QString &error );
 	void setTestButtonEnabled( bool enabled );
 
+	void setHrtfDataPaths( const QStringList &paths );
+
 private slots:
 	void on_testButton_clicked();
 

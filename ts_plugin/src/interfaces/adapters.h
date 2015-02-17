@@ -25,6 +25,7 @@
 
 class QWidget;
 class QVariant;
+class QStringList;
 
 namespace Entity
 {
@@ -55,6 +56,7 @@ public:
 
 	virtual void setHrtfEnabled( bool enabled ) = 0;
 	virtual void setHrtfDataSet( const QString &name ) = 0;
+	virtual QStringList getHrtfDataPaths() const = 0;
 	virtual void playTestSound( Entity::RotateMode mode, Callback result ) = 0;
 };
 
@@ -77,7 +79,7 @@ class UiAdapter
 {
 public:
 	virtual ~UiAdapter() {}
-	virtual void showSettingsUi( const Entity::Settings &settings, QWidget *parent ) = 0;
+	virtual void showSettingsUi( const Entity::Settings &settings, const QStringList &hrtfDataNames, QWidget *parent ) = 0;
 };
 
 }

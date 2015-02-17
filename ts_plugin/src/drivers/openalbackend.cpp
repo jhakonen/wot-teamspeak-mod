@@ -32,6 +32,7 @@
 #include <QDir>
 #include <QVector>
 #include <QPointer>
+#include <QSet>
 
 #include <iostream>
 
@@ -51,7 +52,7 @@ QString getOALHRTFPath()
 {
 	QString targetPath = getAppdataPath() + "/openal/hrtf";
 	QDir().mkpath( targetPath );
-	return QDir::cleanPath( ( targetPath + "/default-%1.mhr" ).arg( AUDIO_FREQUENCY ) );
+	return QDir::cleanPath( targetPath );
 }
 
 ALfloat tsVolumeModifierToOALGain( float tsVolumeModifier )
@@ -257,6 +258,39 @@ public:
 		}
 	}
 
+	quint32 getDefaultFrequency() const
+	{
+		if( oalContext )
+		{
+			return oalContext->getFrequency();
+		}
+		else
+		{
+			OALLibrary library;
+			return library.createDevice( playbackDeviceName )->createContext( false )->getFrequency();
+		}
+	}
+
+	QStringList getHrtfFilePaths() const
+	{
+		QStringList paths = getHrtfFilePaths( QDir( ":/etc/hrtfs/" ) );
+		paths.append( getHrtfFilePaths( getOALHRTFPath() ) );
+		return paths;
+	}
+
+	QStringList getHrtfFilePaths( const QDir &dir ) const
+	{
+		QStringList paths;
+		foreach( QString entry, dir.entryList( QStringList() << "*.mhr", QDir::Files ) )
+		{
+			if( !entry.contains( "default", Qt::CaseInsensitive ) )
+			{
+				paths.append( dir.filePath( entry ) );
+			}
+		}
+		return paths;
+	}
+
 public:
 	QPointer<OALLibrary> oalLibrary;
 	QPointer<OALContext> oalContext;
@@ -435,6 +469,22 @@ void OpenALBackend::setHrtfEnabled( bool enabled )
 void OpenALBackend::setHrtfDataSet( const QString &name )
 {
 	// TODO
+}
+
+QStringList OpenALBackend::getHrtfDataPaths() const
+{
+	Q_D( const OpenALBackend );
+	quint32 frequency = d->getDefaultFrequency();
+	QString frequencyStr = QString::number( frequency );
+	QSet<QString> pathsSet;
+	foreach( QString path, d->getHrtfFilePaths() )
+	{
+		if( path.contains( frequencyStr ) )
+		{
+			pathsSet.insert( path.replace( frequencyStr, "%r" ) );
+		}
+	}
+	return pathsSet.toList();
 }
 
 void OpenALBackend::playTestSound( const QString &filePath )

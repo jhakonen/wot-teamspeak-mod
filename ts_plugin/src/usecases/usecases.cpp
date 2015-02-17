@@ -27,6 +27,7 @@
 #include <QList>
 #include <QString>
 #include <QVariant>
+#include <QSet>
 
 namespace {
 
@@ -170,7 +171,12 @@ void UseCases::changePlaybackVolume()
 void UseCases::showSettingsUi( QWidget *parent )
 {
 	Entity::Settings settings = settingsStorage->get();
-	adapterStorage->getUi()->showSettingsUi( settings, parent );
+	QStringList hrtfDataNames;
+	foreach( Interfaces::AudioAdapter *backend, adapterStorage->getAudios() )
+	{
+		hrtfDataNames.append( backend->getHrtfDataPaths() );
+	}
+	adapterStorage->getUi()->showSettingsUi( settings, hrtfDataNames, parent );
 	deleteLater();
 }
 
