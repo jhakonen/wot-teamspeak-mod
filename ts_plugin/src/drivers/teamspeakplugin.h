@@ -104,6 +104,7 @@ public:
 	void setPlaybackVolume( float /*volume*/ ) {}
 	void setHrtfEnabled( bool /*enabled*/ ) {}
 	void setHrtfDataSet( const QString &/*name*/ ) {}
+	QStringList getHrtfDataPaths() const { return QStringList(); }
 	void playTestSound( const QString &filePath );
 	void positionTestSound( const Entity::Vector &position );
 	void stopTestSound();

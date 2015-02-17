@@ -100,6 +100,11 @@ void AudioAdapter::setHrtfDataSet( const QString &name )
 	driver->setHrtfDataSet( name );
 }
 
+QStringList AudioAdapter::getHrtfDataPaths() const
+{
+	return driver->getHrtfDataPaths();
+}
+
 void AudioAdapter::playTestSound( Entity::RotateMode mode, Callback result )
 {
 	if( playTestSoundCallback )

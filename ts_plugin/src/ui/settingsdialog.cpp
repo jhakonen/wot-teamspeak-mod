@@ -24,6 +24,10 @@
 
 #include <QPushButton>
 #include <QTooltip>
+#include <QStandardItemModel>
+#include <QSortFilterProxyModel>
+#include <QFileInfo>
+
 #include <iostream>
 
 SettingsDialog::SettingsDialog( QWidget *parent )
@@ -132,6 +136,45 @@ void SettingsDialog::showTestAudioError( const QString &error )
 void SettingsDialog::setTestButtonEnabled( bool enabled )
 {
 	ui->testButton->setEnabled( enabled );
+}
+
+void SettingsDialog::setHrtfDataPaths( const QStringList &paths )
+{
+	QStandardItemModel *model = new QStandardItemModel( this );
+	foreach( QString path, paths )
+	{
+		QString name = QFileInfo( path )
+				.baseName()
+				.replace( "%r", "" )
+				.replace( "-", " " )
+				.replace( "_", " " )
+				.trimmed()
+				.toUpper();
+
+		QString sortValue = name;
+		if( name.contains( "MIT KEMAR" ) )
+		{
+			sortValue = "1" + sortValue;
+		}
+		else if( name.contains( "CIAIR" ) )
+		{
+			sortValue = "2" + sortValue;
+		}
+		else
+		{
+			sortValue = "3" + sortValue;
+		}
+
+		QStandardItem *item = new QStandardItem( name );
+		item->setData( path, Qt::UserRole );
+		item->setData( sortValue, Qt::UserRole + 1 );
+		model->appendRow( item );
+	}
+	QSortFilterProxyModel *sortProxy = new QSortFilterProxyModel( this );
+	sortProxy->setSourceModel( model );
+	sortProxy->setSortRole( Qt::UserRole + 1 );
+	sortProxy->sort( 0, Qt::AscendingOrder );
+	ui->hrtfDataSetListView->setModel( sortProxy );
 }
 
 void SettingsDialog::on_testButton_clicked()

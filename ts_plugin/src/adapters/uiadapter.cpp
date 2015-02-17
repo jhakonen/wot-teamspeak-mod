@@ -36,7 +36,7 @@ UiAdapter::UiAdapter( Interfaces::UseCaseFactory *useCaseFactory, QObject *paren
 {
 }
 
-void UiAdapter::showSettingsUi( const Entity::Settings &settings, QWidget *parent )
+void UiAdapter::showSettingsUi( const Entity::Settings &settings, const QStringList &hrtfDataNames, QWidget *parent )
 {
 	Log::info() << "UiAdapter::showSettingsUi()";
 	if( !settingsDialog )
@@ -50,6 +50,7 @@ void UiAdapter::showSettingsUi( const Entity::Settings &settings, QWidget *paren
 		settingsDialog->setHrtfEnabled( settings.hrtfEnabled );
 		settingsDialog->setHrtfDataSet( settings.hrtfDataSet );
 		settingsDialog->setLoggingEnabled( settings.audioLoggingEnabled );
+		settingsDialog->setHrtfDataPaths( hrtfDataNames );
 
 		connect( settingsDialog, SIGNAL(applied()), this, SLOT(onSettingsChanged()) );
 		connect( settingsDialog, SIGNAL(testButtonClicked()), this, SLOT(onTestButtonClicked()) );
