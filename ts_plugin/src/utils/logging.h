@@ -22,6 +22,8 @@
 
 #include <QString>
 
+class QFile;
+
 namespace Entity
 {
 class Vector;
@@ -55,6 +57,18 @@ class Sink
 public:
 	virtual ~Sink() {}
 	virtual void logMessage( const QString &message, Severity severity ) = 0;
+};
+
+class FileLogger : public Sink
+{
+public:
+	FileLogger( const QString &filepath );
+	~FileLogger();
+
+	void logMessage( const QString &message, Severity severity );
+
+private:
+	QFile *logFile;
 };
 
 class Stream

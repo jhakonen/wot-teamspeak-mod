@@ -43,6 +43,8 @@ void pluginInit( QObject *parent )
 	auto teamSpeakPlugin = Driver::TeamSpeakPlugin::singleton();
 
 	Log::setSink( teamSpeakPlugin );
+	// for debugging purposes
+	// Log::setSink( new Log::FileLogger( "C:/temp/tessumod_plugin.log" ) );
 	Log::logQtMessages();
 
 	QString dataPath = QDir::toNativeSeparators( teamSpeakPlugin->getPluginDataPath() );

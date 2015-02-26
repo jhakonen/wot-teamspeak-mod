@@ -22,6 +22,7 @@
 #include "../entities/vector.h"
 
 #include <QTextStream>
+#include <QFile>
 
 namespace {
 
@@ -121,6 +122,25 @@ void qtMessageHandler( QtMsgType type, const QMessageLogContext &context, const 
 void logQtMessages()
 {
 	qInstallMessageHandler( qtMessageHandler );
+}
+
+FileLogger::FileLogger( const QString &filepath )
+{
+	logFile = new QFile( filepath );
+	logFile->open( QFile::WriteOnly | QFile::Truncate );
+}
+
+FileLogger::~FileLogger()
+{
+	delete logFile;
+}
+
+void FileLogger::logMessage( const QString &message, Severity severity )
+{
+	Q_UNUSED( severity );
+	logFile->write( message.toUtf8() );
+	logFile->write( "\n" );
+	logFile->flush();
 }
 
 }
