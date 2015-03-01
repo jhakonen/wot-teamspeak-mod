@@ -1,0 +1,37 @@
+diff --git a/Alc/ALc.c b/Alc/ALc.c
+index f7f7b63..092c2b9 100644
+--- a/Alc/ALc.c
++++ b/Alc/ALc.c
+@@ -799,8 +799,8 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD reason, LPVOID lpReserved)
+     {
+         case DLL_PROCESS_ATTACH:
+             /* Pin the DLL so we won't get unloaded until the process terminates */
+-            GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN | GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
+-                               (WCHAR*)hModule, &hModule);
++            //GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN | GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
++            //                   (WCHAR*)hModule, &hModule);
+             alc_init();
+             break;
+ 
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 0087edb..d0a39f6 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -40,7 +40,7 @@ OPTION(ALSOFT_HRTF_DEFS "Install HRTF definition files" ON)
+ 
+ 
+ IF(WIN32)
+-    SET(LIBNAME OpenAL32)
++    OPTION(LIBNAME "Library name" OpenAL32)
+     ADD_DEFINITIONS("-D_WIN32 -D_WIN32_WINNT=0x0502")
+ 
+     # This option is mainly for static linking OpenAL Soft into another project
+@@ -59,7 +59,7 @@ IF(WIN32)
+         ENDIF()
+     ENDIF()
+ ELSE()
+-    SET(LIBNAME openal)
++    OPTION(LIBNAME "Library name" openal)
+ 
+     # These are needed on non-Windows systems for extra features
+     ADD_DEFINITIONS(-D_GNU_SOURCE=1 -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700)
