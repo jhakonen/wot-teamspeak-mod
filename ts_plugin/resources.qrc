@@ -1,16 +1,59 @@
 <RCC>
     <qresource prefix="/">
-        <file>etc/default-48000.mhr</file>
         <file>etc/alsoft.ini</file>
         <file>audio/testsound.wav</file>
         <file>etc/hrtfs/ciair-44100.mhr</file>
-        <file>etc/hrtfs/ciair-48000.mhr</file>
-        <file>etc/hrtfs/ciair-96000.mhr</file>
         <file>etc/hrtfs/irc_1005-44100.mhr</file>
-        <file>etc/hrtfs/irc_1005-48000.mhr</file>
-        <file>etc/hrtfs/irc_1005-96000.mhr</file>
         <file>etc/hrtfs/mit_kemar-44100.mhr</file>
-        <file>etc/hrtfs/mit_kemar-48000.mhr</file>
-        <file>etc/hrtfs/mit_kemar-96000.mhr</file>
+        <file>etc/hrtfs/irc_1002-44100.mhr</file>
+        <file>etc/hrtfs/irc_1003-44100.mhr</file>
+        <file>etc/hrtfs/irc_1004-44100.mhr</file>
+        <file>etc/hrtfs/irc_1006-44100.mhr</file>
+        <file>etc/hrtfs/irc_1007-44100.mhr</file>
+        <file>etc/hrtfs/irc_1008-44100.mhr</file>
+        <file>etc/hrtfs/irc_1009-44100.mhr</file>
+        <file>etc/hrtfs/irc_1012-44100.mhr</file>
+        <file>etc/hrtfs/irc_1013-44100.mhr</file>
+        <file>etc/hrtfs/irc_1014-44100.mhr</file>
+        <file>etc/hrtfs/irc_1015-44100.mhr</file>
+        <file>etc/hrtfs/irc_1016-44100.mhr</file>
+        <file>etc/hrtfs/irc_1017-44100.mhr</file>
+        <file>etc/hrtfs/irc_1018-44100.mhr</file>
+        <file>etc/hrtfs/irc_1020-44100.mhr</file>
+        <file>etc/hrtfs/irc_1021-44100.mhr</file>
+        <file>etc/hrtfs/irc_1022-44100.mhr</file>
+        <file>etc/hrtfs/irc_1023-44100.mhr</file>
+        <file>etc/hrtfs/irc_1025-44100.mhr</file>
+        <file>etc/hrtfs/irc_1026-44100.mhr</file>
+        <file>etc/hrtfs/irc_1028-44100.mhr</file>
+        <file>etc/hrtfs/irc_1029-44100.mhr</file>
+        <file>etc/hrtfs/irc_1030-44100.mhr</file>
+        <file>etc/hrtfs/irc_1031-44100.mhr</file>
+        <file>etc/hrtfs/irc_1032-44100.mhr</file>
+        <file>etc/hrtfs/irc_1033-44100.mhr</file>
+        <file>etc/hrtfs/irc_1034-44100.mhr</file>
+        <file>etc/hrtfs/irc_1037-44100.mhr</file>
+        <file>etc/hrtfs/irc_1038-44100.mhr</file>
+        <file>etc/hrtfs/irc_1039-44100.mhr</file>
+        <file>etc/hrtfs/irc_1040-44100.mhr</file>
+        <file>etc/hrtfs/irc_1041-44100.mhr</file>
+        <file>etc/hrtfs/irc_1042-44100.mhr</file>
+        <file>etc/hrtfs/irc_1043-44100.mhr</file>
+        <file>etc/hrtfs/irc_1044-44100.mhr</file>
+        <file>etc/hrtfs/irc_1045-44100.mhr</file>
+        <file>etc/hrtfs/irc_1046-44100.mhr</file>
+        <file>etc/hrtfs/irc_1047-44100.mhr</file>
+        <file>etc/hrtfs/irc_1048-44100.mhr</file>
+        <file>etc/hrtfs/irc_1049-44100.mhr</file>
+        <file>etc/hrtfs/irc_1050-44100.mhr</file>
+        <file>etc/hrtfs/irc_1051-44100.mhr</file>
+        <file>etc/hrtfs/irc_1052-44100.mhr</file>
+        <file>etc/hrtfs/irc_1053-44100.mhr</file>
+        <file>etc/hrtfs/irc_1054-44100.mhr</file>
+        <file>etc/hrtfs/irc_1055-44100.mhr</file>
+        <file>etc/hrtfs/irc_1056-44100.mhr</file>
+        <file>etc/hrtfs/irc_1057-44100.mhr</file>
+        <file>etc/hrtfs/irc_1058-44100.mhr</file>
+        <file>etc/hrtfs/irc_1059-44100.mhr</file>
     </qresource>
 </RCC>
