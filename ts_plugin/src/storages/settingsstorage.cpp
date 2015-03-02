@@ -37,7 +37,7 @@ Entity::Settings SettingsStorage::get() const
 	settings.positioningEnabled  = driver->get( "General", "PositionalAudioEnabled", true ).toBool();
 	settings.testRotateMode      = (Entity::RotateMode) driver->get( "General", "TestRotateMode", Entity::RotateYAxis ).toInt();
 	settings.hrtfEnabled         = driver->get( "General", "HrtfEnabled", false ).toBool();
-	settings.hrtfDataSet         = driver->get( "General", "HrtfDataSet", "MIT_KEMAR" ).toString();
+	settings.hrtfDataSet         = driver->get( "General", "HrtfDataSet", ":/etc/hrtfs/mit_kemar-44100.mhr" ).toString();
 	settings.audioLoggingEnabled = driver->get( "General", "AudioLoggingEnabled", false ).toBool();
 	return settings;
 }
