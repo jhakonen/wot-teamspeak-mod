@@ -35,6 +35,7 @@ namespace OpenAL
 {
 
 void loadLib();
+void unloadLib();
 void reloadLib();
 
 const ALchar* alGetString( ALenum param );

@@ -21,18 +21,22 @@
 #include "oallibrary.h"
 #include "../utils/logging.h"
 
+#include <AL/alext.h>
+
 #include <QVector>
 
 OALLibrary::OALLibrary( QObject *parent )
 	: QObject( parent )
 {
+	Log::debug() << "OALLibrary()";
 	OpenAL::loadLib();
 }
 
 OALLibrary::~OALLibrary()
 {
-	// TODO: unload lib
+	Log::debug() << "~OALLibrary()";
 	qDeleteAll( devices );
+	OpenAL::unloadLib();
 }
 
 OALDevice *OALLibrary::createDevice( const QString &name )
@@ -64,10 +68,9 @@ OALDevice::~OALDevice()
 	}
 }
 
-OALContext *OALDevice::createContext( bool hrtfEnabled )
+OALContext *OALDevice::createContext( ALCint frequency, bool hrtfEnabled )
 {
-	OALContext defaultContext( this );
-	contexts.append( new OALContext( defaultContext.getFrequency(), hrtfEnabled, this ) );
+	contexts.append( new OALContext( frequency, hrtfEnabled, this ) );
 	return contexts.last();
 }
 
@@ -85,12 +88,17 @@ OALContext::OALContext( OALDevice *parent )
 OALContext::OALContext( ALCint frequency, bool hrtfEnabled, OALDevice *parent )
 	: QObject( parent ), context( NULL ), device( parent )
 {
-	ALCint attrs[6] = { 0 };
+	ALCint attrs[7] = { 0 };
 	int i = 0;
 	attrs[i++] = ALC_FREQUENCY;
 	attrs[i++] = frequency;
-	attrs[i++] = ALC_HRTF_SOFT;
-	attrs[i++] = hrtfEnabled? ALC_TRUE: ALC_FALSE;
+	if( hrtfEnabled )
+	{
+		attrs[i++] = ALC_FORMAT_CHANNELS_SOFT;
+		attrs[i++] = ALC_STEREO_SOFT;
+		attrs[i++] = ALC_HRTF_SOFT;
+		attrs[i++] = hrtfEnabled? ALC_TRUE: ALC_FALSE;
+	}
 	context = OpenAL::alcCreateContext( *device, attrs );
 }
 

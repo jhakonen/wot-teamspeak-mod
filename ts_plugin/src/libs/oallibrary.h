@@ -50,7 +50,7 @@ class OALDevice : public QObject
 
 public:
 	~OALDevice();
-	OALContext *createContext( bool hrtfEnabled );
+	OALContext *createContext( ALCint frequency, bool hrtfEnabled );
 
 	operator ALCdevice*() const;
 

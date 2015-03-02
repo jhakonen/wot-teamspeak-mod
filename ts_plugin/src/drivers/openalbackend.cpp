@@ -24,6 +24,7 @@
 #include "../libs/oallibrary.h"
 #include "../utils/logging.h"
 #include "../utils/wavfile.h"
+#include "../utils/async.h"
 
 #include <AL/alext.h>
 
@@ -40,7 +41,7 @@ namespace
 {
 QMutex mutex;
 
-const int AUDIO_FREQUENCY = 48000;
+const int AUDIO_FREQUENCY = 44100;
 
 QString getAppdataPath()
 {
@@ -69,7 +70,7 @@ class OpenALBackendPrivate
 {
 public:
 	OpenALBackendPrivate()
-		: isEnabled( false ), playbackVolume( 0 ), hrtfEnabled( false )
+		: isEnabled( false ), playbackVolume( 0 ), hrtfEnabled( false ), initNeeded( false )
 	{
 	}
 
@@ -80,15 +81,6 @@ public:
 			return;
 		}
 		Log::info() << "Enabling OpenALBackend";
-		QString hrtfInstallPath = getOALHRTFPath();
-		if( !QFile::exists( hrtfInstallPath ) )
-		{
-			if( !QFile::copy( QString(":/etc/default-%1.mhr").arg( AUDIO_FREQUENCY ), hrtfInstallPath ) )
-			{
-				Log::error() << "Failed to install default HRTF file to " << hrtfInstallPath;
-			}
-		}
-
 		Log::info() << "OpenALBackend opens device: " << playbackDeviceName;
 		try
 		{
@@ -97,7 +89,7 @@ public:
 				oalLibrary = new OALLibrary();
 			}
 			auto device = oalLibrary->createDevice( playbackDeviceName );
-			oalContext = device->createContext( hrtfEnabled );
+			oalContext = device->createContext( AUDIO_FREQUENCY, hrtfEnabled );
 		}
 		catch( ... )
 		{
@@ -119,6 +111,7 @@ public:
 		Log::info() << "Disabling OpenALBackend";
 		userSources.clear();
 		delete oalLibrary;
+		oalContext = 0;
 	}
 
 	void updateUserToAL( quint16 id )
@@ -149,30 +142,6 @@ public:
 		{
 			oalContext->setListenerOrientation( cameraForward.x, cameraForward.y, -cameraForward.z, cameraUp.x, cameraUp.y, -cameraUp.z );
 			oalContext->setListenerPosition( cameraPosition.x, cameraPosition.y, -cameraPosition.z );
-		}
-	}
-
-	void restartAL()
-	{
-		if( isEnabled )
-		{
-			try
-			{
-				disableAL();
-			}
-			catch( const OpenAL::Failure &error )
-			{
-				Log::warning() << "Failed to disable OpenAL, reason: " << error.what();
-			}
-			try
-			{
-				enableAL();
-			}
-			catch( const OpenAL::Failure &error )
-			{
-				Log::error() << "Failed to enable OpenAL, reason: " << error.what();
-				isEnabled = false;
-			}
 		}
 	}
 
@@ -258,37 +227,37 @@ public:
 		}
 	}
 
-	quint32 getDefaultFrequency() const
+	bool initialize()
 	{
-		if( oalContext )
+		try
 		{
-			return oalContext->getFrequency();
-		}
-		else
-		{
-			OALLibrary library;
-			return library.createDevice( playbackDeviceName )->createContext( false )->getFrequency();
-		}
-	}
-
-	QStringList getHrtfFilePaths() const
-	{
-		QStringList paths = getHrtfFilePaths( QDir( ":/etc/hrtfs/" ) );
-		paths.append( getHrtfFilePaths( getOALHRTFPath() ) );
-		return paths;
-	}
-
-	QStringList getHrtfFilePaths( const QDir &dir ) const
-	{
-		QStringList paths;
-		foreach( QString entry, dir.entryList( QStringList() << "*.mhr", QDir::Files ) )
-		{
-			if( !entry.contains( "default", Qt::CaseInsensitive ) )
+			if( isEnabled )
 			{
-				paths.append( dir.filePath( entry ) );
+				if( oalContext )
+				{
+					disableAL();
+				}
+				enableAL();
 			}
+			initNeeded = false;
+			return true;
 		}
-		return paths;
+		catch( const OpenAL::Failure &error )
+		{
+			Log::warning() << "Failed to initialize OpenAL, reason: " << error.what();
+		}
+		return false;
+	}
+
+	void initializeLater()
+	{
+		initNeeded = true;
+		callLater( [=]{
+			if( initNeeded )
+			{
+				initialize();
+			}
+		} );
 	}
 
 public:
@@ -304,6 +273,7 @@ public:
 	QString playbackDeviceName;
 	float playbackVolume;
 	bool hrtfEnabled;
+	bool initNeeded;
 };
 
 OpenALBackend::OpenALBackend( QObject *parent )
@@ -327,7 +297,7 @@ void OpenALBackend::setEnabled( bool enabled )
 	{
 		if( enabled )
 		{
-			d->enableAL();
+			d->initializeLater();
 		}
 		else
 		{
@@ -407,21 +377,8 @@ void OpenALBackend::setPlaybackDeviceName( const QString &name )
 	Q_D( OpenALBackend );
 	QMutexLocker locker( &mutex );
 	Log::debug() << "OpenALBackend::setPlaybackDeviceName('" << name << "')";
-
-	if( d->playbackDeviceName == name )
-	{
-		return;
-	}
 	d->playbackDeviceName = name;
-
-	try
-	{
-		d->restartAL();
-	}
-	catch( const OpenAL::Failure &error )
-	{
-		Log::error() << "Failed to change playback device, reason: " << error.what();
-	}
+	d->initializeLater();
 }
 
 void OpenALBackend::setPlaybackVolume( float volume )
@@ -449,48 +406,47 @@ void OpenALBackend::setPlaybackVolume( float volume )
 void OpenALBackend::setHrtfEnabled( bool enabled )
 {
 	Q_D( OpenALBackend );
-
-	if( d->hrtfEnabled == enabled )
+	if( d->hrtfEnabled != enabled )
 	{
-		return;
-	}
-	d->hrtfEnabled = enabled;
-
-	try
-	{
-		d->restartAL();
-	}
-	catch( const OpenAL::Failure &error )
-	{
-		Log::error() << "Failed to change HRTF state, reason: " << error.what();
+		d->hrtfEnabled = enabled;
+		d->initializeLater();
 	}
 }
 
 void OpenALBackend::setHrtfDataSet( const QString &name )
 {
-	// TODO
+	Q_D( OpenALBackend );
+	Log::debug() << "OpenALBackend::setHrtfDataSet(): " << name;
+	QFile hrtfFile( getOALHRTFPath() + QDir::separator() + "default-44100.mhr" );
+	if( hrtfFile.exists() )
+	{
+		hrtfFile.setPermissions( hrtfFile.permissions() | QFile::WriteUser );
+		hrtfFile.remove();
+	}
+	if( !QFile::copy( name, hrtfFile.fileName() ) )
+	{
+		Log::error() << "Failed to save HRTF data set '" << name << "'"
+					 << " to path '" << QDir::toNativeSeparators( hrtfFile.fileName() ) << "'";
+		return;
+	}
+	d->initializeLater();
 }
 
 QStringList OpenALBackend::getHrtfDataPaths() const
 {
-	Q_D( const OpenALBackend );
-	quint32 frequency = d->getDefaultFrequency();
-	QString frequencyStr = QString::number( frequency );
-	QSet<QString> pathsSet;
-	foreach( QString path, d->getHrtfFilePaths() )
+	QDir dir( ":/etc/hrtfs/" );
+	QStringList paths;
+	foreach( QString entry, dir.entryList( QStringList() << "*.mhr", QDir::Files ) )
 	{
-		if( path.contains( frequencyStr ) )
-		{
-			pathsSet.insert( path.replace( frequencyStr, "%r" ) );
-		}
+		paths.append( dir.filePath( entry ) );
 	}
-	return pathsSet.toList();
+	return paths;
 }
 
 void OpenALBackend::playTestSound( const QString &filePath )
 {
 	Q_D( OpenALBackend );
-	if( d->oalContext )
+	if( d->initialize() )
 	{
 		try
 		{

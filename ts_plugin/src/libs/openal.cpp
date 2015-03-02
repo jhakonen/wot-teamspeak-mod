@@ -19,6 +19,8 @@
  */
 
 #include "openal.h"
+#include "../utils/logging.h"
+
 #include <Windows.h>
 #include <iostream>
 #include <QMutex>
@@ -57,6 +59,7 @@ LPALCGETERROR            g_alcGetError;
 LPALCGETSTRING           g_alcGetString;
 
 HMODULE g_openALLib = NULL;
+QAtomicInt g_libRefCount = 0;
 
 template <typename TFunction>
 TFunction resolveSymbol( const char *symbol )
@@ -117,8 +120,10 @@ namespace OpenAL
 
 void loadLib()
 {
+	g_libRefCount.ref();
 	if( !g_openALLib )
 	{
+		Log::info() << "Loading OpenAL library";
 		#if defined( _WIN64 )
 		QString libName = "OpenAL64";
 		#else
@@ -160,16 +165,22 @@ void loadLib()
 	}
 }
 
-void reloadLib()
+void unloadLib()
 {
-	if( g_openALLib )
+	if( g_openALLib && !g_libRefCount.deref() )
 	{
+		Log::info() << "Unloading OpenAL library";
 		if( FreeLibrary( g_openALLib ) == FALSE )
 		{
 			throw OpenAL::LibLoadFailure( "Failed to unload OpenAL library, reason: " + getWin32ErrorMessage() );
 		}
 		g_openALLib = NULL;
 	}
+}
+
+void reloadLib()
+{
+	unloadLib();
 	loadLib();
 }
 
