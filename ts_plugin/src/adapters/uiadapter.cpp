@@ -48,9 +48,9 @@ void UiAdapter::showSettingsUi( const Entity::Settings &settings, const QStringL
 		settingsDialog->setAudioBackend( settings.audioBackend );
 		settingsDialog->setRotateMode( settings.testRotateMode );
 		settingsDialog->setHrtfEnabled( settings.hrtfEnabled );
+		settingsDialog->setHrtfDataPaths( hrtfDataNames );
 		settingsDialog->setHrtfDataSet( settings.hrtfDataSet );
 		settingsDialog->setLoggingEnabled( settings.audioLoggingEnabled );
-		settingsDialog->setHrtfDataPaths( hrtfDataNames );
 
 		connect( settingsDialog, SIGNAL(applied()), this, SLOT(onSettingsChanged()) );
 		connect( settingsDialog, SIGNAL(testButtonClicked()), this, SLOT(onTestButtonClicked()) );

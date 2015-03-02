@@ -21,6 +21,7 @@
 #include "settingsdialog.h"
 #include "ui_settingsdialog.h"
 #include "../entities/enums.h"
+#include "../utils/logging.h"
 
 #include <QPushButton>
 #include <QTooltip>
@@ -107,13 +108,25 @@ void SettingsDialog::setHrtfEnabled( bool enabled )
 
 QString SettingsDialog::getHrtfDataSet() const
 {
-	// TODO
+	QModelIndex index = ui->hrtfDataSetListView->selectionModel()->currentIndex();
+	if( index.isValid() )
+	{
+		return index.data( Qt::UserRole ).toString();
+	}
 	return "";
 }
 
 void SettingsDialog::setHrtfDataSet( const QString &name )
 {
-	// TODO
+	QAbstractItemModel *m = ui->hrtfDataSetListView->model();
+	QModelIndexList matches = m->match( m->index( 0, 0 ), Qt::UserRole, name, 1 );
+	if( matches.isEmpty() )
+	{
+		Log::warning() << "HRTF dataset not found from dataset list";
+		return;
+	}
+	ui->hrtfDataSetListView->selectionModel()->setCurrentIndex(
+				matches[0], QItemSelectionModel::SelectCurrent );
 }
 
 bool SettingsDialog::isLoggingEnabled() const
@@ -140,12 +153,12 @@ void SettingsDialog::setTestButtonEnabled( bool enabled )
 
 void SettingsDialog::setHrtfDataPaths( const QStringList &paths )
 {
+	Log::debug() << "SettingsDialog::setHrtfDataPaths()";
 	QStandardItemModel *model = new QStandardItemModel( this );
 	foreach( QString path, paths )
 	{
 		QString name = QFileInfo( path )
 				.baseName()
-				.replace( "%r", "" )
 				.replace( "-", " " )
 				.replace( "_", " " )
 				.trimmed()
