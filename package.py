@@ -24,8 +24,10 @@ MOD_VERSION = "0.5.1"
 CLIENT_PACKAGE_DIR = os.path.join("res_mods", WOT_VERSION, "scripts", "client")
 BUILD_DIR = os.path.join(os.getcwd(), "build")
 SRC_DIR = os.path.join(os.getcwd(), "src")
-PACKAGE_NAME = "TessuMod-{0}.zip".format(MOD_VERSION)
+PACKAGE_NAME = "tessumod-{0}-bin.zip".format(MOD_VERSION)
 SUPPORT_URL = "http://forum.worldoftanks.eu/index.php?/topic/433614-/"
+PLUGIN_INSTALLER_PATH = os.path.join(BUILD_DIR, "tessumod-plugin.ts3_plugin")
+PLUGIN_DEBUG_ARCHIVE_PATH = os.path.join(os.getcwd(), "tessumod-{0}-dbg.zip".format(MOD_VERSION))
 
 IN_FILES = {
 	"build_info.py.in": dict(
@@ -47,21 +49,23 @@ def process_in_file(source_dir, filename, params, destination_dir):
 		out_file.write(in_file.read().format(**params))
 	return out_path
 
-def create_ts_plugin_installer(output_path):
+def package_ts_plugin():
 	proc = subprocess.Popen([
 		"python",
 		os.path.join(os.getcwd(), "ts_plugin", "package.py"),
 		"--version=" + MOD_VERSION,
 		"--qtdir86=" + QTDIR_X86,
 		"--qtdir64=" + QTDIR_X64,
-		"--output=" + output_path
+		"--installerpath=" + PLUGIN_INSTALLER_PATH,
+		"--debugarchivepath=" + PLUGIN_DEBUG_ARCHIVE_PATH
 	], cwd=build_dir)
 	proc.communicate()
 	if proc.returncode != 0:
-		raise RuntimeError("TS plugin installer creation failed")
-	if not os.path.isfile(output_path):
-		raise RuntimeError("Created installer not found")
-	return output_path
+		raise RuntimeError("TS plugin packaging failed")
+	if not os.path.isfile(PLUGIN_INSTALLER_PATH):
+		raise RuntimeError("Plugin installer not found")
+	if not os.path.isfile(PLUGIN_DEBUG_ARCHIVE_PATH):
+		raise RuntimeError("Plugin debug archive not found")
 
 # compile .py files from src/ and output .pyc files to /build
 for root, dirs, files in os.walk(SRC_DIR):
@@ -91,7 +95,7 @@ if os.path.exists(PACKAGE_NAME):
 
 # create zip archive and compress TessuMod.txt and files from build/ to the archive
 fZip = zipfile.ZipFile(PACKAGE_NAME, "w")
-fZip.write(os.path.join(BUILD_DIR, "TessuMod.txt"), "TessuMod.txt")
+fZip.write(os.path.join(BUILD_DIR, "TessuMod.txt"), "tessumod.txt")
 for root, dirs, files in os.walk(BUILD_DIR):
 	source_dir = root
 	root2 = root[len(BUILD_DIR)+1:]
@@ -99,5 +103,8 @@ for root, dirs, files in os.walk(BUILD_DIR):
 
 	for filename in fnmatch.filter(files, "*.pyc"):
 		fZip.write(os.path.join(source_dir, filename), os.path.join(target_dir, filename))
-fZip.write(create_ts_plugin_installer(os.path.join(BUILD_DIR, "TessuModPlugin.ts3_plugin")), "TessuModPlugin.ts3_plugin")
+
+package_ts_plugin()
+
+fZip.write(PLUGIN_INSTALLER_PATH, os.path.basename(PLUGIN_INSTALLER_PATH))
 fZip.close()
