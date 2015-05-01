@@ -21,10 +21,11 @@
 #include "openalbackend.h"
 #include "../entities/vector.h"
 #include "../entities/enums.h"
-#include "../libs/oallibrary.h"
 #include "../utils/logging.h"
 #include "../utils/wavfile.h"
 #include "../utils/async.h"
+#include "../openal/openal.h"
+#include "../openal/structures.h"
 
 #include <AL/alext.h>
 
@@ -42,6 +43,8 @@ namespace
 QMutex mutex;
 
 const int AUDIO_FREQUENCY = 44100;
+const int SOURCE_ID_TEST = 1;
+const int SOURCE_ID_USER = 1000;
 
 QString getAppdataPath()
 {
@@ -74,121 +77,6 @@ public:
 	{
 	}
 
-	void enableAL()
-	{
-		if( oalContext )
-		{
-			return;
-		}
-		Log::info() << "Enabling OpenALBackend";
-		Log::info() << "OpenALBackend opens device: " << playbackDeviceName;
-		try
-		{
-			if( !oalLibrary )
-			{
-				oalLibrary = new OALLibrary();
-			}
-			auto device = oalLibrary->createDevice( playbackDeviceName );
-			oalContext = device->createContext( AUDIO_FREQUENCY, hrtfEnabled );
-		}
-		catch( ... )
-		{
-			disableAL();
-			throw;
-		}
-
-		oalContext->setListenerVelocity( 0, 0, 0 );
-		oalContext->setListenerGain( tsVolumeModifierToOALGain( playbackVolume ) );
-		updateCameraToAL();
-		foreach( quint16 id, userPositions.keys() )
-		{
-			updateUserToAL( id );
-		}
-	}
-
-	void disableAL()
-	{
-		Log::info() << "Disabling OpenALBackend";
-		userSources.clear();
-		delete oalLibrary;
-		oalContext = 0;
-	}
-
-	void updateUserToAL( quint16 id )
-	{
-		if( userPositions.contains( id ) )
-		{
-			Entity::Vector position = userPositions[id];
-			if( oalContext )
-			{
-				if( !userSources[id] )
-				{
-					userSources[id] = oalContext->createSource();
-					userSources[id]->setRelative( false );
-					userSources[id]->setRolloffFactor( 0 );
-				}
-				userSources[id]->setPosition( position.x, position.y, -position.z );
-			}
-		}
-		else if( userSources.contains( id ) )
-		{
-			delete userSources.take( id );
-		}
-	}
-
-	void updateCameraToAL()
-	{
-		if( oalContext )
-		{
-			oalContext->setListenerOrientation( cameraForward.x, cameraForward.y, -cameraForward.z, cameraUp.x, cameraUp.y, -cameraUp.z );
-			oalContext->setListenerPosition( cameraPosition.x, cameraPosition.y, -cameraPosition.z );
-		}
-	}
-
-	bool feedUserAudioToAL( quint16 id, const short *samples, int sampleCount, int channels )
-	{
-		if( !isEnabled )
-		{
-			return false;
-		}
-		if( !userSources.contains( id ) )
-		{
-			return false;
-		}
-		if( channels != 1 )
-		{
-			// accept only mono source audio
-			return false;
-		}
-
-		int sampleDataLength = sampleCount * channels * 2;
-
-		if( userSources[id] )
-		{
-			bool isPlaying = userSources[id]->isPlaying();
-			try
-			{
-				if( !isPlaying )
-				{
-					// delay start of playback a bit so that we don't starve the playback device
-					short silence[AUDIO_FREQUENCY / 10] = {}; // 0.1 seconds worth of silence
-					userSources[id]->queueAudioData( AL_FORMAT_MONO16, silence, sizeof( silence ), AUDIO_FREQUENCY );
-				}
-			}
-			catch( const OpenAL::Failure &error )
-			{
-				Log::warning() << "Failed to queue audio delay, reason: " << error.what();
-			}
-
-			userSources[id]->queueAudioData( AL_FORMAT_MONO16, samples, sampleDataLength, AUDIO_FREQUENCY );
-			if( !isPlaying )
-			{
-				userSources[id]->play();
-			}
-		}
-		return true;
-	}
-
 	void writeSilence( short *samples, int sampleCount, int channels )
 	{
 		// write silence back to teamspeak
@@ -196,80 +84,45 @@ public:
 		memset( samples, 0, sampleDataLength );
 	}
 
-	ALenum getALFormat( quint16 channels, quint16 samples ) const
+	Entity::Vector switchHandness( const Entity::Vector &vector ) const
 	{
-		switch( channels )
-		{
-		case 1:
-			switch( samples )
-			{
-			case 8:
-				return AL_MONO8_SOFT;
-			case 16:
-				return AL_MONO16_SOFT;
-			default:
-				throw OpenAL::Failure( "Unsupported bits per sample value" );
-			}
-
-		case 2:
-			switch( samples )
-			{
-			case 8:
-				return AL_STEREO8_SOFT;
-			case 16:
-				return AL_STEREO16_SOFT;
-			default:
-				throw OpenAL::Failure( "Unsupported bits per sample value" );
-			}
-
-		default:
-			throw OpenAL::Failure( "Unsupported channel count" );
-		}
+		Entity::Vector result = vector;
+		result.z = -result.z;
+		return result;
 	}
 
-	bool initialize()
+	OpenAL::OutputInfo getOutputInfo() const
 	{
-		try
-		{
-			if( isEnabled )
-			{
-				if( oalContext )
-				{
-					disableAL();
-				}
-				enableAL();
-			}
-			initNeeded = false;
-			return true;
-		}
-		catch( const OpenAL::Failure &error )
-		{
-			Log::warning() << "Failed to initialize OpenAL, reason: " << error.what();
-		}
-		return false;
+		return OpenAL::OutputInfo( playbackDeviceName, AUDIO_FREQUENCY, hrtfEnabled );
 	}
 
-	void initializeLater()
+	OpenAL::SourceInfo getUserSourceInfo( quint16 userId ) const
 	{
-		initNeeded = true;
-		callLater( [=]{
-			if( initNeeded )
-			{
-				initialize();
-			}
-		} );
+		return OpenAL::SourceInfo( getOutputInfo(), SOURCE_ID_USER + userId, switchHandness( userPositions[userId] ), 0, false, true );
+	}
+
+	OpenAL::SourceInfo getTestSourceInfo() const
+	{
+		return OpenAL::SourceInfo( getOutputInfo(), SOURCE_ID_TEST, switchHandness( testSourcePosition ), 0, true, false );
+	}
+
+	OpenAL::ListenerInfo getListenerInfo() const
+	{
+		return OpenAL::ListenerInfo( getOutputInfo(),
+										switchHandness( cameraForward ),
+										switchHandness( cameraUp ),
+										Entity::Vector(),
+										switchHandness( cameraPosition ),
+										tsVolumeModifierToOALGain( playbackVolume ) );
 	}
 
 public:
-	QPointer<OALLibrary> oalLibrary;
-	QPointer<OALContext> oalContext;
 	QMap<quint16, Entity::Vector> userPositions;
-	QMap<quint16, QPointer<OALSource>> userSources;
-	QPointer<OALSource> testSoundSource;
 	bool isEnabled;
 	Entity::Vector cameraPosition;
 	Entity::Vector cameraForward;
 	Entity::Vector cameraUp;
+	Entity::Vector testSourcePosition;
 	QString playbackDeviceName;
 	float playbackVolume;
 	bool hrtfEnabled;
@@ -284,7 +137,6 @@ OpenALBackend::OpenALBackend( QObject *parent )
 OpenALBackend::~OpenALBackend()
 {
 	Q_D( OpenALBackend );
-	d->disableAL();
 	delete d;
 }
 
@@ -293,22 +145,7 @@ void OpenALBackend::setEnabled( bool enabled )
 	Q_D( OpenALBackend );
 	QMutexLocker locker( &mutex );
 	Log::debug() << "OpenALBackend::setEnabled(" << enabled << "), state: " << d->isEnabled;
-	try
-	{
-		if( enabled )
-		{
-			d->initializeLater();
-		}
-		else
-		{
-			d->disableAL();
-		}
-		d->isEnabled = enabled;
-	}
-	catch( const OpenAL::Failure &error )
-	{
-		Log::error() << "Enabling/disabling OpenAL backend failed, reason: " << error.what();
-	}
+	d->isEnabled = enabled;
 }
 
 bool OpenALBackend::isEnabled() const
@@ -327,14 +164,6 @@ void OpenALBackend::removeUser( quint16 id )
 	{
 		d->userPositions.remove( id );
 	}
-	try
-	{
-		d->updateUserToAL( id );
-	}
-	catch( const OpenAL::Failure &error )
-	{
-		Log::error() << "Failed to remove user, reason: " << error.what();
-	}
 }
 
 void OpenALBackend::positionUser( quint16 id, const Entity::Vector &position )
@@ -343,14 +172,6 @@ void OpenALBackend::positionUser( quint16 id, const Entity::Vector &position )
 	QMutexLocker locker( &mutex );
 	//Log::debug() << "OpenALBackend::positionUser(" << id << ", " << position << ")";
 	d->userPositions[id] = position;
-	try
-	{
-		d->updateUserToAL( id );
-	}
-	catch( const OpenAL::Failure &error )
-	{
-		Log::error() << "Failed to position user, reason: " << error.what();
-	}
 }
 
 void OpenALBackend::positionCamera( const Entity::Vector &position, const Entity::Vector &forward, const Entity::Vector &up )
@@ -364,7 +185,7 @@ void OpenALBackend::positionCamera( const Entity::Vector &position, const Entity
 
 	try
 	{
-		d->updateCameraToAL();
+		OpenAL::updateListener( d->getListenerInfo() );
 	}
 	catch( const OpenAL::Failure &error )
 	{
@@ -378,7 +199,6 @@ void OpenALBackend::setPlaybackDeviceName( const QString &name )
 	QMutexLocker locker( &mutex );
 	Log::debug() << "OpenALBackend::setPlaybackDeviceName('" << name << "')";
 	d->playbackDeviceName = name;
-	d->initializeLater();
 }
 
 void OpenALBackend::setPlaybackVolume( float volume )
@@ -388,14 +208,9 @@ void OpenALBackend::setPlaybackVolume( float volume )
 	Log::debug() << "OpenALBackend::setPlaybackVolume(" << volume << ")";
 	d->playbackVolume = volume;
 
-	if( !d->oalContext )
-	{
-		return;
-	}
-
 	try
 	{
-		d->oalContext->setListenerGain( tsVolumeModifierToOALGain( volume ) );
+		OpenAL::updateListener( d->getListenerInfo() );
 	}
 	catch( const OpenAL::Failure &error )
 	{
@@ -406,16 +221,11 @@ void OpenALBackend::setPlaybackVolume( float volume )
 void OpenALBackend::setHrtfEnabled( bool enabled )
 {
 	Q_D( OpenALBackend );
-	if( d->hrtfEnabled != enabled )
-	{
-		d->hrtfEnabled = enabled;
-		d->initializeLater();
-	}
+	d->hrtfEnabled = enabled;
 }
 
 void OpenALBackend::setHrtfDataSet( const QString &name )
 {
-	Q_D( OpenALBackend );
 	Log::debug() << "OpenALBackend::setHrtfDataSet(): " << name;
 	QFile hrtfFile( getOALHRTFPath() + QDir::separator() + "default-44100.mhr" );
 	if( hrtfFile.exists() )
@@ -429,7 +239,15 @@ void OpenALBackend::setHrtfDataSet( const QString &name )
 					 << " to path '" << QDir::toNativeSeparators( hrtfFile.fileName() ) << "'";
 		return;
 	}
-	d->initializeLater();
+
+	try
+	{
+		OpenAL::reset();
+	}
+	catch( const OpenAL::Failure &error )
+	{
+		Log::error() << "Failed to reset OpenAL, reason: " << error.what();
+	}
 }
 
 QStringList OpenALBackend::getHrtfDataPaths() const
@@ -446,57 +264,53 @@ QStringList OpenALBackend::getHrtfDataPaths() const
 void OpenALBackend::playTestSound( const QString &filePath )
 {
 	Q_D( OpenALBackend );
-	if( d->initialize() )
+	try
 	{
-		try
+		WavFile file( filePath );
+		if( !file.open( WavFile::ReadOnly ) )
 		{
-			delete d->testSoundSource;
-			d->testSoundSource = d->oalContext->createSource();
-			d->testSoundSource->setRelative( true );
-			d->testSoundSource->setRolloffFactor( 0 );
-			d->testSoundSource->setLooping( true );
-
-			WavFile file( filePath );
-			if( !file.open( WavFile::ReadOnly ) )
-			{
-				Log::error() << "Failed to open test sound file, reason: " << file.errorString();
-				return;
-			}
-			QByteArray audioData = file.readAll();
-
-			d->testSoundSource->playbackAudioData( d->getALFormat( file.getChannels(), file.getBitsPerSample() ),
-												   audioData.data(),
-												   audioData.size(),
-												   file.getSampleRate() );
-			d->testSoundSource->play();
+			Log::error() << "Failed to open test sound file, reason: " << file.errorString();
+			return;
 		}
-		catch( const OpenAL::Failure &error )
-		{
-			Log::error() << "Failed to start test sound playback, reason: " << error.what();
-		}
+		QByteArray audioData = file.readAll();
+
+		OpenAL::playAudio( d->getTestSourceInfo(),
+						   OpenAL::AudioData(
+							   file.getChannels(), file.getBitsPerSample(),
+							   audioData.size(), file.getSampleRate(),
+							   audioData.data() ) );
+	}
+	catch( const OpenAL::Failure &error )
+	{
+		Log::error() << "Failed to start test sound playback, reason: " << error.what();
 	}
 }
 
 void OpenALBackend::positionTestSound( const Entity::Vector &position )
 {
 	Q_D( OpenALBackend );
-	if( d->testSoundSource )
+	d->testSourcePosition = position;
+	try
 	{
-		try
-		{
-			d->testSoundSource->setPosition( position.x, position.y, -position.z );
-		}
-		catch( const OpenAL::Failure &error )
-		{
-			Log::error() << "Failed to position test sound, reason: " << error.what();
-		}
+		OpenAL::updateSource( d->getTestSourceInfo() );
+	}
+	catch( const OpenAL::Failure &error )
+	{
+		Log::error() << "Failed to position test sound, reason: " << error.what();
 	}
 }
 
 void OpenALBackend::stopTestSound()
 {
 	Q_D( OpenALBackend );
-	delete d->testSoundSource;
+	try
+	{
+		OpenAL::stopAudio( d->getTestSourceInfo() );
+	}
+	catch( const OpenAL::Failure &error )
+	{
+		Log::error() << "Failed to stop test sound, reason: " << error.what();
+	}
 }
 
 void OpenALBackend::onEditPlaybackVoiceDataEvent( quint16 id, short *samples, int sampleCount, int channels )
@@ -507,10 +321,14 @@ void OpenALBackend::onEditPlaybackVoiceDataEvent( quint16 id, short *samples, in
 	{
 		try
 		{
-			if( d->feedUserAudioToAL( id, samples, sampleCount, channels ) )
-			{
-				d->writeSilence( samples, sampleCount, channels );
-			}
+			OpenAL::playAudio( d->getUserSourceInfo( id ),
+							   OpenAL::AudioData(
+								   channels,
+								   sizeof(short) * 8,
+								   channels * sampleCount * sizeof(short),
+								   48000,
+								   samples ) );
+			d->writeSilence( samples, sampleCount, channels );
 		}
 		catch( const OpenAL::Failure &error )
 		{

@@ -1,6 +1,6 @@
 /*
  * TessuMod: Mod for integrating TeamSpeak into World of Tanks
- * Copyright (C) 2014  Janne Hakonen
+ * Copyright (C) 2015  Janne Hakonen
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -18,13 +18,12 @@
  * USA
  */
 
-#include "openal.h"
+#include "proxies.h"
+#include "structures.h"
 #include "../utils/logging.h"
 
 #include <Windows.h>
 #include <iostream>
-#include <QMutex>
-#include <QMutexLocker>
 
 namespace
 {
@@ -59,7 +58,6 @@ LPALCGETERROR            g_alcGetError;
 LPALCGETSTRING           g_alcGetString;
 
 HMODULE g_openALLib = NULL;
-QAtomicInt g_libRefCount = 0;
 
 template <typename TFunction>
 TFunction resolveSymbol( const char *symbol )
@@ -67,7 +65,7 @@ TFunction resolveSymbol( const char *symbol )
 	TFunction result = (TFunction) GetProcAddress( g_openALLib, symbol );
 	if( !result )
 	{
-		throw OpenAL::LibLoadFailure( "Failed to load OpenAL library, reason: " + getWin32ErrorMessage() );
+		throw OpenAL::Failure( "Failed to load OpenAL library, reason: " + getWin32ErrorMessage() );
 	}
 	return result;
 }
@@ -76,7 +74,7 @@ inline void throwIfNotLoaded()
 {
 	if( !g_openALLib )
 	{
-		throw OpenAL::LibNotLoadedFailure();
+		throw OpenAL::Failure( "OpenAL library not loaded" );
 	}
 }
 
@@ -97,19 +95,19 @@ QString getWin32ErrorMessage()
 
 void testForALError( const char *funcName )
 {
-	ALenum err = OpenAL::alGetError();
+	ALenum err = OpenAL::Proxies::alGetError();
 	if( err != AL_NO_ERROR )
 	{
-		throw OpenAL::Failure( QString( "%1() failed, err=%2, text=%3" ).arg( funcName ).arg( err ).arg( OpenAL::alGetString( err ) ) );
+		throw OpenAL::Failure( QString( "%1() failed, err=%2, text=%3" ).arg( funcName ).arg( err ).arg( OpenAL::Proxies::alGetString( err ) ) );
 	}
 }
 
 void testForALCError( ALCdevice *device, const char *funcName )
 {
-	ALCenum err = OpenAL::alcGetError( device );
+	ALCenum err = OpenAL::Proxies::alcGetError( device );
 	if( err != ALC_NO_ERROR )
 	{
-		throw OpenAL::Failure( QString( "%1() failed, err=%2, text=%3" ).arg( funcName ).arg( err ).arg( OpenAL::alcGetString( device, err ) ) );
+		throw OpenAL::Failure( QString( "%1() failed, err=%2, text=%3" ).arg( funcName ).arg( err ).arg( OpenAL::Proxies::alcGetString( device, err ) ) );
 	}
 }
 
@@ -118,9 +116,11 @@ void testForALCError( ALCdevice *device, const char *funcName )
 namespace OpenAL
 {
 
+namespace Proxies
+{
+
 void loadLib()
 {
-	g_libRefCount.ref();
 	if( !g_openALLib )
 	{
 		Log::info() << "Loading OpenAL library";
@@ -132,7 +132,7 @@ void loadLib()
 		g_openALLib = LoadLibraryEx( (wchar_t*)libName.utf16(), NULL, LOAD_LIBRARY_SEARCH_DEFAULT_DIRS );
 		if( !g_openALLib )
 		{
-			throw OpenAL::LibLoadFailure( "Failed to load OpenAL library, reason: " + getWin32ErrorMessage() );
+			throw OpenAL::Failure( "Failed to load OpenAL library, reason: " + getWin32ErrorMessage() );
 		}
 
 		g_alBufferData           = resolveSymbol<LPALBUFFERDATA>( "alBufferData" );
@@ -167,21 +167,15 @@ void loadLib()
 
 void unloadLib()
 {
-	if( g_openALLib && !g_libRefCount.deref() )
+	if( g_openALLib )
 	{
 		Log::info() << "Unloading OpenAL library";
 		if( FreeLibrary( g_openALLib ) == FALSE )
 		{
-			throw OpenAL::LibLoadFailure( "Failed to unload OpenAL library, reason: " + getWin32ErrorMessage() );
+			throw OpenAL::Failure( "Failed to unload OpenAL library, reason: " + getWin32ErrorMessage() );
 		}
 		g_openALLib = NULL;
 	}
-}
-
-void reloadLib()
-{
-	unloadLib();
-	loadLib();
 }
 
 const ALchar *alGetString( ALenum param )
@@ -364,6 +358,8 @@ const ALCchar *alcGetString( ALCdevice *device, ALCenum param )
 {
 	throwIfNotLoaded();
 	return g_alcGetString( device, param );
+}
+
 }
 
 }

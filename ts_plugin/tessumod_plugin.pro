@@ -47,13 +47,15 @@ SOURCES += \
     src/drivers/wotconnector.cpp \
     src/adapters/uiadapter.cpp \
     src/main.cpp \
-    src/libs/openal.cpp \
     src/utils/logging.cpp \
-    src/libs/oallibrary.cpp \
     src/utils/positionrotator.cpp \
     src/utils/wavfile.cpp \
 	src/utils/async.cpp \
-    src/entities/failures.cpp
+    src/entities/failures.cpp \
+	src/openal/proxies.cpp \
+	src/openal/openal.cpp \
+    src/openal/structures.cpp \
+    src/openal/privateimpl.cpp
 
 HEADERS +=\
     src/ui/settingsdialog.h \
@@ -80,13 +82,15 @@ HEADERS +=\
     src/drivers/wotconnector.h \
     src/adapters/uiadapter.h \
     src/entities/enums.h \
-    src/libs/openal.h \
     src/utils/logging.h \
-    src/libs/oallibrary.h \
     src/utils/positionrotator.h \
     src/utils/wavfile.h \
 	src/utils/async.h \
-	src/entities/failures.h
+	src/entities/failures.h \
+	src/openal/proxies.h \
+	src/openal/openal.h \
+    src/openal/structures.h \
+    src/openal/privateimpl.h
 
 RESOURCES += \
 	resources.qrc

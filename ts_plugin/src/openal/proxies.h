@@ -1,6 +1,6 @@
 /*
  * TessuMod: Mod for integrating TeamSpeak into World of Tanks
- * Copyright (C) 2014  Janne Hakonen
+ * Copyright (C) 2015  Janne Hakonen
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -18,6 +18,23 @@
  * USA
  */
 
+/**
+ * @file
+ *
+ * This header defines compile time linking to runtime loaded OpenAL library.
+ *
+ * Use loadLib() and unloadLib() to (un)load OpenAL library on runtime.
+ *
+ * Other functions wrap OpenAL's functions. They throw a failure exception if
+ * the library hasn't been loaded yet.
+ * In case the actual function call fails (alGetError() or alcGetError() return
+ * an error after call) the proxy functions convert the fail into an exception
+ * which is thrown back to caller.
+ *
+ * For rest of the documentation of al- and alc- prefixed function, see
+ * OpenAL's reference documentation.
+ */
+
 #pragma once
 
 #include <AL/al.h>
@@ -29,14 +46,14 @@
 #define ALC_HRTF_SOFT 0x1992
 #endif
 
-class QMutex;
-
 namespace OpenAL
+{
+
+namespace Proxies
 {
 
 void loadLib();
 void unloadLib();
-void reloadLib();
 
 const ALchar* alGetString( ALenum param );
 ALenum alGetError();
@@ -67,38 +84,6 @@ void alcGetIntegerv( ALCdevice *device, ALCenum param, ALCsizei size, ALCint *va
 ALCenum alcGetError( ALCdevice *device );
 const ALCchar* alcGetString( ALCdevice *device, ALCenum param );
 
-class Failure
-{
-public:
-	Failure( const QString &error )
-		: error( error )
-	{
-	}
-
-	QString what() const
-	{
-		return error;
-	}
-private:
-	QString error;
-};
-
-class LibLoadFailure : public Failure
-{
-public:
-	LibLoadFailure( const QString &error )
-		: Failure( error )
-	{
-	}
-};
-
-class LibNotLoadedFailure : public Failure
-{
-public:
-	LibNotLoadedFailure()
-		: Failure( "OpenAL library not loaded" )
-	{
-	}
-};
+}
 
 }
