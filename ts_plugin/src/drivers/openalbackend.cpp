@@ -41,7 +41,8 @@ namespace
 {
 QMutex mutex;
 
-const int AUDIO_FREQUENCY = 44100;
+const int IN_AUDIO_FREQUENCY = 48000;
+const int OUT_AUDIO_FREQUENCY = 44100;
 
 QString getAppdataPath()
 {
@@ -89,7 +90,7 @@ public:
 				oalLibrary = new OALLibrary();
 			}
 			auto device = oalLibrary->createDevice( playbackDeviceName );
-			oalContext = device->createContext( AUDIO_FREQUENCY, hrtfEnabled );
+			oalContext = device->createContext( OUT_AUDIO_FREQUENCY, hrtfEnabled );
 		}
 		catch( ... )
 		{
@@ -171,8 +172,8 @@ public:
 				if( !isPlaying )
 				{
 					// delay start of playback a bit so that we don't starve the playback device
-					short silence[AUDIO_FREQUENCY / 10] = {}; // 0.1 seconds worth of silence
-					userSources[id]->queueAudioData( AL_FORMAT_MONO16, silence, sizeof( silence ), AUDIO_FREQUENCY );
+					short silence[IN_AUDIO_FREQUENCY / 10] = {}; // 0.1 seconds worth of silence
+					userSources[id]->queueAudioData( AL_FORMAT_MONO16, silence, sizeof( silence ), IN_AUDIO_FREQUENCY );
 				}
 			}
 			catch( const OpenAL::Failure &error )
@@ -180,7 +181,7 @@ public:
 				Log::warning() << "Failed to queue audio delay, reason: " << error.what();
 			}
 
-			userSources[id]->queueAudioData( AL_FORMAT_MONO16, samples, sampleDataLength, AUDIO_FREQUENCY );
+			userSources[id]->queueAudioData( AL_FORMAT_MONO16, samples, sampleDataLength, IN_AUDIO_FREQUENCY );
 			if( !isPlaying )
 			{
 				userSources[id]->play();
