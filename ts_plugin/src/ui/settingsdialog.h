@@ -23,6 +23,9 @@
 #include <QDialog>
 #include "../entities/enums.h"
 
+class QStandardItemModel;
+class QAbstractButton;
+
 namespace Ui {
 class SettingsDialog;
 }
@@ -60,13 +63,27 @@ public:
 
 private slots:
 	void on_testButton_clicked();
-
 	void on_openALRadioButton_toggled(bool checked);
+	void on_builtinAudioRadioButton_toggled();
+	void on_enableHrtfCheckBox_toggled();
+	void on_positionalAudioCheckBox_toggled();
+	void on_buttonBox_clicked( QAbstractButton *button );
+	void onHrtfSelectionChanged();
 
 signals:
 	void applied();
 	void testButtonClicked();
 
 private:
+	bool areSettingsUnapplied() const;
+	void enableApplyButton( bool enabled );
+
+private:
 	Ui::SettingsDialog *ui;
+	QStandardItemModel *hrtfDataSetsModel;
+	int audioBackend;
+	bool positionalAudioEnabled;
+	bool hrtfEnabled;
+	bool loggingEnabled;
+	QString hrtfDataSet;
 };

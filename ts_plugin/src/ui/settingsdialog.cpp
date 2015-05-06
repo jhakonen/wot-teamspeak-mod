@@ -35,10 +35,14 @@ SettingsDialog::SettingsDialog( QWidget *parent )
 	: QDialog( parent ), ui( new Ui::SettingsDialog )
 {
 	ui->setupUi( this );
-	connect( ui->buttonBox->button( QDialogButtonBox::Apply ), SIGNAL(clicked()),
-			 this, SIGNAL(applied()) );
-	connect( ui->buttonBox->button( QDialogButtonBox::Ok ), SIGNAL(clicked()),
-			 this, SIGNAL(applied()) );
+	hrtfDataSetsModel = new QStandardItemModel( this );
+	QSortFilterProxyModel *sortProxy = new QSortFilterProxyModel( this );
+	sortProxy->setSourceModel( hrtfDataSetsModel );
+	sortProxy->setSortRole( Qt::UserRole + 1 );
+	sortProxy->sort( 0, Qt::AscendingOrder );
+	ui->hrtfDataSetListView->setModel( sortProxy );
+	connect( ui->hrtfDataSetListView->selectionModel(), SIGNAL(currentChanged(QModelIndex, QModelIndex)),
+			 this, SLOT(onHrtfSelectionChanged()) );
 }
 
 SettingsDialog::~SettingsDialog()
@@ -54,6 +58,8 @@ bool SettingsDialog::getPositionalAudioEnabled() const
 void SettingsDialog::setPositionalAudioEnabled( bool enabled )
 {
 	ui->positionalAudioCheckBox->setChecked( enabled );
+	positionalAudioEnabled = enabled;
+	enableApplyButton( areSettingsUnapplied() );
 }
 
 int SettingsDialog::getAudioBackend() const
@@ -80,6 +86,8 @@ void SettingsDialog::setAudioBackend( int backend )
 		ui->builtinAudioRadioButton->setChecked( true );
 		break;
 	}
+	audioBackend = backend;
+	enableApplyButton( areSettingsUnapplied() );
 }
 
 Entity::RotateMode SettingsDialog::getRotateMode() const
@@ -104,6 +112,8 @@ bool SettingsDialog::isHrtfEnabled() const
 void SettingsDialog::setHrtfEnabled( bool enabled )
 {
 	ui->enableHrtfCheckBox->setChecked( enabled );
+	hrtfEnabled = enabled;
+	enableApplyButton( areSettingsUnapplied() );
 }
 
 QString SettingsDialog::getHrtfDataSet() const
@@ -127,6 +137,8 @@ void SettingsDialog::setHrtfDataSet( const QString &name )
 	}
 	ui->hrtfDataSetListView->selectionModel()->setCurrentIndex(
 				matches[0], QItemSelectionModel::SelectCurrent );
+	hrtfDataSet = name;
+	enableApplyButton( areSettingsUnapplied() );
 }
 
 bool SettingsDialog::isLoggingEnabled() const
@@ -137,6 +149,8 @@ bool SettingsDialog::isLoggingEnabled() const
 void SettingsDialog::setLoggingEnabled( bool enabled )
 {
 	ui->enableLoggingCheckBox->setChecked( enabled );
+	loggingEnabled = enabled;
+	enableApplyButton( areSettingsUnapplied() );
 }
 
 void SettingsDialog::showTestAudioError( const QString &error )
@@ -154,7 +168,7 @@ void SettingsDialog::setTestButtonEnabled( bool enabled )
 void SettingsDialog::setHrtfDataPaths( const QStringList &paths )
 {
 	Log::debug() << "SettingsDialog::setHrtfDataPaths()";
-	QStandardItemModel *model = new QStandardItemModel( this );
+	hrtfDataSetsModel->clear();
 	foreach( QString path, paths )
 	{
 		QString name = QFileInfo( path )
@@ -181,13 +195,9 @@ void SettingsDialog::setHrtfDataPaths( const QStringList &paths )
 		QStandardItem *item = new QStandardItem( name );
 		item->setData( path, Qt::UserRole );
 		item->setData( sortValue, Qt::UserRole + 1 );
-		model->appendRow( item );
+		hrtfDataSetsModel->appendRow( item );
 	}
-	QSortFilterProxyModel *sortProxy = new QSortFilterProxyModel( this );
-	sortProxy->setSourceModel( model );
-	sortProxy->setSortRole( Qt::UserRole + 1 );
-	sortProxy->sort( 0, Qt::AscendingOrder );
-	ui->hrtfDataSetListView->setModel( sortProxy );
+	enableApplyButton( areSettingsUnapplied() );
 }
 
 void SettingsDialog::on_testButton_clicked()
@@ -198,4 +208,56 @@ void SettingsDialog::on_testButton_clicked()
 void SettingsDialog::on_openALRadioButton_toggled( bool checked )
 {
 	ui->openALGroupBox->setEnabled( checked );
+	enableApplyButton( areSettingsUnapplied() );
+}
+
+void SettingsDialog::on_builtinAudioRadioButton_toggled()
+{
+	enableApplyButton( areSettingsUnapplied() );
+}
+
+void SettingsDialog::on_enableHrtfCheckBox_toggled()
+{
+	enableApplyButton( areSettingsUnapplied() );
+}
+
+void SettingsDialog::on_positionalAudioCheckBox_toggled()
+{
+	enableApplyButton( areSettingsUnapplied() );
+}
+
+void SettingsDialog::onHrtfSelectionChanged()
+{
+	enableApplyButton( areSettingsUnapplied() );
+}
+
+bool SettingsDialog::areSettingsUnapplied() const
+{
+	return !(
+		getPositionalAudioEnabled() == positionalAudioEnabled &&
+		getAudioBackend() == audioBackend &&
+		isHrtfEnabled() == hrtfEnabled &&
+		getHrtfDataSet() == hrtfDataSet &&
+		isLoggingEnabled() == loggingEnabled
+	);
+}
+
+void SettingsDialog::enableApplyButton( bool enabled )
+{
+	ui->buttonBox->button( QDialogButtonBox::Apply )->setEnabled( enabled );
+}
+
+void SettingsDialog::on_buttonBox_clicked( QAbstractButton *button )
+{
+	if( button == ui->buttonBox->button( QDialogButtonBox::Apply ) ||
+		button == ui->buttonBox->button( QDialogButtonBox::Ok ) )
+	{
+		emit applied();
+		positionalAudioEnabled = getPositionalAudioEnabled();
+		audioBackend = getAudioBackend();
+		hrtfEnabled = isHrtfEnabled();
+		hrtfDataSet = getHrtfDataSet();
+		loggingEnabled = isLoggingEnabled();
+		enableApplyButton( areSettingsUnapplied() );
+	}
 }
