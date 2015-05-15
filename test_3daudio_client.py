@@ -23,6 +23,8 @@ def create_random_position(multiplier):
 def pack_float_vector(vector):
 	return struct.pack("3f", float(vector[0]), float(vector[1]), float(vector[2]))
 
+shmem = None
+
 try:
 	shmem = mmap.mmap(0, 1024, "TessuModTSPlugin3dAudio", mmap.ACCESS_WRITE)
 	version = struct.unpack("H", shmem.read(2))[0]
