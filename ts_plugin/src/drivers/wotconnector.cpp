@@ -94,11 +94,10 @@ private:
 struct PositionalAudioData
 {
 	PositionalAudioData()
-		: version( 0 ), timestamp( 0 )
+		: timestamp( 0 )
 	{
 	}
 
-	quint16 version;
 	quint32 timestamp;
 	Entity::Vector cameraPosition;
 	Entity::Vector cameraDirection;
@@ -120,8 +119,7 @@ QDataStream& operator>>( QDataStream &stream, PositionalAudioData& data )
 	quint16 id;
 	Entity::Vector position;
 	quint8 clientCount;
-	stream >> data.version
-		   >> data.timestamp
+	stream >> data.timestamp
 		   >> data.cameraPosition
 		   >> data.cameraDirection
 		   >> clientCount;
@@ -142,24 +140,12 @@ class WotConnectorPrivate
 {
 public:
 	WotConnectorPrivate( WotConnector *q )
-		: timer( new QTimer( q ) ), memory( new QSharedMemory( q ) )
+		: memoryConnectTimer( new QTimer( q ) ), readMemoryTimer( new QTimer( q ) ), memory( new QSharedMemory( q ) )
 	{
 	}
 
-	bool connectToSharedMemory()
-	{
-		if ( memory->create( 1024 ) == false )
-		{
-			if ( memory->error() == QSharedMemory::AlreadyExists )
-			{
-				return memory->attach();
-			}
-			return false;
-		}
-		return true;
-	}
-
-	QTimer* timer;
+	QTimer* memoryConnectTimer;
+	QTimer* readMemoryTimer;
 	QSharedMemory* memory;
 	MemoryAreaBuffer* memoryBuffer;
 	PositionalAudioData previousData;
@@ -169,49 +155,22 @@ WotConnector::WotConnector( QObject *parent )
 	: QObject( parent ), d_ptr( new WotConnectorPrivate( this ) )
 {
 	Q_D( WotConnector );
-	connect( d->timer, SIGNAL(timeout()), this, SLOT(onTimeout()) );
-	d->timer->setInterval( 100 );
-	d->timer->setSingleShot( false );
+	connect( d->memoryConnectTimer, SIGNAL(timeout()), this, SLOT(connectToMemory()) );
+	d->memoryConnectTimer->setInterval( 5000 );
+	d->memoryConnectTimer->setSingleShot( false );
+	d->memoryConnectTimer->start();
+	connect( d->readMemoryTimer, SIGNAL(timeout()), this, SLOT(readMemory()) );
+	d->readMemoryTimer->setInterval( 100 );
+	d->readMemoryTimer->setSingleShot( false );
 	d->memory->setNativeKey( "TessuModTSPlugin3dAudio" );
 }
 
 WotConnector::~WotConnector()
 {
 	Q_D( WotConnector );
-	stop();
+	d->memoryConnectTimer->stop();
+	d->readMemoryTimer->stop();
 	delete d;
-}
-
-void WotConnector::initialize()
-{
-	start();
-}
-
-void WotConnector::start()
-{
-	Q_D( WotConnector );
-	d->timer->start();
-	if ( d->connectToSharedMemory() == false )
-	{
-		Log::error() << "Failed to connect to shared memory, reason: " << d->memory->errorString();
-		stop();
-		return;
-	}
-	d->memoryBuffer = new MemoryAreaBuffer( this );
-	d->memoryBuffer->setMemoryArea( d->memory->data(), d->memory->size() );
-	if ( d->memoryBuffer->open( QIODevice::ReadWrite ) == false )
-	{
-		Log::error() << "Failed to open buffer";
-		return;
-	}
-	MyDataStream stream( d->memoryBuffer );
-	stream << (quint16) 1; // version
-}
-
-void WotConnector::stop()
-{
-	Q_D( WotConnector );
-	d->timer->stop();
 }
 
 QObject *WotConnector::qtObj()
@@ -219,7 +178,29 @@ QObject *WotConnector::qtObj()
 	return this;
 }
 
-void WotConnector::onTimeout()
+void WotConnector::connectToMemory()
+{
+	Q_D( WotConnector );
+	if ( d->memory->attach( QSharedMemory::ReadOnly ) == false )
+	{
+		if ( d->memory->error() != QSharedMemory::NotFound )
+		{
+			Log::error() << "Failed to connect to shared memory, reason: " << d->memory->errorString();
+		}
+		return;
+	}
+	d->memoryBuffer = new MemoryAreaBuffer( this );
+	d->memoryBuffer->setMemoryArea( d->memory->data(), d->memory->size() );
+	if ( d->memoryBuffer->open( QIODevice::ReadOnly ) == false )
+	{
+		Log::error() << "Failed to open buffer";
+		return;
+	}
+	d->memoryConnectTimer->stop();
+	d->readMemoryTimer->start();
+}
+
+void WotConnector::readMemory()
 {
 	Q_D( WotConnector );
 	d->memoryBuffer->seek( 0 );

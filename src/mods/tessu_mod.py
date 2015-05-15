@@ -106,27 +106,6 @@ def on_connected_to_ts3():
 	'''
 	LOG_NOTE("Connected to TeamSpeak client")
 
-	import mmap, struct, time
-	TAG_NAME = "TessuModTSPlugin3dAudio"
-	MAX_SUPPORTED_VERSION = 1
-
-	plugin_connected = False
-	mod_out_of_date  = False
-	try:
-		shmem = mmap.mmap(0, 2, TAG_NAME, mmap.ACCESS_READ)
-		version = struct.unpack("H", shmem.read(2))[0]
-		plugin_connected = version != 0
-		mod_out_of_date  = version > MAX_SUPPORTED_VERSION
-	finally:
-		if shmem:
-			shmem.close()
-
-	utils.push_system_message("Connected to TeamSpeak client", SystemMessages.SM_TYPE.Information)
-	if not plugin_connected:
-		utils.push_system_message("TessuMod TS plugin is not installed, 3D audio is disabled", SystemMessages.SM_TYPE.Warning)
-	elif mod_out_of_date:
-		utils.push_system_message("TessuMod is out of date, 3D audio is disabled", SystemMessages.SM_TYPE.Warning)
-
 def on_disconnected_from_ts3():
 	'''Called when TessuMod loses connection to TeamSpeak client.'''
 	LOG_NOTE("Disconnected from TeamSpeak client")

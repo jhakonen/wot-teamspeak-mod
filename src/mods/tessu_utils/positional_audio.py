@@ -127,14 +127,11 @@ class PositionalAudio(object):
 			self._camera_direction = camera.direction
 
 			self._shared_memory.seek(0)
-			data = _DataVersion()
-			data.deserialize(self._shared_memory)
-			if data.version == 1:
-				data = _DataV1()
-				data.camera_position = camera.position
-				data.camera_direction = camera.direction
-				data.client_positions = self._get_data_entries()
-				data.serialize(self._shared_memory)
+			data = _DataV1()
+			data.camera_position = camera.position
+			data.camera_direction = camera.direction
+			data.client_positions = self._get_data_entries()
+			data.serialize(self._shared_memory)
 
 	def _get_data_entries(self):
 		entries = []
@@ -162,14 +159,6 @@ class PositionalAudio(object):
 		if not camera:
 			return False
 		return self._camera_position != camera.position or self._camera_direction != camera.direction
-
-class _DataVersion(object):
-
-	def __init__(self):
-		self.version = 0
-
-	def deserialize(self, source):
-		self.version = struct.unpack("H", source.read(2))[0]
 
 class _DataV1(object):
 

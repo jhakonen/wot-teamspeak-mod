@@ -77,7 +77,6 @@ void pluginInit( QObject *parent )
 	teamSpeakPlugin->setAudioSink( openALBackend );
 
 	teamSpeakPlugin->initialize();
-	wotConnector->initialize();
 	useCaseFactory->applicationInitialize();
 }
 

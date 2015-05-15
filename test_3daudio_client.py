@@ -27,13 +27,10 @@ shmem = None
 
 try:
 	shmem = mmap.mmap(0, 1024, "TessuModTSPlugin3dAudio", mmap.ACCESS_WRITE)
-	version = struct.unpack("H", shmem.read(2))[0]
-	print "VERSION:", version
-	start_pos = shmem.tell()
 	angle = 0
 
 	while True:
-		shmem.seek(start_pos)
+		shmem.seek(0)
 
 		data = []
 		#data.append(pack_float_vector(create_random_position(1000)))

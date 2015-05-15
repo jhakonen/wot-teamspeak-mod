@@ -21,8 +21,7 @@ try:
 		os.system("cls")
 
 		shmem.seek(0)
-		version, timestamp, camera_pos_x, camera_pos_y, camera_pos_z, camera_dir_x, camera_dir_y, camera_dir_z, client_count = struct.unpack("=HI3f3fB", shmem.read(2+4+3*4+3*4+1))
-		print "         VERSION:", version
+		timestamp, camera_pos_x, camera_pos_y, camera_pos_z, camera_dir_x, camera_dir_y, camera_dir_z, client_count = struct.unpack("=I3f3fB", shmem.read(4+3*4+3*4+1))
 		print "            TIME:", pretty_timestamp(timestamp)
 		print " CAMERA POSITION:", (pretty_float(camera_pos_x), pretty_float(camera_pos_y), pretty_float(camera_pos_z))
 		print "CAMERA DIRECTION:", (pretty_float(camera_dir_x), pretty_float(camera_dir_y), pretty_float(camera_dir_z))

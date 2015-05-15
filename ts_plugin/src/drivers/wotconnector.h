@@ -43,11 +43,6 @@ public:
 	WotConnector( QObject *parent );
 	~WotConnector();
 
-	void initialize();
-
-	void start();
-	void stop();
-
 	// from Interfaces::GameDataDriver
 	QObject *qtObj();
 
@@ -59,7 +54,8 @@ signals:
 	void gameCameraDirectionChanged( const Entity::Vector &direction );
 
 private slots:
-	void onTimeout();
+	void connectToMemory();
+	void readMemory();
 
 private:
 	WotConnectorPrivate *const d_ptr;
