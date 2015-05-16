@@ -32,8 +32,8 @@
 #include "drivers/openalbackend.h"
 #include "drivers/wotconnector.h"
 
-#include <QObject>
 #include <QDir>
+#include <QTimer>
 #include <Windows.h>
 
 static DLL_DIRECTORY_COOKIE dllSearchCookie;
@@ -76,8 +76,15 @@ void pluginInit( QObject *parent )
 
 	teamSpeakPlugin->setAudioSink( openALBackend );
 
-	teamSpeakPlugin->initialize();
-	useCaseFactory->applicationInitialize();
+	QTimer *setupTimer = new QTimer( parent );
+	setupTimer->setSingleShot( true );
+	setupTimer->setInterval( 0 );
+	setupTimer->start();
+
+	QObject::connect( setupTimer, &QTimer::timeout, [=] {
+		teamSpeakPlugin->initialize();
+		useCaseFactory->applicationInitialize();
+	} );
 }
 
 void pluginShutdown()
