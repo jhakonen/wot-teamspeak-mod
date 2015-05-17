@@ -43,10 +43,10 @@ enum Severity
 	Error
 };
 
-Stream debug();
-Stream info();
-Stream warning();
-Stream error();
+Stream debug( const char *channel = "TessuMod Plugin" );
+Stream info( const char *channel = "TessuMod Plugin" );
+Stream warning( const char *channel = "TessuMod Plugin" );
+Stream error( const char *channel = "TessuMod Plugin" );
 
 void setSink( Sink *sink );
 
@@ -56,7 +56,7 @@ class Sink
 {
 public:
 	virtual ~Sink() {}
-	virtual void logMessage( const QString &message, Severity severity ) = 0;
+	virtual void logMessage( const QString &message, const char *channel, Severity severity ) = 0;
 };
 
 class FileLogger : public Sink
@@ -65,7 +65,7 @@ public:
 	FileLogger( const QString &filepath );
 	~FileLogger();
 
-	void logMessage( const QString &message, Severity severity );
+	void logMessage( const QString &message, const char *channel, Severity severity );
 
 private:
 	QFile *logFile;
@@ -75,6 +75,7 @@ class Stream
 {
 public:
 	~Stream();
+	const char *channel;
 	QString message;
 	Severity severity;
 };

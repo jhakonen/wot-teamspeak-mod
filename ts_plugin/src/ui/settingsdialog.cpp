@@ -141,15 +141,15 @@ void SettingsDialog::setHrtfDataSet( const QString &name )
 	enableApplyButton( areSettingsUnapplied() );
 }
 
-bool SettingsDialog::isLoggingEnabled() const
+int SettingsDialog::getLoggingLevel() const
 {
-	return ui->enableLoggingCheckBox->isChecked();
+	return ui->loggingLevelComboBox->currentIndex();
 }
 
-void SettingsDialog::setLoggingEnabled( bool enabled )
+void SettingsDialog::setLoggingLevel( int level )
 {
-	ui->enableLoggingCheckBox->setChecked( enabled );
-	loggingEnabled = enabled;
+	ui->loggingLevelComboBox->setCurrentIndex( level );
+	loggingLevel = level;
 	enableApplyButton( areSettingsUnapplied() );
 }
 
@@ -238,7 +238,7 @@ bool SettingsDialog::areSettingsUnapplied() const
 		getAudioBackend() == audioBackend &&
 		isHrtfEnabled() == hrtfEnabled &&
 		getHrtfDataSet() == hrtfDataSet &&
-		isLoggingEnabled() == loggingEnabled
+		getLoggingLevel() == loggingLevel
 	);
 }
 
@@ -257,7 +257,13 @@ void SettingsDialog::on_buttonBox_clicked( QAbstractButton *button )
 		audioBackend = getAudioBackend();
 		hrtfEnabled = isHrtfEnabled();
 		hrtfDataSet = getHrtfDataSet();
-		loggingEnabled = isLoggingEnabled();
+		loggingLevel = getLoggingLevel();
 		enableApplyButton( areSettingsUnapplied() );
 	}
+}
+
+void SettingsDialog::on_loggingLevelComboBox_currentIndexChanged( int index )
+{
+	Q_UNUSED( index );
+	enableApplyButton( areSettingsUnapplied() );
 }

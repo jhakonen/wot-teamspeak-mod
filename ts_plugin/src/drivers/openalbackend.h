@@ -45,6 +45,7 @@ public:
 	void setPlaybackVolume( float volume );
 	void setHrtfEnabled( bool enabled );
 	void setHrtfDataSet( const QString &name );
+	void setLoggingLevel( int level );
 	QStringList getHrtfDataPaths() const;
 	void playTestSound( const QString &filePath );
 	void positionTestSound( const Entity::Vector &position );

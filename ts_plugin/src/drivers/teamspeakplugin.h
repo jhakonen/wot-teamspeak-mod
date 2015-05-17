@@ -40,7 +40,7 @@ public:
 	static TeamSpeakPlugin *singleton();
 
 	// from Log::Sink
-	void logMessage( const QString &message, Log::Severity severity );
+	void logMessage( const QString &message, const char *channel, Log::Severity severity );
 
 	// from Interfaces::VoiceChatDriver
 	quint16 getMyUserId() const;
@@ -104,6 +104,7 @@ public:
 	void setPlaybackVolume( float /*volume*/ ) {}
 	void setHrtfEnabled( bool /*enabled*/ ) {}
 	void setHrtfDataSet( const QString &/*name*/ ) {}
+	void setLoggingLevel( int /*level*/ ) {}
 	QStringList getHrtfDataPaths() const { return QStringList(); }
 	void playTestSound( const QString &filePath );
 	void positionTestSound( const Entity::Vector &position );

@@ -183,13 +183,16 @@ void OpenALBackend::positionCamera( const Entity::Vector &position, const Entity
 	d->cameraForward = forward;
 	d->cameraUp = up;
 
-	try
+	if( d->isEnabled )
 	{
-		OpenAL::updateListener( d->getListenerInfo() );
-	}
-	catch( const OpenAL::Failure &error )
-	{
-		Log::error() << "Failed to position camera, reason: " << error.what();
+		try
+		{
+			OpenAL::updateListener( d->getListenerInfo() );
+		}
+		catch( const OpenAL::Failure &error )
+		{
+			Log::error() << "Failed to position camera, reason: " << error.what();
+		}
 	}
 }
 
@@ -208,13 +211,16 @@ void OpenALBackend::setPlaybackVolume( float volume )
 	Log::debug() << "OpenALBackend::setPlaybackVolume(" << volume << ")";
 	d->playbackVolume = volume;
 
-	try
+	if( d->isEnabled )
 	{
-		OpenAL::updateListener( d->getListenerInfo() );
-	}
-	catch( const OpenAL::Failure &error )
-	{
-		Log::error() << "Failed to change playback volume, reason: " << error.what();
+		try
+		{
+			OpenAL::updateListener( d->getListenerInfo() );
+		}
+		catch( const OpenAL::Failure &error )
+		{
+			Log::error() << "Failed to change playback volume, reason: " << error.what();
+		}
 	}
 }
 
@@ -226,6 +232,7 @@ void OpenALBackend::setHrtfEnabled( bool enabled )
 
 void OpenALBackend::setHrtfDataSet( const QString &name )
 {
+	Q_D( OpenALBackend );
 	Log::debug() << "OpenALBackend::setHrtfDataSet(): " << name;
 	QFile hrtfFile( getOALHRTFPath() + QDir::separator() + "default-44100.mhr" );
 	if( hrtfFile.exists() )
@@ -240,13 +247,36 @@ void OpenALBackend::setHrtfDataSet( const QString &name )
 		return;
 	}
 
-	try
+	if( d->isEnabled )
 	{
-		OpenAL::reset();
+		try
+		{
+			OpenAL::reset();
+		}
+		catch( const OpenAL::Failure &error )
+		{
+			Log::error() << "Failed to reset OpenAL, reason: " << error.what();
+		}
 	}
-	catch( const OpenAL::Failure &error )
+}
+
+void OpenALBackend::setLoggingLevel( int level )
+{
+	Q_D( OpenALBackend );
+	Log::debug() << "OpenALBackend::setLoggingLevel(): " << level;
+	if( OpenAL::setupLogging( level ) )
 	{
-		Log::error() << "Failed to reset OpenAL, reason: " << error.what();
+		if( d->isEnabled )
+		{
+			try
+			{
+				OpenAL::reset();
+			}
+			catch( const OpenAL::Failure &error )
+			{
+				Log::error() << "Failed to reset OpenAL, reason: " << error.what();
+			}
+		}
 	}
 }
 
@@ -264,25 +294,28 @@ QStringList OpenALBackend::getHrtfDataPaths() const
 void OpenALBackend::playTestSound( const QString &filePath )
 {
 	Q_D( OpenALBackend );
-	try
+	if( d->isEnabled )
 	{
-		WavFile file( filePath );
-		if( !file.open( WavFile::ReadOnly ) )
+		try
 		{
-			Log::error() << "Failed to open test sound file, reason: " << file.errorString();
-			return;
-		}
-		QByteArray audioData = file.readAll();
+			WavFile file( filePath );
+			if( !file.open( WavFile::ReadOnly ) )
+			{
+				Log::error() << "Failed to open test sound file, reason: " << file.errorString();
+				return;
+			}
+			QByteArray audioData = file.readAll();
 
-		OpenAL::playAudio( d->getTestSourceInfo(),
-						   OpenAL::AudioData(
-							   file.getChannels(), file.getBitsPerSample(),
-							   audioData.size(), file.getSampleRate(),
-							   audioData.data() ) );
-	}
-	catch( const OpenAL::Failure &error )
-	{
-		Log::error() << "Failed to start test sound playback, reason: " << error.what();
+			OpenAL::playAudio( d->getTestSourceInfo(),
+							   OpenAL::AudioData(
+								   file.getChannels(), file.getBitsPerSample(),
+								   audioData.size(), file.getSampleRate(),
+								   audioData.data() ) );
+		}
+		catch( const OpenAL::Failure &error )
+		{
+			Log::error() << "Failed to start test sound playback, reason: " << error.what();
+		}
 	}
 }
 
@@ -290,26 +323,32 @@ void OpenALBackend::positionTestSound( const Entity::Vector &position )
 {
 	Q_D( OpenALBackend );
 	d->testSourcePosition = position;
-	try
+	if( d->isEnabled )
 	{
-		OpenAL::updateSource( d->getTestSourceInfo() );
-	}
-	catch( const OpenAL::Failure &error )
-	{
-		Log::error() << "Failed to position test sound, reason: " << error.what();
+		try
+		{
+			OpenAL::updateSource( d->getTestSourceInfo() );
+		}
+		catch( const OpenAL::Failure &error )
+		{
+			Log::error() << "Failed to position test sound, reason: " << error.what();
+		}
 	}
 }
 
 void OpenALBackend::stopTestSound()
 {
 	Q_D( OpenALBackend );
-	try
+	if( d->isEnabled )
 	{
-		OpenAL::stopAudio( d->getTestSourceInfo() );
-	}
-	catch( const OpenAL::Failure &error )
-	{
-		Log::error() << "Failed to stop test sound, reason: " << error.what();
+		try
+		{
+			OpenAL::stopAudio( d->getTestSourceInfo() );
+		}
+		catch( const OpenAL::Failure &error )
+		{
+			Log::error() << "Failed to stop test sound, reason: " << error.what();
+		}
 	}
 }
 
@@ -317,7 +356,7 @@ void OpenALBackend::onEditPlaybackVoiceDataEvent( quint16 id, short *samples, in
 {
 	Q_D( OpenALBackend );
 	QMutexLocker locker( &mutex );
-	if( d->userPositions.contains( id ) )
+	if( d->isEnabled && d->userPositions.contains( id ) )
 	{
 		try
 		{

@@ -53,8 +53,8 @@ public:
 	QString getHrtfDataSet() const;
 	void setHrtfDataSet( const QString &name );
 
-	bool isLoggingEnabled() const;
-	void setLoggingEnabled( bool enabled );
+	int getLoggingLevel() const;
+	void setLoggingLevel( int level );
 
 	void showTestAudioError( const QString &error );
 	void setTestButtonEnabled( bool enabled );
@@ -68,6 +68,7 @@ private slots:
 	void on_enableHrtfCheckBox_toggled();
 	void on_positionalAudioCheckBox_toggled();
 	void on_buttonBox_clicked( QAbstractButton *button );
+	void on_loggingLevelComboBox_currentIndexChanged( int index );
 	void onHrtfSelectionChanged();
 
 signals:
@@ -84,6 +85,6 @@ private:
 	int audioBackend;
 	bool positionalAudioEnabled;
 	bool hrtfEnabled;
-	bool loggingEnabled;
+	int loggingLevel;
 	QString hrtfDataSet;
 };

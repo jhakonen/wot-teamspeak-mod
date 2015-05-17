@@ -27,15 +27,89 @@
 #include <QVector>
 #include <QMutex>
 #include <QMutexLocker>
+#include <QDir>
+#include <QFileSystemWatcher>
+#include <QSharedPointer>
+#include <QRegExp>
 
+const char *OPENAL_LOG_CHANNEL = "OpenAL";
 static QMutex gMutex;
+static int gLogLevel = 0;
+static QSharedPointer<QFileSystemWatcher> gLogFileWatcher;
+static int gLastLogFilePos;
 
 namespace OpenAL {
+
+void free()
+{
+	reset();
+	gLogFileWatcher.reset();
+}
 
 void reset()
 {
 	QMutexLocker locker( &gMutex );
 	PrivateImpl::reset();
+}
+
+bool setupLogging( int logLevel )
+{
+	if( logLevel != gLogLevel )
+	{
+		gLogLevel = logLevel;
+		gLastLogFilePos = 0;
+		QString logPath = QDir::tempPath() + QDir::separator() + "tessumod_openal.log";
+		qputenv( "ALSOFT_LOGFILE", logPath.toLocal8Bit() );
+		qputenv( "ALSOFT_LOGLEVEL", QString::number( gLogLevel ).toLocal8Bit() );
+		gLogFileWatcher.reset( new QFileSystemWatcher() );
+		gLogFileWatcher->addPath( logPath );
+		QObject::connect( gLogFileWatcher.data(), &QFileSystemWatcher::fileChanged, [=]( const QString &path ) {
+			QFile logFile( path );
+			if( logFile.open( QFile::ReadOnly ) )
+			{
+				if( gLastLogFilePos > logFile.size() - 1 )
+				{
+					// file has truncated, start from beginning
+					gLastLogFilePos = 0;
+				}
+				if( logFile.seek( gLastLogFilePos ) )
+				{
+					QByteArray line;
+					QRegExp linePattern( "^al lib: \\((..)\\) (.+)$", Qt::CaseInsensitive );
+					do
+					{
+						line = logFile.readLine();
+						if( QString::fromUtf8( line ).contains( linePattern ) )
+						{
+							QString type = linePattern.cap( 1 ).toUpper();
+							QString message = linePattern.cap( 2 ).trimmed();
+							if( type == "--" )
+							{
+								Log::debug( OPENAL_LOG_CHANNEL ) << message;
+							}
+							else if( type == "II" )
+							{
+								Log::info( OPENAL_LOG_CHANNEL ) << message;
+							}
+							else if( type == "WW" )
+							{
+								Log::warning( OPENAL_LOG_CHANNEL ) << message;
+							}
+							else
+							{
+								Log::error( OPENAL_LOG_CHANNEL ) << message;
+							}
+
+						}
+					}
+					while( line.length() );
+					gLastLogFilePos = logFile.pos();
+				}
+			}
+		} );
+		return true;
+	}
+	return false;
 }
 
 void playAudio( const SourceInfo &sourceInfo, const AudioData &audioData )

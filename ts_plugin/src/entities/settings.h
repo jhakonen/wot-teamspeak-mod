@@ -36,7 +36,7 @@ public:
 	RotateMode testRotateMode;
 	bool hrtfEnabled;
 	QString hrtfDataSet;
-	bool audioLoggingEnabled;
+	int audioLoggingLevel;
 };
 
 }

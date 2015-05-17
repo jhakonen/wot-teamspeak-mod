@@ -442,10 +442,10 @@ TeamSpeakPlugin *TeamSpeakPlugin::singleton()
 	return gTeamSpeakPlugin;
 }
 
-void TeamSpeakPlugin::logMessage( const QString &message, Log::Severity severity )
+void TeamSpeakPlugin::logMessage( const QString &message, const char *channel, Log::Severity severity )
 {
 	QByteArray utf8Message = message.toUtf8();
-	gTs3Functions.logMessage( utf8Message.data(), toTSLogLevel( severity ), "TessuMod Plugin", 0 );
+	gTs3Functions.logMessage( utf8Message.data(), toTSLogLevel( severity ), channel, 0 );
 }
 
 quint16 TeamSpeakPlugin::getMyUserId() const

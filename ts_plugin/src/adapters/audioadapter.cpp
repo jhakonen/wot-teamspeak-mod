@@ -116,6 +116,11 @@ void AudioAdapter::playTestSound( Entity::RotateMode mode, Callback result )
 	rotator->start( mode );
 }
 
+void AudioAdapter::setLoggingLevel( int level )
+{
+	driver->setLoggingLevel( level );
+}
+
 void AudioAdapter::onStartTestSound()
 {
 	QString tempPath = QStandardPaths::writableLocation( QStandardPaths::TempLocation ) + "/TessuMod";

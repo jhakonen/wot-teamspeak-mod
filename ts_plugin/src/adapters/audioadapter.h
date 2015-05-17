@@ -57,6 +57,8 @@ public:
 
 	void playTestSound( Entity::RotateMode mode, Callback result );
 
+	void setLoggingLevel( int level );
+
 private slots:
 	void onStartTestSound();
 	void onPositionTestSound( const Entity::Vector &position );

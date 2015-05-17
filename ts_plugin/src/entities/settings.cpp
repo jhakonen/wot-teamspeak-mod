@@ -26,7 +26,7 @@ namespace Entity
 Settings::Settings()
 	: audioBackend( OpenALBackend ), positioningEnabled( true ),
 	  testRotateMode( RotateYAxis ), hrtfEnabled( false ),
-	  audioLoggingEnabled( false )
+	  audioLoggingLevel( 0 )
 {
 }
 

@@ -53,6 +53,7 @@ void UseCases::applicationInitialize()
 		{
 			backend->setHrtfEnabled( settings.hrtfEnabled );
 			backend->setHrtfDataSet( settings.hrtfDataSet );
+			backend->setLoggingLevel( settings.audioLoggingLevel );
 		}
 
 		adapterStorage->getAudio( settings.audioBackend )->setEnabled( true );
@@ -194,6 +195,7 @@ void UseCases::saveSettings( const Entity::Settings &settings )
 		{
 			backend->setHrtfEnabled( settings.hrtfEnabled );
 			backend->setHrtfDataSet( settings.hrtfDataSet );
+			backend->setLoggingLevel( settings.audioLoggingLevel );
 		}
 		adapterStorage->getAudio( settings.audioBackend )->setEnabled( true );
 	}
@@ -213,6 +215,7 @@ void UseCases::playTestAudioWithSettings(const Entity::Settings &settings, Callb
 	Interfaces::AudioAdapter *backend = adapterStorage->getTestAudio( settings.audioBackend );
 	backend->setHrtfEnabled( settings.hrtfEnabled );
 	backend->setHrtfDataSet( settings.hrtfDataSet );
+	backend->setLoggingLevel( settings.audioLoggingLevel );
 	backend->setEnabled( settings.positioningEnabled );
 	backend->playTestSound( settings.testRotateMode, [=]( QVariant result ) {
 		deleteLater();

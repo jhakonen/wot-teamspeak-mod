@@ -220,14 +220,60 @@
            </layout>
           </item>
           <item>
-           <widget class="QCheckBox" name="enableLoggingCheckBox">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
-            <property name="text">
-             <string>Enable logging</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="horizontalLayout_4">
+            <item>
+             <widget class="QLabel" name="label_2">
+              <property name="text">
+               <string>Logging level:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QComboBox" name="loggingLevelComboBox">
+              <property name="toolTip">
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Logging level to use for OpenAL's logging output.&lt;/p&gt;&lt;p&gt;The log entries go to TeamSpeak &amp;gt; Tools &amp;gt; Client Log.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              </property>
+              <item>
+               <property name="text">
+                <string>Disabled</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Errors</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Warnings</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Info</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Debug</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+            <item>
+             <spacer name="horizontalSpacer_4">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
           </item>
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout">

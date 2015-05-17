@@ -31,6 +31,7 @@
 #include "drivers/inisettingsfile.h"
 #include "drivers/openalbackend.h"
 #include "drivers/wotconnector.h"
+#include "openal/openal.h"
 
 #include <QDir>
 #include <QTimer>
@@ -89,6 +90,7 @@ void pluginInit( QObject *parent )
 
 void pluginShutdown()
 {
+	OpenAL::free();
 	Log::setSink( NULL );
 	RemoveDllDirectory( dllSearchCookie );
 }

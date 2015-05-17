@@ -33,12 +33,12 @@ SettingsStorage::SettingsStorage( Interfaces::SettingsDriver *driver, QObject *p
 Entity::Settings SettingsStorage::get() const
 {
 	Entity::Settings settings;
-	settings.audioBackend        = (Entity::AudioBackend) driver->get( "General", "AudioBackend", (int)Entity::OpenALBackend ).toInt();
-	settings.positioningEnabled  = driver->get( "General", "PositionalAudioEnabled", true ).toBool();
-	settings.testRotateMode      = (Entity::RotateMode) driver->get( "General", "TestRotateMode", Entity::RotateYAxis ).toInt();
-	settings.hrtfEnabled         = driver->get( "General", "HrtfEnabled", false ).toBool();
-	settings.hrtfDataSet         = driver->get( "General", "HrtfDataSet", ":/etc/hrtfs/mit_kemar-44100.mhr" ).toString();
-	settings.audioLoggingEnabled = driver->get( "General", "AudioLoggingEnabled", false ).toBool();
+	settings.audioBackend       = (Entity::AudioBackend) driver->get( "General", "AudioBackend", (int)Entity::OpenALBackend ).toInt();
+	settings.positioningEnabled = driver->get( "General", "PositionalAudioEnabled", true ).toBool();
+	settings.testRotateMode     = (Entity::RotateMode) driver->get( "General", "TestRotateMode", Entity::RotateYAxis ).toInt();
+	settings.hrtfEnabled        = driver->get( "General", "HrtfEnabled", false ).toBool();
+	settings.hrtfDataSet        = driver->get( "General", "HrtfDataSet", ":/etc/hrtfs/mit_kemar-44100.mhr" ).toString();
+	settings.audioLoggingLevel  = driver->get( "General", "AudioLoggingLevel", 0 ).toInt();
 	return settings;
 }
 
@@ -49,7 +49,7 @@ void SettingsStorage::set( const Entity::Settings &settings )
 	driver->set( "General", "TestRotateMode",         (int)settings.testRotateMode );
 	driver->set( "General", "HrtfEnabled",            settings.hrtfEnabled );
 	driver->set( "General", "HrtfDataSet",            settings.hrtfDataSet );
-	driver->set( "General", "AudioLoggingEnabled",    settings.audioLoggingEnabled );
+	driver->set( "General", "AudioLoggingLevel",      settings.audioLoggingLevel );
 }
 
 }

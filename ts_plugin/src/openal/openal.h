@@ -31,6 +31,13 @@ class ListenerInfo;
 class AudioData;
 
 /**
+ * Resets OpenAL and releases any resources.
+ *
+ * Call this before process exit.
+ */
+void free();
+
+/**
  * Resets OpenAL.
  *
  * Deletes all sources, contexts and devices and finally unloads OpenAL library
@@ -43,6 +50,27 @@ class AudioData;
  * and HRTF files.
  */
 void reset();
+
+/**
+ * Sets OpenAL logging level to use.
+ *
+ * Log entries go to TeamSpeak's client log. The function returns true when
+ * given logging level is different than current level. You should call
+ * reset() if the logging level changed for the change to apply.
+ *
+ * Logging is disabled by default.
+ *
+ * Accepted logging levels:
+ *   0 - Disabled
+ *   1 - Errors only
+ *   2 - Warnings and errors
+ *   3 - Additional info, warnings and errors
+ *   4 - Same as 3 + debug info
+ *
+ * @param logLevel log level to use
+ * @return true if logging level changed
+ */
+bool setupLogging( int logLevel );
 
 /**
  * Plays given audio data in provided source.

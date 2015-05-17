@@ -33,30 +33,34 @@ Log::Sink *gLogSink = NULL;
 namespace Log
 {
 
-Stream debug()
+Stream debug( const char *channel )
 {
 	Stream stream;
+	stream.channel = channel;
 	stream.severity = Debug;
 	return stream;
 }
 
-Stream info()
+Stream info( const char *channel )
 {
 	Stream stream;
+	stream.channel = channel;
 	stream.severity = Info;
 	return stream;
 }
 
-Stream warning()
+Stream warning( const char *channel )
 {
 	Stream stream;
+	stream.channel = channel;
 	stream.severity = Warning;
 	return stream;
 }
 
-Stream error()
+Stream error( const char *channel )
 {
 	Stream stream;
+	stream.channel = channel;
 	stream.severity = Error;
 	return stream;
 }
@@ -70,7 +74,7 @@ Stream::~Stream()
 {
 	if( gLogSink )
 	{
-		gLogSink->logMessage( message, severity );
+		gLogSink->logMessage( message, channel, severity );
 	}
 }
 
@@ -135,9 +139,10 @@ FileLogger::~FileLogger()
 	delete logFile;
 }
 
-void FileLogger::logMessage( const QString &message, Severity severity )
+void FileLogger::logMessage(const QString &message, const char *channel, Severity severity )
 {
 	Q_UNUSED( severity );
+	Q_UNUSED( channel );
 	logFile->write( message.toUtf8() );
 	logFile->write( "\n" );
 	logFile->flush();
