@@ -133,11 +133,17 @@ void SettingsDialog::setHrtfDataSet( const QString &name )
 	if( matches.isEmpty() )
 	{
 		Log::warning() << "HRTF dataset not found from dataset list";
-		return;
+		ui->hrtfDataSetListView->selectionModel()->setCurrentIndex(
+					m->index( 0, 0 ), QItemSelectionModel::SelectCurrent );
+		// NOTE: set of 'hrtfDataSet' intentionally left out, enables apply
+		// since another data set is chosen and settings require update
 	}
-	ui->hrtfDataSetListView->selectionModel()->setCurrentIndex(
-				matches[0], QItemSelectionModel::SelectCurrent );
-	hrtfDataSet = name;
+	else
+	{
+		ui->hrtfDataSetListView->selectionModel()->setCurrentIndex(
+					matches[0], QItemSelectionModel::SelectCurrent );
+		hrtfDataSet = name;
+	}
 	enableApplyButton( areSettingsUnapplied() );
 }
 
@@ -165,13 +171,13 @@ void SettingsDialog::setTestButtonEnabled( bool enabled )
 	ui->testButton->setEnabled( enabled );
 }
 
-void SettingsDialog::setHrtfDataPaths( const QStringList &paths )
+void SettingsDialog::setHrtfDataFileNames( const QStringList &fileNames )
 {
-	Log::debug() << "SettingsDialog::setHrtfDataPaths()";
+	Log::debug() << "SettingsDialog::setHrtfDataFileNames()";
 	hrtfDataSetsModel->clear();
-	foreach( QString path, paths )
+	foreach( QString fileName, fileNames )
 	{
-		QString name = QFileInfo( path )
+		QString name = QFileInfo( fileName )
 				.baseName()
 				.replace( "-", " " )
 				.replace( "_", " " )
@@ -193,7 +199,7 @@ void SettingsDialog::setHrtfDataPaths( const QStringList &paths )
 		}
 
 		QStandardItem *item = new QStandardItem( name );
-		item->setData( path, Qt::UserRole );
+		item->setData( fileName, Qt::UserRole );
 		item->setData( sortValue, Qt::UserRole + 1 );
 		hrtfDataSetsModel->appendRow( item );
 	}

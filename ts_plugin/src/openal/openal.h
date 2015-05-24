@@ -73,6 +73,25 @@ void reset();
 bool setupLogging( int logLevel );
 
 /**
+ * Sets OpenAL config variable.
+ *
+ * Sets given OpenAL config variable to given value. The variable is saved to
+ * application's own private config file which overrides values defined in
+ * global file.
+ *
+ * The function returns true if the given variable didn't exists yet or its
+ * value changed from previous value.
+ *
+ * You should call reset() in case true was returned for the variable to take
+ * effect.
+ *
+ * @param name name of the config variable to set
+ * @param value value of the config variable to set
+ * @return true if variable changed
+ */
+bool setConfigValue( const QString &name, const QString &value );
+
+/**
  * Plays given audio data in provided source.
  *
  * This function lets you to play provided audio data within OpenAL.

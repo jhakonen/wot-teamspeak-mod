@@ -175,7 +175,7 @@ void UseCases::showSettingsUi( QWidget *parent )
 	QStringList hrtfDataNames;
 	foreach( Interfaces::AudioAdapter *backend, adapterStorage->getAudios() )
 	{
-		hrtfDataNames.append( backend->getHrtfDataPaths() );
+		hrtfDataNames.append( backend->getHrtfDataFileNames() );
 	}
 	adapterStorage->getUi()->showSettingsUi( settings, hrtfDataNames, parent );
 	deleteLater();

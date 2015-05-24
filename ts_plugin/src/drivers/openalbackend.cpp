@@ -59,6 +59,17 @@ QString getOALHRTFPath()
 	return QDir::cleanPath( targetPath );
 }
 
+QStringList getHrtfDataPaths()
+{
+	QDir dir( ":/etc/hrtfs/" );
+	QStringList paths;
+	foreach( QString entry, dir.entryList( QStringList() << "*.mhr", QDir::Files ) )
+	{
+		paths.append( dir.filePath( entry ) );
+	}
+	return paths;
+}
+
 ALfloat tsVolumeModifierToOALGain( float tsVolumeModifier )
 {
 	return 1.0 / ( pow( 2.0, tsVolumeModifier / -6.0 ) );
@@ -132,6 +143,21 @@ public:
 OpenALBackend::OpenALBackend( QObject *parent )
 	: QObject( parent ), d_ptr( new OpenALBackendPrivate() )
 {
+	// copy HRTF files from resources to location in file system where OpenAL
+	// will search them
+	foreach( QString entry, getHrtfDataPaths() )
+	{
+		QString targetPath = getOALHRTFPath() + QDir::separator() + QFileInfo( entry ).fileName();
+		if( !QFile( targetPath ).exists() )
+		{
+			QFile resourceFile( entry );
+			if( !resourceFile.copy( targetPath ) )
+			{
+				Log::error() << "Failed to save HRTF data file '" << entry << "'"
+							 << " to '" << targetPath << "', reason: " << resourceFile.errorString();
+			}
+		}
+	}
 }
 
 OpenALBackend::~OpenALBackend()
@@ -234,28 +260,19 @@ void OpenALBackend::setHrtfDataSet( const QString &name )
 {
 	Q_D( OpenALBackend );
 	Log::debug() << "OpenALBackend::setHrtfDataSet(): " << name;
-	QFile hrtfFile( getOALHRTFPath() + QDir::separator() + "default-44100.mhr" );
-	if( hrtfFile.exists() )
-	{
-		hrtfFile.setPermissions( hrtfFile.permissions() | QFile::WriteUser );
-		hrtfFile.remove();
-	}
-	if( !QFile::copy( name, hrtfFile.fileName() ) )
-	{
-		Log::error() << "Failed to save HRTF data set '" << name << "'"
-					 << " to path '" << QDir::toNativeSeparators( hrtfFile.fileName() ) << "'";
-		return;
-	}
 
-	if( d->isEnabled )
+	if( OpenAL::setConfigValue( "hrtf_tables", name ) )
 	{
-		try
+		if( d->isEnabled )
 		{
-			OpenAL::reset();
-		}
-		catch( const OpenAL::Failure &error )
-		{
-			Log::error() << "Failed to reset OpenAL, reason: " << error.what();
+			try
+			{
+				OpenAL::reset();
+			}
+			catch( const OpenAL::Failure &error )
+			{
+				Log::error() << "Failed to reset OpenAL, reason: " << error.what();
+			}
 		}
 	}
 }
@@ -280,13 +297,12 @@ void OpenALBackend::setLoggingLevel( int level )
 	}
 }
 
-QStringList OpenALBackend::getHrtfDataPaths() const
+QStringList OpenALBackend::getHrtfDataFileNames() const
 {
-	QDir dir( ":/etc/hrtfs/" );
 	QStringList paths;
-	foreach( QString entry, dir.entryList( QStringList() << "*.mhr", QDir::Files ) )
+	foreach( QString entry, getHrtfDataPaths() )
 	{
-		paths.append( dir.filePath( entry ) );
+		paths << QFileInfo( entry ).fileName();
 	}
 	return paths;
 }

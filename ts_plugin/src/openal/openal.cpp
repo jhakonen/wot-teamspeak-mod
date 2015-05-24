@@ -31,6 +31,7 @@
 #include <QFileSystemWatcher>
 #include <QSharedPointer>
 #include <QRegExp>
+#include <QSettings>
 
 const char *OPENAL_LOG_CHANNEL = "OpenAL";
 static QMutex gMutex;
@@ -58,7 +59,7 @@ bool setupLogging( int logLevel )
 	{
 		gLogLevel = logLevel;
 		gLastLogFilePos = 0;
-		QString logPath = QDir::tempPath() + QDir::separator() + "tessumod_openal.log";
+		QString logPath =  QDir::toNativeSeparators( QDir::tempPath() + "/tessumod_openal.log" );
 		qputenv( "ALSOFT_LOGFILE", logPath.toLocal8Bit() );
 		qputenv( "ALSOFT_LOGLEVEL", QString::number( gLogLevel ).toLocal8Bit() );
 		gLogFileWatcher.reset( new QFileSystemWatcher() );
@@ -110,6 +111,15 @@ bool setupLogging( int logLevel )
 		return true;
 	}
 	return false;
+}
+
+bool setConfigValue( const QString &name, const QString &value )
+{
+	QString configPath = QDir::toNativeSeparators( QDir::tempPath() + "/tessumod_openal.ini" );
+	QSettings settings( configPath, QSettings::IniFormat );
+	QString currentValue = settings.value( name ).toString();
+	settings.setValue( name, value );
+	return qputenv( "ALSOFT_CONF", configPath.toLocal8Bit() ) && currentValue != value;
 }
 
 void playAudio( const SourceInfo &sourceInfo, const AudioData &audioData )

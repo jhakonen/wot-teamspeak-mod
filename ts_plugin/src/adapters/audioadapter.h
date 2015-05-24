@@ -53,7 +53,7 @@ public:
 
 	void setHrtfEnabled( bool enabled );
 	void setHrtfDataSet( const QString &name );
-	QStringList getHrtfDataPaths() const;
+	QStringList getHrtfDataFileNames() const;
 
 	void playTestSound( Entity::RotateMode mode, Callback result );
 

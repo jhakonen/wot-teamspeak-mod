@@ -48,7 +48,7 @@ void UiAdapter::showSettingsUi( const Entity::Settings &settings, const QStringL
 		settingsDialog->setAudioBackend( settings.audioBackend );
 		settingsDialog->setRotateMode( settings.testRotateMode );
 		settingsDialog->setHrtfEnabled( settings.hrtfEnabled );
-		settingsDialog->setHrtfDataPaths( hrtfDataNames );
+		settingsDialog->setHrtfDataFileNames( hrtfDataNames );
 		settingsDialog->setHrtfDataSet( settings.hrtfDataSet );
 		settingsDialog->setLoggingLevel( settings.audioLoggingLevel );
 

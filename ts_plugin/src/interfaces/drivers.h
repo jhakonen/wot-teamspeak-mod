@@ -48,7 +48,7 @@ public:
 	virtual void setHrtfEnabled( bool enabled ) = 0;
 	virtual void setHrtfDataSet( const QString &name ) = 0;
 	virtual void setLoggingLevel( int level ) = 0;
-	virtual QStringList getHrtfDataPaths() const = 0;
+	virtual QStringList getHrtfDataFileNames() const = 0;
 
 	virtual void playTestSound( const QString &filePath ) = 0;
 	virtual void positionTestSound( const Entity::Vector &position ) = 0;
