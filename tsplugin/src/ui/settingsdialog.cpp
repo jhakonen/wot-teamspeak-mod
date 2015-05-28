@@ -28,6 +28,8 @@
 #include <QStandardItemModel>
 #include <QSortFilterProxyModel>
 #include <QFileInfo>
+#include <QDesktopServices>
+#include <QUrl>
 
 #include <iostream>
 
@@ -206,6 +208,11 @@ void SettingsDialog::setHrtfDataFileNames( const QStringList &fileNames )
 	enableApplyButton( areSettingsUnapplied() );
 }
 
+void SettingsDialog::setOpenALConfFilePath( const QString &filePath )
+{
+	openALConfFilePath = filePath;
+}
+
 void SettingsDialog::on_testButton_clicked()
 {
 	emit testButtonClicked();
@@ -272,4 +279,9 @@ void SettingsDialog::on_loggingLevelComboBox_currentIndexChanged( int index )
 {
 	Q_UNUSED( index );
 	enableApplyButton( areSettingsUnapplied() );
+}
+
+void SettingsDialog::on_openALAdvancedButton_clicked()
+{
+	QDesktopServices::openUrl( QUrl::fromLocalFile( openALConfFilePath ) );
 }

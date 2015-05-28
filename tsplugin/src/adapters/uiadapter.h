@@ -30,6 +30,7 @@ class SettingsDialog;
 namespace Interfaces
 {
 class UseCaseFactory;
+class ConfigFilePathSource;
 }
 
 namespace Adapter
@@ -40,7 +41,7 @@ class UiAdapter : public QObject, public Interfaces::UiAdapter
 	Q_OBJECT
 
 public:
-	UiAdapter( Interfaces::UseCaseFactory *useCaseFactory, QObject *parent );
+	UiAdapter( Interfaces::UseCaseFactory *useCaseFactory, Interfaces::ConfigFilePathSource *confPathSource, QObject *parent );
 
 	void showSettingsUi( const Entity::Settings &settings, const QStringList &hrtfDataNames, QWidget *parent );
 
@@ -53,6 +54,7 @@ private:
 
 private:
 	Interfaces::UseCaseFactory *useCaseFactory;
+	Interfaces::ConfigFilePathSource *confPathSource;
 	QPointer<SettingsDialog> settingsDialog;
 	Entity::Settings originalSettings;
 };

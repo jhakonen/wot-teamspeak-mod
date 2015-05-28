@@ -54,6 +54,7 @@ void pluginInit( QObject *parent )
 	auto iniSettingsFile = new Driver::IniSettingsFile( parent );
 	auto openALBackend = new Driver::OpenALBackend( parent );
 	auto openALBackendTest = new Driver::OpenALBackend( parent );
+	auto openALConfFile = new Driver::OpenALConfFile( parent );
 	auto wotConnector = new Driver::WotConnector( parent );
 
 	auto userStorage = new Storage::UserStorage( parent );
@@ -73,7 +74,7 @@ void pluginInit( QObject *parent )
 	adapterStorage->setTestAudio( Entity::OpenALBackend, new Adapter::AudioAdapter( openALBackendTest, parent ) );
 	adapterStorage->setVoiceChat( new Adapter::VoiceChatAdapter( teamSpeakPlugin, useCaseFactory, parent ) );
 	adapterStorage->setGameData( new Adapter::GameDataAdapter( wotConnector, useCaseFactory, parent ) );
-	adapterStorage->setUi( new Adapter::UiAdapter( useCaseFactory, parent ) );
+	adapterStorage->setUi( new Adapter::UiAdapter( useCaseFactory, openALConfFile, parent ) );
 
 	teamSpeakPlugin->setAudioSink( openALBackend );
 
@@ -86,6 +87,7 @@ void pluginInit( QObject *parent )
 		teamSpeakPlugin->initialize();
 		wotConnector->initialize();
 		useCaseFactory->applicationInitialize();
+		openALConfFile->start();
 	} );
 }
 

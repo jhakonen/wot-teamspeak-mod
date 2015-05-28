@@ -61,6 +61,8 @@ public:
 
 	void setHrtfDataFileNames( const QStringList &fileNames );
 
+	void setOpenALConfFilePath( const QString &filePath );
+
 private slots:
 	void on_testButton_clicked();
 	void on_openALRadioButton_toggled(bool checked);
@@ -69,6 +71,7 @@ private slots:
 	void on_positionalAudioCheckBox_toggled();
 	void on_buttonBox_clicked( QAbstractButton *button );
 	void on_loggingLevelComboBox_currentIndexChanged( int index );
+	void on_openALAdvancedButton_clicked();
 	void onHrtfSelectionChanged();
 
 signals:
@@ -87,4 +90,5 @@ private:
 	bool hrtfEnabled;
 	int loggingLevel;
 	QString hrtfDataSet;
+	QString openALConfFilePath;
 };

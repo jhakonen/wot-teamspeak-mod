@@ -291,9 +291,9 @@
              </spacer>
             </item>
             <item>
-             <widget class="QPushButton" name="pushButton">
-              <property name="enabled">
-               <bool>false</bool>
+             <widget class="QPushButton" name="openALAdvancedButton">
+              <property name="toolTip">
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Opens OpenAL's global configuration file to text editor associated with INI-files.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;p&gt;Any changes made to the file will immediately take effect.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
               </property>
               <property name="text">
                <string>Advanced Settings</string>

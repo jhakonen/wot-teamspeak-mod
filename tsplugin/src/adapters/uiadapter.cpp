@@ -20,6 +20,7 @@
 
 #include "uiadapter.h"
 #include "../interfaces/usecasefactory.h"
+#include "../interfaces/drivers.h"
 #include "../entities/settings.h"
 #include "../entities/failures.h"
 #include "../ui/settingsdialog.h"
@@ -31,8 +32,8 @@
 namespace Adapter
 {
 
-UiAdapter::UiAdapter( Interfaces::UseCaseFactory *useCaseFactory, QObject *parent )
-	: QObject( parent ), useCaseFactory( useCaseFactory )
+UiAdapter::UiAdapter( Interfaces::UseCaseFactory *useCaseFactory, Interfaces::ConfigFilePathSource *confPathSource, QObject *parent )
+	: QObject( parent ), useCaseFactory( useCaseFactory ), confPathSource( confPathSource )
 {
 }
 
@@ -51,6 +52,7 @@ void UiAdapter::showSettingsUi( const Entity::Settings &settings, const QStringL
 		settingsDialog->setHrtfDataFileNames( hrtfDataNames );
 		settingsDialog->setHrtfDataSet( settings.hrtfDataSet );
 		settingsDialog->setLoggingLevel( settings.audioLoggingLevel );
+		settingsDialog->setOpenALConfFilePath( confPathSource->getFilePath() );
 
 		connect( settingsDialog, SIGNAL(applied()), this, SLOT(onSettingsChanged()) );
 		connect( settingsDialog, SIGNAL(testButtonClicked()), this, SLOT(onTestButtonClicked()) );

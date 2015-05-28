@@ -35,6 +35,7 @@
 #include <QVector>
 #include <QPointer>
 #include <QSet>
+#include <QFileSystemWatcher>
 
 #include <iostream>
 
@@ -389,6 +390,62 @@ void OpenALBackend::onEditPlaybackVoiceDataEvent( quint16 id, short *samples, in
 		{
 			Log::error() << "Failed to feed audio data to OpenAL, reason: " << error.what();
 		}
+	}
+}
+
+OpenALConfFile::OpenALConfFile( QObject *parent )
+	: QObject( parent ), watcher( new QFileSystemWatcher( this ) )
+{
+}
+
+OpenALConfFile::~OpenALConfFile()
+{
+}
+
+void OpenALConfFile::start()
+{
+	createConfFile();
+	startListening();
+}
+
+QString OpenALConfFile::getFilePath() const
+{
+	return getAppdataPath() + "/alsoft.ini";
+}
+
+void OpenALConfFile::onFileChanged()
+{
+	if( !QFile( getFilePath() ).exists() )
+	{
+		createConfFile();
+		startListening();
+	}
+
+	try
+	{
+		OpenAL::reset();
+	}
+	catch( const OpenAL::Failure &error )
+	{
+		Log::error() << "Failed to reset OpenAL, reason: " << error.what();
+	}
+}
+
+void OpenALConfFile::createConfFile()
+{
+	QFile resourceFile( ":/etc/alsoft.ini" );
+	if( !resourceFile.copy( getFilePath() ) )
+	{
+		Log::error() << "Failed to save OpenAL INI-file to '" << getFilePath() << "', reason: " << resourceFile.errorString();
+	}
+}
+
+void OpenALConfFile::startListening()
+{
+	connect( watcher, SIGNAL(fileChanged(QString)), this, SLOT(onFileChanged()) );
+	if( !watcher->addPath( getFilePath() ) )
+	{
+		Log::error() << "Failed to watch OpenAL INI-file at '" << getFilePath() << "'";
 	}
 }
 

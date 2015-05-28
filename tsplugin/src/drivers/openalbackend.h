@@ -22,6 +22,8 @@
 
 #include "../interfaces/drivers.h"
 
+class QFileSystemWatcher;
+
 namespace Driver
 {
 
@@ -57,6 +59,30 @@ public:
 private:
 	OpenALBackendPrivate *const d_ptr;
 	Q_DECLARE_PRIVATE( OpenALBackend )
+};
+
+class OpenALConfFile : public QObject, public Interfaces::ConfigFilePathSource
+{
+	Q_OBJECT
+
+public:
+	OpenALConfFile( QObject *parent );
+	~OpenALConfFile();
+
+	void start();
+
+	// from Interfaces::ConfigFilePathSource
+	QString getFilePath() const;
+
+private slots:
+	void onFileChanged();
+
+private:
+	void createConfFile();
+	void startListening();
+
+private:
+	QFileSystemWatcher *watcher;
 };
 
 }

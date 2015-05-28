@@ -87,4 +87,11 @@ public:
 	virtual void onEditPlaybackVoiceDataEvent( quint16 id, short *samples, int sampleCount, int channels ) = 0;
 };
 
+class ConfigFilePathSource
+{
+public:
+	virtual ~ConfigFilePathSource() {}
+	virtual QString getFilePath() const = 0;
+};
+
 }
