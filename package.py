@@ -19,7 +19,7 @@ import py_compile, zipfile, os, fnmatch
 import subprocess
 
 # configuration
-WOT_VERSION = "0.9.7"
+WOT_VERSION = "0.9.8"
 MOD_VERSION = "0.6.1-test"
 CLIENT_PACKAGE_DIR = os.path.join("res_mods", WOT_VERSION, "scripts", "client")
 BUILD_DIR = os.path.join(os.getcwd(), "build")
