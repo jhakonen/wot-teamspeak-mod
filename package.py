@@ -20,7 +20,7 @@ import subprocess
 
 # configuration
 WOT_VERSION = "0.9.8"
-MOD_VERSION = "0.6.1-test"
+MOD_VERSION = "0.6.0-test3"
 CLIENT_PACKAGE_DIR = os.path.join("res_mods", WOT_VERSION, "scripts", "client")
 BUILD_DIR = os.path.join(os.getcwd(), "build")
 SRC_DIR = os.path.join(os.getcwd(), "src")
