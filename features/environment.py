@@ -89,7 +89,7 @@ def before_scenario(context, scenario):
 	context.game = GameRunner(
 		mod_path=os.path.join(
 			os.path.dirname(os.path.realpath(__file__)),
-				"..", "src", "mods", "tessu_mod.py"),
+				"..", "tessumod", "src", "scripts", "client", "mods", "tessu_mod.py"),
 		ini_dir_path=context.ini_dir_path
 	)
 	context.set_ini_variable = set_ini_variable.__get__(context)

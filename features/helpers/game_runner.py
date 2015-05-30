@@ -63,7 +63,7 @@ def game_main(from_runner_queue, to_runner_queue, mod_path, ini_dir_path):
 	cov = coverage.coverage(
 		auto_data=True,
 		branch=True,
-		source=["src"],
+		source=["tessumod/src"],
 		omit=["*CameraNode.py", "*__init__.py"]
 	)
 	cov.start()

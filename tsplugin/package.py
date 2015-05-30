@@ -24,6 +24,8 @@ import zipfile
 
 BUILD_DIR  = os.getcwd()
 SOURCE_DIR = os.path.dirname(os.path.realpath(__file__))
+PLUGIN_INSTALLER_PATH  = os.path.join(BUILD_DIR, "tessumod.ts3_plugin")
+DEBUG_SYMBOL_FILE_PATH = os.path.join(BUILD_DIR, "debug-symbols.zip")
 
 PACKAGE_INI_TEMPLATE = """
 Name = {name}\r
@@ -79,44 +81,45 @@ def arch_to_vcvars_arg(arch):
 		return "x86_amd64"
 	raise RuntimeError("Unknown architecture")
 
-def build_ts_installer(installer_name, name, type, author, version, platforms, description, files):
-	archive = zipfile.ZipFile(installer_name, "w", zipfile.ZIP_DEFLATED, False)
-	archive.writestr("package.ini", PACKAGE_INI_TEMPLATE.format(
-		name        = name,
-		type        = type,
-		author      = author,
-		version     = version,
-		platforms   = ", ".join(platforms),
-		description = description
-	))
-	for archive_path, source_path in files.iteritems():
-		archive.write(source_path, archive_path)
-	archive.close()
+def build_ts_installer(installer_path, name, type, author, version, platforms, description, files):
+	with zipfile.ZipFile(installer_path, "w", zipfile.ZIP_DEFLATED, False) as archive:
+		archive.writestr("package.ini", PACKAGE_INI_TEMPLATE.format(
+			name        = name,
+			type        = type,
+			author      = author,
+			version     = version,
+			platforms   = ", ".join(platforms),
+			description = description
+		))
+		for archive_path, source_path in files.iteritems():
+			archive.write(source_path, archive_path)
+		print "Installer file path:", installer_path
 
 def build_debug_archive(archive_path, files):
-	archive = zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED, False)
-	for file_archive_path, source_path in files.iteritems():
-		archive.write(source_path, file_archive_path)
-	archive.close()
+	with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED, False) as archive:
+		for file_archive_path, source_path in files.iteritems():
+			archive.write(source_path, file_archive_path)
+	print "Debug archive file path:", archive_path
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
-	parser.add_argument("--version", nargs=1, help="version of the TS plugin", required=True)
-	parser.add_argument("--qtdir86", nargs=1, help="path to 32bit QT dir", required=True)
-	parser.add_argument("--qtdir64", nargs=1, help="path to 64bit QT dir", required=True)
-	parser.add_argument("--installerpath", nargs=1, help="path to installer file", required=True)
-	parser.add_argument("--debugarchivepath", nargs=1, help="path to debug archive file", required=True)
+	parser.add_argument("--version", help="version of the TS plugin", required=True)
 	args = parser.parse_args()
 
-	x86_bin_path, x86_dbg_path = build_ts_plugin_binary(args.qtdir86[0], "x86")
-	x64_bin_path, x64_dbg_path = build_ts_plugin_binary(args.qtdir64[0], "x64")
+	if not os.getenv("QTDIR_X86"):
+		raise RuntimeError("QTDIR_X86 environment variable not defined!")
+	if not os.getenv("QTDIR_X64"):
+		raise RuntimeError("QTDIR_X64 environment variable not defined!")
+
+	x86_bin_path, x86_dbg_path = build_ts_plugin_binary(os.getenv("QTDIR_X86"), "x86")
+	x64_bin_path, x64_dbg_path = build_ts_plugin_binary(os.getenv("QTDIR_X64"), "x64")
 
 	build_ts_installer(
-		installer_name = args.installerpath[0],
+		installer_path = PLUGIN_INSTALLER_PATH,
 		name = "TessuMod Plugin",
 		type = "Plugin",
 		author = "Janne Hakonen (jhakonen @ WOT EU server)",
-		version = args.version[0],
+		version = args.version,
 		platforms = ["win32", "win64"],
 		description = "This plugin provides positional audio support for World of Tanks.",
 		files = {
@@ -128,7 +131,7 @@ if __name__ == "__main__":
 	)
 
 	build_debug_archive(
-		archive_path = args.debugarchivepath[0],
+		archive_path = DEBUG_SYMBOL_FILE_PATH,
 		files = {
 			os.path.basename(x86_dbg_path): x86_dbg_path,
 			os.path.basename(x64_dbg_path): x64_dbg_path,

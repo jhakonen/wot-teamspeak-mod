@@ -18,7 +18,8 @@
 import os
 import sys
 base_path = os.path.dirname(os.path.realpath(__file__))
-fakes_path = os.path.join(base_path, "..", "..", "..", "features", "helpers", "fakes")
+fakes_path = os.path.join(base_path, "..", "..", "..", "..", "..", "..", "features", "helpers", "fakes")
+tmp_path = os.path.join(base_path, "..", "..", "..", "..", "..", "..", "tmp")
 sys.path.append(fakes_path)
 import utils
 import ts3

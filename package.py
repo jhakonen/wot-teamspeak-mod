@@ -17,94 +17,75 @@
 
 import py_compile, zipfile, os, fnmatch
 import subprocess
+import re
+import shutil
 
 # configuration
-WOT_VERSION = "0.9.8"
-MOD_VERSION = "0.6.0-test3"
-CLIENT_PACKAGE_DIR = os.path.join("res_mods", WOT_VERSION, "scripts", "client")
-BUILD_DIR = os.path.join(os.getcwd(), "build")
-SRC_DIR = os.path.join(os.getcwd(), "src")
-PACKAGE_NAME = "tessumod-{0}-bin.zip".format(MOD_VERSION)
-SUPPORT_URL = "http://forum.worldoftanks.eu/index.php?/topic/433614-/"
-PLUGIN_INSTALLER_PATH = os.path.join(BUILD_DIR, "tessumod-plugin.ts3_plugin")
-PLUGIN_DEBUG_ARCHIVE_PATH = os.path.join(os.getcwd(), "tessumod-{0}-dbg.zip".format(MOD_VERSION))
+MOD_VERSION        = "0.6.0-test3"
+ROOT_DIR           = os.path.dirname(os.path.realpath(__file__))
+BUILD_DIR          = os.path.join(os.getcwd(), "build")
+MOD_PACKAGE_PATH   = os.path.join(os.getcwd(), "tessumod-{0}-bin.zip".format(MOD_VERSION))
+DEBUG_ARCHIVE_PATH = os.path.join(os.getcwd(), "tessumod-{0}-dbg.zip".format(MOD_VERSION))
 
-IN_FILES = {
-	"build_info.py.in": dict(
-		MOD_VERSION = MOD_VERSION,
-		SUPPORT_URL = SUPPORT_URL
-	),
-	"TessuMod.txt.in": dict(
-		SUPPORT_URL = SUPPORT_URL
-	)
-}
+def remove_file(file_path):
+	try:
+		os.remove(file_path)
+	except:
+		pass
 
-QTDIR_X86  = "E:\\Qt\\Qt5.2.1\\5.2.1\\msvc2012"
-QTDIR_X64  = "E:\\Qt\\Qt5.2.1\\5.2.1\\msvc2012_64"
+def remove_dir(dir_path):
+	try:
+		shutil.rmtree(dir_path)
+	except:
+		pass
 
-def process_in_file(source_dir, filename, params, destination_dir):
-	in_path  = os.path.join(source_dir, filename)
-	out_path = os.path.join(destination_dir, filename.replace(".in", ""))
-	with open(in_path, "r") as in_file, open(out_path, "w") as out_file:
-		out_file.write(in_file.read().format(**params))
-	return out_path
+def create_dir(dir_path):
+	try:
+		os.makedirs(dir_path)
+	except:
+		pass
 
-def package_ts_plugin():
+def package_ts_plugin(build_dir):
+	create_dir(build_dir)
 	proc = subprocess.Popen([
 		"python",
-		os.path.join(os.getcwd(), "ts_plugin", "package.py"),
-		"--version=" + MOD_VERSION,
-		"--qtdir86=" + QTDIR_X86,
-		"--qtdir64=" + QTDIR_X64,
-		"--installerpath=" + PLUGIN_INSTALLER_PATH,
-		"--debugarchivepath=" + PLUGIN_DEBUG_ARCHIVE_PATH
-	], cwd=build_dir)
-	proc.communicate()
+		os.path.join(ROOT_DIR, "tsplugin", "package.py"),
+		"--version=" + MOD_VERSION
+	], cwd=build_dir, stdout=subprocess.PIPE)
+	out = proc.communicate()[0]
 	if proc.returncode != 0:
+		print out
 		raise RuntimeError("TS plugin packaging failed")
-	if not os.path.isfile(PLUGIN_INSTALLER_PATH):
-		raise RuntimeError("Plugin installer not found")
-	if not os.path.isfile(PLUGIN_DEBUG_ARCHIVE_PATH):
-		raise RuntimeError("Plugin debug archive not found")
+	return (
+		re.search("^Installer file path: (.+)$", out, re.MULTILINE).group(1).strip(),
+		re.search("^Debug archive file path: (.+)$", out, re.MULTILINE).group(1).strip()
+	)
 
-# compile .py files from src/ and output .pyc files to /build
-for root, dirs, files in os.walk(SRC_DIR):
-	src_dir = root
-	root2 = root[len(SRC_DIR)+1:]
-	build_dir = os.path.join(BUILD_DIR, root2) if root2 else BUILD_DIR
+def package_tessumod(build_dir):
+	create_dir(build_dir)
+	proc = subprocess.Popen([
+		"python",
+		os.path.join(ROOT_DIR, "tessumod", "package.py"),
+		"--mod-version=" + MOD_VERSION
+	], cwd=build_dir, stdout=subprocess.PIPE)
+	out = proc.communicate()[0]
+	if proc.returncode != 0:
+		print out
+		raise RuntimeError("TessuMod packaging failed")
+	return (
+		re.search("^Package file path: (.+)$", out, re.MULTILINE).group(1).strip(),
+		re.search("^Package root path: (.+)$", out, re.MULTILINE).group(1).strip()
+	)
 
-	if not os.path.exists(build_dir):
-		os.mkdir(build_dir)
+remove_file(MOD_PACKAGE_PATH)
+remove_file(DEBUG_ARCHIVE_PATH)
+remove_dir(BUILD_DIR)
 
-	# convert .in-files and compile if necessary
-	for filename in IN_FILES:
-		if filename in files:
-			out_path = process_in_file(src_dir, filename, IN_FILES[filename], build_dir)
-			if out_path.endswith(".py"):
-				py_compile.compile(file=out_path, cfile=out_path+"c", doraise=True)
+plugin_installer_path, plugin_debug_path = package_ts_plugin(os.path.join(BUILD_DIR, "tsplugin"))
+package_path, package_root_path = package_tessumod(os.path.join(BUILD_DIR, "tessumod"))
 
-	for filename in fnmatch.filter(files, "*.py"):
-		# ignore unit test files
-		if filename.endswith("_test.py"):
-			continue
-		py_compile.compile(file=os.path.join(src_dir, filename), cfile=os.path.join(build_dir, filename)+"c", doraise=True)
+shutil.copy(plugin_debug_path, DEBUG_ARCHIVE_PATH)
+shutil.copy(package_path, MOD_PACKAGE_PATH)
 
-# remove old archive if one exists
-if os.path.exists(PACKAGE_NAME):
-	os.remove(PACKAGE_NAME)
-
-# create zip archive and compress TessuMod.txt and files from build/ to the archive
-fZip = zipfile.ZipFile(PACKAGE_NAME, "w")
-fZip.write(os.path.join(BUILD_DIR, "TessuMod.txt"), "tessumod.txt")
-for root, dirs, files in os.walk(BUILD_DIR):
-	source_dir = root
-	root2 = root[len(BUILD_DIR)+1:]
-	target_dir = os.path.join(CLIENT_PACKAGE_DIR, root2)
-
-	for filename in fnmatch.filter(files, "*.pyc"):
-		fZip.write(os.path.join(source_dir, filename), os.path.join(target_dir, filename))
-
-package_ts_plugin()
-
-fZip.write(PLUGIN_INSTALLER_PATH, os.path.basename(PLUGIN_INSTALLER_PATH))
-fZip.close()
+with zipfile.ZipFile(MOD_PACKAGE_PATH, "a") as package_file:
+	package_file.write(plugin_installer_path, os.path.join(package_root_path, os.path.basename(plugin_installer_path)))
