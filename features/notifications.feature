@@ -1,3 +1,4 @@
+@disabled
 Feature: Notifications in garage
 	In order to know that TessuMod works
 	As an user
