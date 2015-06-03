@@ -20,9 +20,10 @@ import mmap
 import struct
 import os
 import BigWorld
+
+import mytsplugin
 from utils import RepeatTimer
 import utils
-import time
 
 ENTITY_REFRESH_TIMEOUT = 1
 TS_UPDATE_TIMEOUT = 0.1
@@ -37,7 +38,7 @@ class PositionalAudio(object):
 		self._data_updated = False
 		self._camera_position = None
 		self._camera_direction = None
-		self._shared_memory = None
+		self.__positional_data_api = None
 
 		ts_users.on_added     += self.on_ts_users_changed
 		ts_users.on_removed   += self.on_ts_users_changed
@@ -54,7 +55,8 @@ class PositionalAudio(object):
 		'''Called when BigWorld.player() object becomes available at start
 		of battle.
 		'''
-		self._shared_memory = mmap.mmap(0, 1024, "TessuModTSPlugin3dAudio", mmap.ACCESS_WRITE)
+		self.__positional_data_api = mytsplugin.PositionalDataAPI()
+		self.__positional_data_api.open()
 		self._vehicle_positions.clear()
 		self._player_vehicle_ids.clear()
 		self._data_updated = True
@@ -75,9 +77,9 @@ class PositionalAudio(object):
 		self._player_vehicle_ids.clear()
 		self._vehicle_positions.clear()
 		self.on_update_to_ts(forced=True)
-		if self._shared_memory:
-			self._shared_memory.close()
-			self._shared_memory = None
+		if self.__positional_data_api:
+			self.__positional_data_api.close()
+			self.__positional_data_api = None
 
 	def on_arena_vehicles_updated(self, *args, **kwargs):
 		'''Called when vehicles in the arena are updated.
@@ -99,7 +101,7 @@ class PositionalAudio(object):
 		table for converting vehicle ID to position.
 		'''
 		for vehicle_id in self._arena().positions:
-			self._vehicle_positions[vehicle_id] = _Vector(*self._arena().positions[vehicle_id])
+			self._vehicle_positions[vehicle_id] = mytsplugin.Vector(*self._arena().positions[vehicle_id])
 		self._data_updated = True
 
 	def on_refresh_entity_positions(self):
@@ -120,18 +122,17 @@ class PositionalAudio(object):
 		self._data_updated = True
 
 	def on_update_to_ts(self, forced=False):
-		if self._shared_memory and (forced or self._data_updated or self._is_camera_updated()):
+		if self.__positional_data_api and (forced or self._data_updated or self._is_camera_updated()):
 			self._data_updated = False
 			camera = BigWorld.camera()
 			self._camera_position = camera.position
 			self._camera_direction = camera.direction
 
-			self._shared_memory.seek(0)
-			data = _DataV1()
+			data = mytsplugin.PositionalData()
 			data.camera_position = camera.position
 			data.camera_direction = camera.direction
 			data.client_positions = self._get_data_entries()
-			data.serialize(self._shared_memory)
+			self.__positional_data_api.set_data(data)
 
 	def _get_data_entries(self):
 		entries = []
@@ -159,29 +160,3 @@ class PositionalAudio(object):
 		if not camera:
 			return False
 		return self._camera_position != camera.position or self._camera_direction != camera.direction
-
-class _DataV1(object):
-
-	def __init__(self):
-		self.camera_position = None
-		self.camera_direction = None
-		self.client_positions = {}
-
-	def serialize(self, destination):
-		destination.write(struct.pack("I", int(time.time())))
-		destination.write(self._pack_float_vector(self.camera_position))
-		destination.write(self._pack_float_vector(self.camera_direction))
-		destination.write(struct.pack("B", len(self.client_positions)))
-		for client_id, position in self.client_positions:
-			destination.write(struct.pack("h", client_id))
-			destination.write(self._pack_float_vector(position))
-
-	def _pack_float_vector(self, vector):
-		return struct.pack("3f", vector.x, vector.y, vector.z)
-
-class _Vector(object):
-
-	def __init__(self, x, y, z):
-		self.x = x
-		self.y = y
-		self.z = z

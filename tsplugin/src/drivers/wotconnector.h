@@ -43,6 +43,8 @@ public:
 	WotConnector( QObject *parent );
 	~WotConnector();
 
+	void initialize();
+
 	// from Interfaces::GameDataDriver
 	QObject *qtObj();
 

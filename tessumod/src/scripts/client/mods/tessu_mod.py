@@ -105,16 +105,34 @@ def on_connected_to_ts3():
 	doesn't mean that the client is connected to any TeamSpeak server.
 	'''
 	LOG_NOTE("Connected to TeamSpeak client")
+	with mytsplugin.InfoAPI() as api:
+		plugin_version = api.get_api_version()
+		if not is_plugin_version_ignored(plugin_version):
+				installer_path = utils.get_plugin_installer_path()
+				if os.path.isfile(installer_path):
+					notifications.push_ts_plugin_install_message(
+						moreinfo_url   = "https://github.com/jhakonen/wot-teamspeak-mod/wiki/TeamSpeak-Plugins",
+						ignore_state   = "off",
+						plugin_version = plugin_version
+					)
+
+def is_plugin_version_ignored(plugin_version):
+	if "ignored_plugin_version" in g_keyvaluestorage:
+		return int(g_keyvaluestorage["ignored_plugin_version"]) == plugin_version
+	return False
+
+def ignore_plugin_version(plugin_version, ignored):
+	g_keyvaluestorage["ignored_plugin_version"] = plugin_version if ignored else 0
 
 def on_disconnected_from_ts3():
 	'''Called when TessuMod loses connection to TeamSpeak client.'''
 	LOG_NOTE("Disconnected from TeamSpeak client")
 	clear_speak_statuses()
-	utils.push_system_message("Disconnected from TeamSpeak client", SystemMessages.SM_TYPE.Warning)
+	notifications.push_warning_message("Disconnected from TeamSpeak client")
 
 def on_connected_to_ts3_server(server_name):
 	LOG_NOTE("Connected to TeamSpeak server '{0}'".format(server_name))
-	utils.push_system_message("Connected to TeamSpeak server '{0}'".format(server_name), SystemMessages.SM_TYPE.Information)
+	notifications.push_info_message("Connected to TeamSpeak server '{0}'".format(server_name))
 	g_ts.set_wot_nickname(utils.get_my_name())
 
 def on_disconnected_from_ts3_server():
@@ -130,8 +148,8 @@ def on_ts3_user_in_my_channel_added(client_id):
 
 def on_user_cache_read_error(message):
 	'''This function is called if user cache's reading fails.'''
-	utils.push_system_message("Failed to read file '{0}':\n   {1}"
-		.format(g_user_cache.ini_path, message), SystemMessages.SM_TYPE.Error)
+	notifications.push_error_message("Failed to read file '{0}':\n   {1}"
+		.format(g_user_cache.ini_path, message))
 
 def load_settings():
 	LOG_NOTE("Settings loaded from ini file")
@@ -182,12 +200,23 @@ def on_users_list_received(tags):
 	for player in utils.get_players(clanmembers=True, friends=True):
 		g_user_cache.add_player(player.name, player.id)
 
+def on_tsplugin_install(type_id, msg_id, data):
+	subprocess.call([os.path.normpath(utils.get_plugin_installer_path())], shell=True)
+
+def on_tsplugin_ignore_toggled(type_id, msg_id, data):
+	data["ignore_state"] = "on" if data["ignore_state"] == "off" else "off"
+	ignore_plugin_version(data["plugin_version"], True if data["ignore_state"] == "on" else False)
+	notifications.update_message(type_id, msg_id, data)
+
+def on_tsplugin_moreinfo_clicked(type_id, msg_id, data):
+	subprocess.call(["start", os.path.normpath(data["moreinfo_url"])], shell=True)
+
 def in_test_suite():
 	import sys
 	return "behave" in sys.argv[0]
 
 def load_mod():
-	global g_ts, g_talk_states, g_minimap_ctrl, g_user_cache, g_positional_audio
+	global g_ts, g_talk_states, g_minimap_ctrl, g_user_cache, g_positional_audio, g_keyvaluestorage
 
 	# make sure that ini-folder exists
 	try:
@@ -240,25 +269,32 @@ def load_mod():
 
 	g_messengerEvents.users.onUsersListReceived += on_users_list_received
 
+	notifications.add_event_handler(notifications.TSPLUGIN_INSTALL, on_tsplugin_install)
+	notifications.add_event_handler(notifications.TSPLUGIN_IGNORED, on_tsplugin_ignore_toggled)
+	notifications.add_event_handler(notifications.TSPLUGIN_MOREINFO, on_tsplugin_moreinfo_clicked)
+
+	g_keyvaluestorage = KeyValueStorage(utils.get_states_dir_path())
+
 	utils.call_in_loop(settings().get_ini_check_interval, sync_configs)
 
 try:
 	import game
 	from tessu_utils.utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
 	from tessu_utils.ts3 import TS3Client
-	from tessu_utils import utils
+	from tessu_utils import utils, mytsplugin, notifications
 	from tessu_utils.settings import settings
 	from tessu_utils.user_cache import UserCache
+	from tessu_utils.keyvaluestorage import KeyValueStorage
 	import tessu_utils.positional_audio as positional_audio
 	import BigWorld
 	import Avatar
 	import Account
 	import VOIP
 	import BattleReplay
-	from gui import SystemMessages
 	from messenger.proto.events import g_messengerEvents
 	from PlayerEvents import g_playerEvents
 	import os
+	import subprocess
 
 	if not in_test_suite():
 		print "TessuMod version {0} ({1})".format(utils.get_mod_version(), utils.get_support_url())

@@ -31,6 +31,7 @@
 namespace {
 
 const int TIME_LIMIT = 5;
+const quint8 PLUGIN_VERSION = 1;
 
 class MyDataStream : public QDataStream
 {
@@ -47,8 +48,8 @@ public:
 class MemoryAreaBuffer : public QIODevice
 {
 public:
-	MemoryAreaBuffer( QObject *parent = 0 )
-	: QIODevice( parent ), memoryData( 0 ), memorySize( 0 )
+	MemoryAreaBuffer( QSharedMemory *memory, QObject *parent = 0 )
+	: QIODevice( parent ), memoryData( memory->data() ), memorySize( memory->size() )
 	{
 	}
 
@@ -140,13 +141,32 @@ class WotConnectorPrivate
 {
 public:
 	WotConnectorPrivate( WotConnector *q )
-		: memoryConnectTimer( new QTimer( q ) ), readMemoryTimer( new QTimer( q ) ), memory( new QSharedMemory( q ) )
+		: memoryConnectTimer( new QTimer( q ) ), readMemoryTimer( new QTimer( q ) ),
+		  positionalDataMemory( new QSharedMemory( q ) ), pluginInfoMemory( new QSharedMemory( q ) )
 	{
+	}
+
+	void writePluginInfo()
+	{
+		if ( pluginInfoMemory->create( sizeof( PLUGIN_VERSION ) ) == false )
+		{
+			Log::error() << "Failed to create shared memory for plugin info, reason: " << pluginInfoMemory->errorString();
+			return;
+		}
+		MemoryAreaBuffer buffer( pluginInfoMemory );
+		if ( buffer.open( QIODevice::WriteOnly ) == false )
+		{
+			Log::error() << "Failed to open buffer";
+			return;
+		}
+		MyDataStream stream( &buffer );
+		stream << PLUGIN_VERSION;
 	}
 
 	QTimer* memoryConnectTimer;
 	QTimer* readMemoryTimer;
-	QSharedMemory* memory;
+	QSharedMemory* positionalDataMemory;
+	QSharedMemory* pluginInfoMemory;
 	MemoryAreaBuffer* memoryBuffer;
 	PositionalAudioData previousData;
 };
@@ -158,11 +178,11 @@ WotConnector::WotConnector( QObject *parent )
 	connect( d->memoryConnectTimer, SIGNAL(timeout()), this, SLOT(connectToMemory()) );
 	d->memoryConnectTimer->setInterval( 5000 );
 	d->memoryConnectTimer->setSingleShot( false );
-	d->memoryConnectTimer->start();
 	connect( d->readMemoryTimer, SIGNAL(timeout()), this, SLOT(readMemory()) );
 	d->readMemoryTimer->setInterval( 100 );
 	d->readMemoryTimer->setSingleShot( false );
-	d->memory->setNativeKey( "TessuModTSPlugin3dAudio" );
+	d->positionalDataMemory->setNativeKey( "TessuModTSPlugin3dAudio" );
+	d->pluginInfoMemory->setNativeKey( "TessuModTSPluginInfo" );
 }
 
 WotConnector::~WotConnector()
@@ -173,6 +193,13 @@ WotConnector::~WotConnector()
 	delete d;
 }
 
+void WotConnector::initialize()
+{
+	Q_D( WotConnector );
+	d->memoryConnectTimer->start();
+	d->writePluginInfo();
+}
+
 QObject *WotConnector::qtObj()
 {
 	return this;
@@ -181,16 +208,15 @@ QObject *WotConnector::qtObj()
 void WotConnector::connectToMemory()
 {
 	Q_D( WotConnector );
-	if ( d->memory->attach( QSharedMemory::ReadOnly ) == false )
+	if ( d->positionalDataMemory->attach( QSharedMemory::ReadOnly ) == false )
 	{
-		if ( d->memory->error() != QSharedMemory::NotFound )
+		if ( d->positionalDataMemory->error() != QSharedMemory::NotFound )
 		{
-			Log::error() << "Failed to connect to shared memory, reason: " << d->memory->errorString();
+			Log::error() << "Failed to connect to positional audio shared memory, reason: " << d->positionalDataMemory->errorString();
 		}
 		return;
 	}
-	d->memoryBuffer = new MemoryAreaBuffer( this );
-	d->memoryBuffer->setMemoryArea( d->memory->data(), d->memory->size() );
+	d->memoryBuffer = new MemoryAreaBuffer( d->positionalDataMemory, this );
 	if ( d->memoryBuffer->open( QIODevice::ReadOnly ) == false )
 	{
 		Log::error() << "Failed to open buffer";

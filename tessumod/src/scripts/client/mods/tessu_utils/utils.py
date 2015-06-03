@@ -17,7 +17,6 @@
 
 import BigWorld
 import debug_utils
-from gui import SystemMessages
 from gui.WindowsManager import g_windowsManager
 from messenger.storage import storage_getter
 from messenger.proto.shared_find_criteria import FriendsFindCriteria
@@ -132,31 +131,33 @@ def get_player_info_by_dbid(dbid):
 		}
 	return {}
 
-def push_system_message(message, type):
-	'''Pushes given 'message' to system notification center in garage. 'type'
-	is one of the SystemMessages.SM_TYPE.* constants.
-	'''
-	try:
-		if SystemMessages.g_instance is None:
-			BigWorld.callback(1, with_args(push_system_message, message, type))
-		else:
-			SystemMessages.pushMessage(message, type)
-	except:
-		LOG_CURRENT_EXCEPTION()
-		return
+def get_resource_paths():
+	res = ResMgr.openSection('../paths.xml')
+	sb = res['Paths']
+	vals = sb.values()
+	for vl in vals:
+		yield vl.asString
+
+def find_res_mods_version_path():
+	for path in get_resource_paths():
+		if "res_mods" in path:
+			return path
+	return ""
 
 def get_ini_dir_path():
 	return os.path.join(os.getcwd(), "res_mods", "configs", "tessu_mod")
 
 def get_old_ini_dir_path():
-	res = ResMgr.openSection('../paths.xml')
-	sb = res['Paths']
-	vals = sb.values()
-	for vl in vals:
-		path = vl.asString + "/scripts/client/mods/"
-		if os.path.isdir(path):
-			return path
+	path = os.path.join(find_res_mods_version_path(), "scripts", "client", "mods")
+	if os.path.isdir(path):
+		return path
 	return ""
+
+def get_states_dir_path():
+	return os.path.join(get_ini_dir_path(), "states")
+
+def get_plugin_installer_path():
+	return os.path.join(find_res_mods_version_path(), "tessumod.ts3_plugin")
 
 def get_mod_version():
 	try:

@@ -84,6 +84,7 @@ void pluginInit( QObject *parent )
 
 	QObject::connect( setupTimer, &QTimer::timeout, [=] {
 		teamSpeakPlugin->initialize();
+		wotConnector->initialize();
 		useCaseFactory->applicationInitialize();
 	} );
 }
