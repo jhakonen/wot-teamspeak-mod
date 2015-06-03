@@ -6,7 +6,7 @@ import fnmatch
 import shutil
 import argparse
 
-WOT_VERSION          = "0.9.8"
+WOT_VERSION          = "0.9.8.1"
 SUPPORT_URL          = "http://forum.worldoftanks.eu/index.php?/topic/433614-/"
 ROOT_DIR             = os.path.dirname(os.path.realpath(__file__))
 SRC_DIR              = os.path.join(ROOT_DIR, "src")
@@ -117,7 +117,7 @@ class Packager(object):
 		# compile source py-file into bytecode pyc-file
 		py_compile.compile(file=src_filepath, cfile=build_filepath, doraise=True)
 
-	@accepts_extensions([".swf", ".txt"])
+	@accepts_extensions([".swf", ".txt", ".json", ".xml", ".png"])
 	def __copy_file(self, src_filepath):
 		'''Simply copies file at 'src_filepath' to build dir.'''
 		build_filepath = self.__src_path_to_build_path(src_filepath)
