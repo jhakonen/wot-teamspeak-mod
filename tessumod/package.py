@@ -62,8 +62,8 @@ class CallbackList(object):
 class Packager(object):
 
 	def __init__(self, src_dir, build_dir, package_path, package_root_dir, in_file_parameters):
-		self.__src_dir = src_dir
-		self.__build_dir = build_dir
+		self.__src_dir = os.path.normpath(src_dir)
+		self.__build_dir = os.path.normpath(build_dir)
 		self.__package_path = package_path
 		self.__package_root_dir = package_root_dir
 		self.__in_file_parameters = in_file_parameters
@@ -105,17 +105,18 @@ class Packager(object):
 		'''Returns an iterator which returns paths to all files within source dir.'''
 		for root, dirs, files in os.walk(self.__src_dir):
 			for filename in files:
-				yield os.path.join(root, filename)
+				yield os.path.normpath(os.path.join(root, filename))
 
 	@accepts_extensions([".py"])
 	def __compile_py_file(self, src_filepath):
 		'''Compiles 'src_filepath' python source file into python bytecode file and
 		saves it build dir.
 		'''
+		debug_filepath = src_filepath.replace(self.__src_dir, "").replace("\\", "/").strip("/")
 		build_filepath = self.__src_path_to_build_path(src_filepath) + "c"
 		self.__make_parent_dirs(build_filepath)
 		# compile source py-file into bytecode pyc-file
-		py_compile.compile(file=src_filepath, cfile=build_filepath, doraise=True)
+		py_compile.compile(file=src_filepath, cfile=build_filepath, dfile=debug_filepath, doraise=True)
 
 	@accepts_extensions([".swf", ".txt", ".json", ".xml", ".png"])
 	def __copy_file(self, src_filepath):
