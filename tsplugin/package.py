@@ -21,6 +21,7 @@ import shutil
 import _winreg
 import argparse
 import zipfile
+import glob
 
 BUILD_DIR  = os.getcwd()
 SOURCE_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -114,6 +115,15 @@ if __name__ == "__main__":
 	x86_bin_path, x86_dbg_path = build_ts_plugin_binary(os.getenv("QTDIR_X86"), "x86")
 	x64_bin_path, x64_dbg_path = build_ts_plugin_binary(os.getenv("QTDIR_X64"), "x64")
 
+	files = {
+		"plugins\\" + os.path.basename(x86_bin_path): x86_bin_path,
+		"plugins\\" + os.path.basename(x64_bin_path): x64_bin_path,
+		"plugins\\tessumod_plugin\\alsoft.ini": os.path.join(SOURCE_DIR, "etc", "alsoft.ini"),
+		"plugins\\tessumod_plugin\\testsound.wav": os.path.join(SOURCE_DIR, "audio", "testsound.wav")
+	}
+	files.update({ "plugins\\tessumod_plugin\\" + os.path.basename(filepath): filepath for filepath in glob.glob(os.path.join(SOURCE_DIR, "libs", "OpenAL*.dll")) })
+	files.update({ "plugins\\tessumod_plugin\\" + os.path.basename(filepath): filepath for filepath in glob.glob(os.path.join(SOURCE_DIR, "etc", "hrtfs", "*.mhr")) })
+
 	build_ts_installer(
 		installer_path = PLUGIN_INSTALLER_PATH,
 		name = "TessuMod Plugin",
@@ -122,12 +132,7 @@ if __name__ == "__main__":
 		version = args.version,
 		platforms = ["win32", "win64"],
 		description = "This plugin provides positional audio support for World of Tanks.",
-		files = {
-			"plugins\\" + os.path.basename(x86_bin_path): x86_bin_path,
-			"plugins\\" + os.path.basename(x64_bin_path): x64_bin_path,
-			"plugins\\tessumod_plugin\\OpenAL32.dll": os.path.join(SOURCE_DIR, "libs", "OpenAL32.dll"),
-			"plugins\\tessumod_plugin\\OpenAL64.dll": os.path.join(SOURCE_DIR, "libs", "OpenAL64.dll")
-		}
+		files = files
 	)
 
 	build_debug_archive(

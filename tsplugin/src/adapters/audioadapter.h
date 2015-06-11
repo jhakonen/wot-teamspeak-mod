@@ -40,7 +40,7 @@ class AudioAdapter : public QObject, public Interfaces::AudioAdapter
 	Q_OBJECT
 
 public:
-	AudioAdapter( Interfaces::AudioDriver* driver, QObject *parent );
+	AudioAdapter( Interfaces::AudioDriver* driver, const QString &dataPath, QObject *parent );
 
 	void positionUser( const Entity::User &user );
 	void removeUser( const Entity::User &user );
@@ -69,6 +69,7 @@ private:
 
 private:
 	Interfaces::AudioDriver* driver;
+	QString dataPath;
 	QSet<quint16> userIds;
 	PositionRotator *rotator;
 	Callback playTestSoundCallback;

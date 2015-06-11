@@ -34,7 +34,7 @@ class OpenALBackend : public QObject, public Interfaces::AudioDriver, public Int
 	Q_OBJECT
 
 public:
-	OpenALBackend( QObject *parent );
+	OpenALBackend( const QString &dataPath, QObject *parent );
 	~OpenALBackend();
 
 	// from Interfaces::AudioDriver
@@ -66,7 +66,7 @@ class OpenALConfFile : public QObject, public Interfaces::ConfigFilePathSource
 	Q_OBJECT
 
 public:
-	OpenALConfFile( QObject *parent );
+	OpenALConfFile( const QString &dataPath, QObject *parent );
 	~OpenALConfFile();
 
 	void start();
@@ -82,6 +82,7 @@ private:
 	void startListening();
 
 private:
+	QString dataPath;
 	QFileSystemWatcher *watcher;
 };
 

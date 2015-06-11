@@ -92,8 +92,5 @@ HEADERS +=\
     src/openal/structures.h \
     src/openal/privateimpl.h
 
-RESOURCES += \
-	resources.qrc
-
 FORMS += \
     src/ui/settingsdialog.ui

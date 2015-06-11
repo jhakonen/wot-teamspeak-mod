@@ -60,17 +60,6 @@ QString getOALHRTFPath()
 	return QDir::cleanPath( targetPath );
 }
 
-QStringList getHrtfDataPaths()
-{
-	QDir dir( ":/etc/hrtfs/" );
-	QStringList paths;
-	foreach( QString entry, dir.entryList( QStringList() << "*.mhr", QDir::Files ) )
-	{
-		paths.append( dir.filePath( entry ) );
-	}
-	return paths;
-}
-
 ALfloat tsVolumeModifierToOALGain( float tsVolumeModifier )
 {
 	return 1.0 / ( pow( 2.0, tsVolumeModifier / -6.0 ) );
@@ -87,6 +76,17 @@ public:
 	OpenALBackendPrivate()
 		: isEnabled( false ), playbackVolume( 0 ), hrtfEnabled( false ), initNeeded( false )
 	{
+	}
+
+	QStringList getResourceHrtfDataPaths() const
+	{
+		QDir dir( dataPath );
+		QStringList paths;
+		foreach( QString entry, dir.entryList( QStringList() << "*.mhr", QDir::Files ) )
+		{
+			paths.append( dir.filePath( entry ) );
+		}
+		return paths;
 	}
 
 	void writeSilence( short *samples, int sampleCount, int channels )
@@ -129,6 +129,7 @@ public:
 	}
 
 public:
+	QString dataPath;
 	QMap<quint16, Entity::Vector> userPositions;
 	bool isEnabled;
 	Entity::Vector cameraPosition;
@@ -141,12 +142,14 @@ public:
 	bool initNeeded;
 };
 
-OpenALBackend::OpenALBackend( QObject *parent )
+OpenALBackend::OpenALBackend( const QString &dataPath, QObject *parent )
 	: QObject( parent ), d_ptr( new OpenALBackendPrivate() )
 {
+	Q_D( OpenALBackend );
+	d->dataPath = dataPath;
 	// copy HRTF files from resources to location in file system where OpenAL
 	// will search them
-	foreach( QString entry, getHrtfDataPaths() )
+	foreach( QString entry, d->getResourceHrtfDataPaths() )
 	{
 		QString targetPath = getOALHRTFPath() + QDir::separator() + QFileInfo( entry ).fileName();
 		if( !QFile( targetPath ).exists() )
@@ -300,8 +303,9 @@ void OpenALBackend::setLoggingLevel( int level )
 
 QStringList OpenALBackend::getHrtfDataFileNames() const
 {
+	Q_D( const OpenALBackend );
 	QStringList paths;
-	foreach( QString entry, getHrtfDataPaths() )
+	foreach( QString entry, d->getResourceHrtfDataPaths() )
 	{
 		paths << QFileInfo( entry ).fileName();
 	}
@@ -393,8 +397,8 @@ void OpenALBackend::onEditPlaybackVoiceDataEvent( quint16 id, short *samples, in
 	}
 }
 
-OpenALConfFile::OpenALConfFile( QObject *parent )
-	: QObject( parent ), watcher( new QFileSystemWatcher( this ) )
+OpenALConfFile::OpenALConfFile( const QString &dataPath, QObject *parent )
+	: QObject( parent ), dataPath( dataPath ), watcher( new QFileSystemWatcher( this ) )
 {
 }
 
@@ -433,7 +437,7 @@ void OpenALConfFile::onFileChanged()
 
 void OpenALConfFile::createConfFile()
 {
-	QFile resourceFile( ":/etc/alsoft.ini" );
+	QFile resourceFile( dataPath + "/alsoft.ini" );
 	if( !resourceFile.copy( getFilePath() ) )
 	{
 		Log::error() << "Failed to save OpenAL INI-file to '" << getFilePath() << "', reason: " << resourceFile.errorString();

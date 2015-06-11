@@ -48,13 +48,14 @@ void pluginInit( QObject *parent )
 	// Log::setSink( new Log::FileLogger( "C:/temp/tessumod_plugin.log" ) );
 	Log::logQtMessages();
 
-	QString dataPath = QDir::toNativeSeparators( teamSpeakPlugin->getPluginDataPath() );
-	dllSearchCookie = AddDllDirectory( (wchar_t*)dataPath.utf16() );
+	QString dataPath = teamSpeakPlugin->getPluginDataPath();
+	QString dataPathNative = QDir::toNativeSeparators( dataPath );
+	dllSearchCookie = AddDllDirectory( (wchar_t*)dataPathNative.utf16() );
 
 	auto iniSettingsFile = new Driver::IniSettingsFile( parent );
-	auto openALBackend = new Driver::OpenALBackend( parent );
-	auto openALBackendTest = new Driver::OpenALBackend( parent );
-	auto openALConfFile = new Driver::OpenALConfFile( parent );
+	auto openALBackend = new Driver::OpenALBackend( dataPath, parent );
+	auto openALBackendTest = new Driver::OpenALBackend( dataPath, parent );
+	auto openALConfFile = new Driver::OpenALConfFile( dataPath, parent );
 	auto wotConnector = new Driver::WotConnector( parent );
 
 	auto userStorage = new Storage::UserStorage( parent );
@@ -68,10 +69,10 @@ void pluginInit( QObject *parent )
 	useCaseFactory->settingsStorage = settingsStorage;
 	useCaseFactory->adapterStorage = adapterStorage;
 
-	adapterStorage->setAudio( Entity::BuiltInBackend, new Adapter::AudioAdapter( teamSpeakPlugin->createAudioBackend(), parent ) );
-	adapterStorage->setAudio( Entity::OpenALBackend, new Adapter::AudioAdapter( openALBackend, parent ) );
-	adapterStorage->setTestAudio( Entity::BuiltInBackend, new Adapter::AudioAdapter( teamSpeakPlugin->createAudioBackend(), parent ) );
-	adapterStorage->setTestAudio( Entity::OpenALBackend, new Adapter::AudioAdapter( openALBackendTest, parent ) );
+	adapterStorage->setAudio( Entity::BuiltInBackend, new Adapter::AudioAdapter( teamSpeakPlugin->createAudioBackend(), dataPath, parent ) );
+	adapterStorage->setAudio( Entity::OpenALBackend, new Adapter::AudioAdapter( openALBackend, dataPath, parent ) );
+	adapterStorage->setTestAudio( Entity::BuiltInBackend, new Adapter::AudioAdapter( teamSpeakPlugin->createAudioBackend(), dataPath, parent ) );
+	adapterStorage->setTestAudio( Entity::OpenALBackend, new Adapter::AudioAdapter( openALBackendTest, dataPath, parent ) );
 	adapterStorage->setVoiceChat( new Adapter::VoiceChatAdapter( teamSpeakPlugin, useCaseFactory, parent ) );
 	adapterStorage->setGameData( new Adapter::GameDataAdapter( wotConnector, useCaseFactory, parent ) );
 	adapterStorage->setUi( new Adapter::UiAdapter( useCaseFactory, openALConfFile, parent ) );

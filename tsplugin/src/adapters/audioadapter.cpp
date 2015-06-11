@@ -27,7 +27,6 @@
 #include "../utils/logging.h"
 
 #include <QTimer>
-#include <QStandardPaths>
 #include <QDir>
 #include <QFile>
 
@@ -36,8 +35,8 @@
 namespace Adapter
 {
 
-AudioAdapter::AudioAdapter( Interfaces::AudioDriver *driver, QObject *parent )
-	: QObject( parent ), driver( driver ), rotator( new PositionRotator( this ) )
+AudioAdapter::AudioAdapter( Interfaces::AudioDriver *driver, const QString &dataPath, QObject *parent )
+	: QObject( parent ), driver( driver ), rotator( new PositionRotator( this ) ), dataPath( dataPath )
 {
 	connect( rotator, SIGNAL(started()), this, SLOT(onStartTestSound()) );
 	connect( rotator, SIGNAL(positionChanged(Entity::Vector)), this, SLOT(onPositionTestSound(Entity::Vector)) );
@@ -123,27 +122,9 @@ void AudioAdapter::setLoggingLevel( int level )
 
 void AudioAdapter::onStartTestSound()
 {
-	QString tempPath = QStandardPaths::writableLocation( QStandardPaths::TempLocation ) + "/TessuMod";
-	if( !QDir().mkpath( tempPath ) )
-	{
-		Log::error() << "Failed to create folder for test sound: " + QDir::toNativeSeparators( tempPath );
-		return;
-	}
-
-	QString testSoundPath = tempPath + "/testsound.wav";
-	QFile testSoundFile( testSoundPath );
-	testSoundFile.setPermissions( testSoundFile.permissions() | QFile::WriteUser );
-	testSoundFile.remove( testSoundPath );
-
-	if( !QFile::copy( ":/audio/testsound.wav", testSoundPath ) )
-	{
-		Log::error() << "Failed to save test sound file to path: " + QDir::toNativeSeparators( testSoundPath );
-		return;
-	}
-
 	try
 	{
-		driver->playTestSound( testSoundPath );
+		driver->playTestSound( dataPath + "/testsound.wav" );
 	}
 	catch( const Entity::Failure &failure )
 	{
