@@ -26,6 +26,9 @@
       <layout class="QVBoxLayout" name="verticalLayout_3">
        <item>
         <widget class="QCheckBox" name="positionalAudioCheckBox">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Toggles positional audio on / off.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
          <property name="text">
           <string>Enable Positional Audio</string>
          </property>
@@ -75,6 +78,9 @@
           </item>
           <item>
            <widget class="QPushButton" name="testButton">
+            <property name="toolTip">
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;With this button you can test how different audio settings affects to audio playback. The testing feeds out noise from TeamSpeak's currently selected audio device. Position of the audio source rotates around you depending what has been chosen in &lt;span style=&quot; font-weight:600;&quot;&gt;Rotate audio source&lt;/span&gt; -setting.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            </property>
             <property name="text">
              <string>Test</string>
             </property>
@@ -95,12 +101,18 @@
           </item>
           <item>
            <widget class="QGroupBox" name="groupBox_4">
+            <property name="toolTip">
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;When testing speakers these radio buttons control how audio test tone's source rotates around you.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            </property>
             <property name="title">
              <string>Rotate audio source</string>
             </property>
             <layout class="QVBoxLayout" name="verticalLayout_5">
              <item>
               <widget class="QRadioButton" name="rotateYRadioButton">
+               <property name="toolTip">
+                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Audio source rotates around your starting from your &lt;span style=&quot; font-weight:600;&quot;&gt;behind&lt;/span&gt; --&amp;gt;&lt;span style=&quot; font-weight:600;&quot;&gt; right&lt;/span&gt; --&amp;gt; &lt;span style=&quot; font-weight:600;&quot;&gt;front&lt;/span&gt; --&amp;gt; &lt;span style=&quot; font-weight:600;&quot;&gt;left&lt;/span&gt; --&amp;gt; &lt;span style=&quot; font-weight:600;&quot;&gt;behind&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               </property>
                <property name="text">
                 <string>Horizontally (around y-axis)</string>
                </property>
@@ -111,6 +123,9 @@
              </item>
              <item>
               <widget class="QRadioButton" name="rotateZRadioButton">
+               <property name="toolTip">
+                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Audio source rotates around your starting from &lt;span style=&quot; font-weight:600;&quot;&gt;below&lt;/span&gt; --&amp;gt; &lt;span style=&quot; font-weight:600;&quot;&gt;right&lt;/span&gt; --&amp;gt; &lt;span style=&quot; font-weight:600;&quot;&gt;above&lt;/span&gt; --&amp;gt; &lt;span style=&quot; font-weight:600;&quot;&gt;left&lt;/span&gt; --&amp;gt; &lt;span style=&quot; font-weight:600;&quot;&gt;below&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               </property>
                <property name="text">
                 <string>Vertically (around z-axis)</string>
                </property>
@@ -118,6 +133,9 @@
              </item>
              <item>
               <widget class="QRadioButton" name="rotateXRadioButton">
+               <property name="toolTip">
+                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Audio source rotates around your starting from &lt;span style=&quot; font-weight:600;&quot;&gt;below&lt;/span&gt; --&amp;gt; &lt;span style=&quot; font-weight:600;&quot;&gt;front&lt;/span&gt; --&amp;gt; &lt;span style=&quot; font-weight:600;&quot;&gt;above&lt;/span&gt; --&amp;gt; &lt;span style=&quot; font-weight:600;&quot;&gt;behind&lt;/span&gt; --&amp;gt; &lt;span style=&quot; font-weight:600;&quot;&gt;below&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               </property>
                <property name="text">
                 <string>Vertically (around x-axis)</string>
                </property>
@@ -131,6 +149,9 @@
        </item>
        <item>
         <widget class="QGroupBox" name="groupBox">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Selector for audio positioning engine. OpenAL provides more functionality and configuration options and it is enabled by default. If you encounter issues with OpenAL you can also fallback to use TeamSpeak's own internal positioning engine.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
          <property name="title">
           <string>Select Audio Backend</string>
          </property>
@@ -166,6 +187,9 @@
          <layout class="QVBoxLayout" name="verticalLayout_6">
           <item>
            <widget class="QCheckBox" name="enableHrtfCheckBox">
+            <property name="toolTip">
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Improves audio positioning when using headphones or headsets. &lt;/p&gt;&lt;p&gt;Do not use with external speakers.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            </property>
             <property name="text">
              <string>Enable HRTF (Headphones only)</string>
             </property>
@@ -262,7 +286,7 @@
             <item>
              <widget class="QPushButton" name="openALAdvancedButton">
               <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Opens OpenAL's global configuration file to text editor associated with INI-files.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;p&gt;Any changes made to the file will immediately take effect.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Opens OpenAL's global configuration file to text editor associated with INI-files.&lt;/p&gt;&lt;p&gt;Any changes made to the file will immediately take effect.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
               </property>
               <property name="text">
                <string>Advanced Settings</string>
