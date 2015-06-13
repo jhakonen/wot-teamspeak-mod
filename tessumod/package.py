@@ -5,6 +5,7 @@ import sys
 import fnmatch
 import shutil
 import argparse
+import re
 
 WOT_VERSION          = "0.9.8.1"
 SUPPORT_URL          = "http://forum.worldoftanks.eu/index.php?/topic/433614-/"
@@ -28,11 +29,12 @@ def main():
 		)
 	}
 	packager = Packager(
-		src_dir            = SRC_DIR,
-		build_dir          = BUILD_DIR,
-		package_path       = os.path.join(os.getcwd(), "tessumod-{0}-bin.zip".format(args.mod_version)),
-		package_root_dir   = PACKAGE_ROOT_DIR,
-		in_file_parameters = in_file_parameters
+		src_dir               = SRC_DIR,
+		build_dir             = BUILD_DIR,
+		package_path          = os.path.join(os.getcwd(), "tessumod-{0}-bin.zip".format(args.mod_version)),
+		package_root_dir      = PACKAGE_ROOT_DIR,
+		in_file_parameters    = in_file_parameters,
+		ignored_file_patterns = [".+_test.py"]
 	)
 	packager.create()
 	print "Package file path:", packager.get_package_path()
@@ -61,12 +63,13 @@ class CallbackList(object):
 
 class Packager(object):
 
-	def __init__(self, src_dir, build_dir, package_path, package_root_dir, in_file_parameters):
+	def __init__(self, src_dir, build_dir, package_path, package_root_dir, in_file_parameters, ignored_file_patterns=[]):
 		self.__src_dir = os.path.normpath(src_dir)
 		self.__build_dir = os.path.normpath(build_dir)
 		self.__package_path = package_path
 		self.__package_root_dir = package_root_dir
 		self.__in_file_parameters = in_file_parameters
+		self.__ignored_file_patterns = ignored_file_patterns
 		self.__builders = CallbackList(
 			self.__compile_py_file,
 			self.__copy_file,
@@ -105,7 +108,8 @@ class Packager(object):
 		'''Returns an iterator which returns paths to all files within source dir.'''
 		for root, dirs, files in os.walk(self.__src_dir):
 			for filename in files:
-				yield os.path.normpath(os.path.join(root, filename))
+				if all([not re.match(pattern, filename, re.IGNORECASE) for pattern in self.__ignored_file_patterns]):
+					yield os.path.normpath(os.path.join(root, filename))
 
 	@accepts_extensions([".py"])
 	def __compile_py_file(self, src_filepath):
