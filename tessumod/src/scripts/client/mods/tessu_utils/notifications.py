@@ -35,6 +35,11 @@ TSPLUGIN_IGNORED  = "TessuModTSPluginIgnore"
 
 _event_handlers = []
 _is_plugin_install_shown = False
+_are_notifications_enabled = True
+
+def set_notifications_enabled(enabled):
+	global _are_notifications_enabled
+	_are_notifications_enabled = enabled
 
 def add_event_handler(action, handler):
 	_event_handlers.append((action, handler))
@@ -74,7 +79,7 @@ def _push_system_message(message, type):
 	try:
 		if SystemMessages.g_instance is None:
 			BigWorld.callback(1, functools.partial(_push_system_message, message, type))
-		else:
+		elif _are_notifications_enabled:
 			SystemMessages.pushMessage(message, type)
 	except:
 		LOG_CURRENT_EXCEPTION()
@@ -83,7 +88,7 @@ def _push_notification(notification):
 	model = NotificationMVC.g_instance.getModel()
 	if model is None:
 		BigWorld.callback(1, functools.partial(_push_notification, notification))
-	else:
+	elif _are_notifications_enabled:
 		model.addNotification(notification)
 
 def _get_new_message_id():

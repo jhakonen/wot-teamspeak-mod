@@ -272,6 +272,10 @@ def load_mod():
 	g_playerEvents.onAvatarBecomePlayer    += g_positional_audio.on_become_player
 	g_playerEvents.onAvatarBecomeNonPlayer += g_positional_audio.on_become_nonplayer
 
+	# don't show system center notifications in battle
+	g_playerEvents.onAvatarBecomePlayer    += partial(notifications.set_notifications_enabled, False)
+	g_playerEvents.onAvatarBecomeNonPlayer += partial(notifications.set_notifications_enabled, True)
+
 	# if nothing broke so far then it should be safe to patch the needed
 	# functions (modified functions have dependencies to g_* global variables)
 	Avatar.Avatar.onBecomePlayer = Player_onBecomePlayer(Avatar.Avatar.onBecomePlayer)
@@ -307,6 +311,7 @@ try:
 	from PlayerEvents import g_playerEvents
 	import os
 	import subprocess
+	from functools import partial
 
 	if not in_test_suite():
 		print "TessuMod version {0} ({1})".format(utils.get_mod_version(), utils.get_support_url())
