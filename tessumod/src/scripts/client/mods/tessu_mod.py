@@ -15,6 +15,8 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
+AVAILABLE_PLUGIN_VERSION = 1
+
 def on_speak_status_changed(user):
 	'''Called when TeamSpeak user's speak status changes.'''
 	g_user_cache.add_ts_user(user.nick, user.unique_id)
@@ -105,24 +107,34 @@ def on_connected_to_ts3():
 	doesn't mean that the client is connected to any TeamSpeak server.
 	'''
 	LOG_NOTE("Connected to TeamSpeak client")
+	installer_path = utils.get_plugin_installer_path()
+
+	if not os.path.isfile(installer_path):
+		return
+	if is_newest_plugin_version(get_installed_plugin_version()):
+		return
+	if is_newest_plugin_version(get_ignored_plugin_version()):
+		return
+
+	notifications.push_ts_plugin_install_message(
+		moreinfo_url   = "https://github.com/jhakonen/wot-teamspeak-mod/wiki/TeamSpeak-Plugins",
+		ignore_state   = "off"
+	)
+
+def get_installed_plugin_version():
 	with mytsplugin.InfoAPI() as api:
-		plugin_version = api.get_api_version()
-		if not is_plugin_version_ignored(plugin_version):
-				installer_path = utils.get_plugin_installer_path()
-				if os.path.isfile(installer_path):
-					notifications.push_ts_plugin_install_message(
-						moreinfo_url   = "https://github.com/jhakonen/wot-teamspeak-mod/wiki/TeamSpeak-Plugins",
-						ignore_state   = "off",
-						plugin_version = plugin_version
-					)
+		return api.get_api_version()
 
-def is_plugin_version_ignored(plugin_version):
+def is_newest_plugin_version(plugin_version):
+	return plugin_version >= AVAILABLE_PLUGIN_VERSION
+
+def get_ignored_plugin_version():
 	if "ignored_plugin_version" in g_keyvaluestorage:
-		return int(g_keyvaluestorage["ignored_plugin_version"]) == plugin_version
-	return False
+		return int(g_keyvaluestorage["ignored_plugin_version"])
+	return 0
 
-def ignore_plugin_version(plugin_version, ignored):
-	g_keyvaluestorage["ignored_plugin_version"] = plugin_version if ignored else 0
+def set_plugin_install_ignored(ignored):
+	g_keyvaluestorage["ignored_plugin_version"] = AVAILABLE_PLUGIN_VERSION if ignored else 0
 
 def on_disconnected_from_ts3():
 	'''Called when TessuMod loses connection to TeamSpeak client.'''
@@ -205,7 +217,7 @@ def on_tsplugin_install(type_id, msg_id, data):
 
 def on_tsplugin_ignore_toggled(type_id, msg_id, data):
 	data["ignore_state"] = "on" if data["ignore_state"] == "off" else "off"
-	ignore_plugin_version(data["plugin_version"], True if data["ignore_state"] == "on" else False)
+	set_plugin_install_ignored(True if data["ignore_state"] == "on" else False)
 	notifications.update_message(type_id, msg_id, data)
 
 def on_tsplugin_moreinfo_clicked(type_id, msg_id, data):
