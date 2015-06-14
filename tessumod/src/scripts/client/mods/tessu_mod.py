@@ -145,7 +145,7 @@ def on_disconnected_from_ts3():
 def on_connected_to_ts3_server(server_name):
 	LOG_NOTE("Connected to TeamSpeak server '{0}'".format(server_name))
 	notifications.push_info_message("Connected to TeamSpeak server '{0}'".format(server_name))
-	g_ts.set_wot_nickname(utils.get_my_name())
+	update_wot_nickname_to_ts()
 
 def on_disconnected_from_ts3_server():
 	LOG_NOTE("Disconnected from TeamSpeak server")
@@ -173,12 +173,8 @@ def sync_configs():
 	g_user_cache.sync()
 	settings().sync()
 
-def Player_onBecomePlayer(orig_method):
-	def wrapper(self):
-		'''Called when BigWorld.player() is available.'''
-		orig_method(self)
-		g_ts.set_wot_nickname(utils.get_my_name())
-	return wrapper
+def update_wot_nickname_to_ts():
+	g_ts.set_wot_nickname(utils.get_my_name())
 
 def VOIPManager_isParticipantTalking(orig_method):
 	def wrapper(self, dbid):
@@ -269,17 +265,18 @@ def load_mod():
 	g_ts.users_in_my_channel.on_added += on_ts3_user_in_my_channel_added
 	utils.call_in_loop(settings().get_client_query_interval(), g_ts.check_events)
 
-	g_playerEvents.onAvatarBecomePlayer    += g_positional_audio.on_become_player
-	g_playerEvents.onAvatarBecomeNonPlayer += g_positional_audio.on_become_nonplayer
+	g_playerEvents.onAvatarReady           += g_positional_audio.enable
+	g_playerEvents.onAvatarBecomeNonPlayer += g_positional_audio.disable
 
 	# don't show system center notifications in battle
 	g_playerEvents.onAvatarBecomePlayer    += partial(notifications.set_notifications_enabled, False)
 	g_playerEvents.onAvatarBecomeNonPlayer += partial(notifications.set_notifications_enabled, True)
 
+	g_playerEvents.onAvatarBecomePlayer    += update_wot_nickname_to_ts
+	g_playerEvents.onAccountBecomePlayer   += update_wot_nickname_to_ts
+
 	# if nothing broke so far then it should be safe to patch the needed
 	# functions (modified functions have dependencies to g_* global variables)
-	Avatar.Avatar.onBecomePlayer = Player_onBecomePlayer(Avatar.Avatar.onBecomePlayer)
-	Account.PlayerAccount.onBecomePlayer = Player_onBecomePlayer(Account.PlayerAccount.onBecomePlayer)
 	VOIP.VOIPManager.isParticipantTalking = VOIPManager_isParticipantTalking(VOIP.VOIPManager.isParticipantTalking)
 	BattleReplay.BattleReplay.play = BattleReplay_play(BattleReplay.BattleReplay.play)
 
@@ -303,8 +300,6 @@ try:
 	from tessu_utils.keyvaluestorage import KeyValueStorage
 	import tessu_utils.positional_audio as positional_audio
 	import BigWorld
-	import Avatar
-	import Account
 	import VOIP
 	import BattleReplay
 	from messenger.proto.events import g_messengerEvents

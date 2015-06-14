@@ -51,10 +51,8 @@ class PositionalAudio(object):
 		self._ts_update_timer = RepeatTimer(TS_UPDATE_TIMEOUT)
 		self._ts_update_timer.on_timeout += self.on_update_to_ts
 
-	def on_become_player(self):
-		'''Called when BigWorld.player() object becomes available at start
-		of battle.
-		'''
+	def enable(self):
+		'''Called when battle starts.'''
 		self.__positional_data_api = mytsplugin.PositionalDataAPI()
 		self.__positional_data_api.open()
 		self._vehicle_positions.clear()
@@ -67,11 +65,18 @@ class PositionalAudio(object):
 		self._arena().onPositionsUpdated       += self.on_arena_positions_changed
 		self._entity_positions_timer.start()
 		self._ts_update_timer.start()
+		self.on_arena_vehicles_updated()
+		self.on_refresh_entity_positions()
 		self.on_update_to_ts(forced=True)
 
-	def on_become_nonplayer(self):
-		'''Called when BigWorld.player() object is removed at end of battle.
-		'''
+	def disable(self):
+		'''Called when battle ends.'''
+		if self._arena():
+			self._arena().onNewVehicleListReceived -= self.on_arena_vehicles_updated
+			self._arena().onVehicleAdded           -= self.on_arena_vehicles_updated
+			self._arena().onVehicleUpdated         -= self.on_arena_vehicles_updated
+			self._arena().onVehicleKilled          -= self.on_arena_vehicles_updated
+			self._arena().onPositionsUpdated       -= self.on_arena_positions_changed
 		self._entity_positions_timer.stop()
 		self._ts_update_timer.stop()
 		self._player_vehicle_ids.clear()
