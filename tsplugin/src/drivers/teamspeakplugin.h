@@ -56,6 +56,7 @@ public:
 	void setAudioSink( Interfaces::AudioSink *sink );
 	QString getPluginDataPath() const;
 	void showSettingsUi( QWidget *parent );
+	void showPluginHelp();
 	TeamSpeakAudioBackend *createAudioBackend();
 
 signals:
@@ -64,6 +65,7 @@ signals:
 	void playbackDeviceChanged();
 	void playbackVolumeChanged();
 	void settingsUiRequested( QWidget *parent );
+	void pluginHelpRequested();
 
 private slots:
 	void onCheckTimeout();

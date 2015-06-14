@@ -28,6 +28,8 @@
 #include <QString>
 #include <QVariant>
 #include <QSet>
+#include <QDesktopServices>
+#include <QUrl>
 
 namespace {
 
@@ -221,6 +223,11 @@ void UseCases::playTestAudioWithSettings(const Entity::Settings &settings, Callb
 		deleteLater();
 		callback( result );
 	} );
+}
+
+void UseCase::UseCases::showPluginHelp()
+{
+	QDesktopServices::openUrl( QUrl( "https://github.com/jhakonen/wot-teamspeak-mod/wiki/TeamSpeak-Plugins#tessumod-plugin" ) );
 }
 
 void UseCases::positionUserToAudioBackends( const Entity::User &user )

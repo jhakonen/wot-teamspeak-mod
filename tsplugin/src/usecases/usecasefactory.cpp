@@ -89,6 +89,11 @@ void UseCaseFactory::playTestAudioWithSettings(const Entity::Settings &settings,
 	createUseCases()->playTestAudioWithSettings( settings, result );
 }
 
+void UseCaseFactory::showPluginHelp()
+{
+	createUseCases()->showPluginHelp();
+}
+
 UseCases *UseCaseFactory::createUseCases() const
 {
 	UseCases* cases = new UseCases();

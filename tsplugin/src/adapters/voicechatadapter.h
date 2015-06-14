@@ -49,6 +49,7 @@ private slots:
 	void onPlaybackDeviceChanged();
 	void onPlaybackVolumeChanged();
 	void onSettingsUiRequested( QWidget *parent );
+	void onPluginHelpRequested();
 
 private:
 	Interfaces::VoiceChatDriver* driver;

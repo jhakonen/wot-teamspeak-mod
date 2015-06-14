@@ -77,6 +77,7 @@ private slots:
 signals:
 	void applied();
 	void testButtonClicked();
+	void helpButtonClicked();
 
 private:
 	bool areSettingsUnapplied() const;

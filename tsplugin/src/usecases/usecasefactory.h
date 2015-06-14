@@ -49,6 +49,7 @@ public:
 	void showSettingsUi( QWidget *parent );
 	void saveSettings( const Entity::Settings &settings );
 	void playTestAudioWithSettings( const Entity::Settings &settings, Callback result );
+	void showPluginHelp();
 
 private:
 	UseCases* createUseCases() const;

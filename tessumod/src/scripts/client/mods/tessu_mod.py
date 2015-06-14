@@ -117,7 +117,7 @@ def on_connected_to_ts3():
 		return
 
 	notifications.push_ts_plugin_install_message(
-		moreinfo_url   = "https://github.com/jhakonen/wot-teamspeak-mod/wiki/TeamSpeak-Plugins",
+		moreinfo_url   = "https://github.com/jhakonen/wot-teamspeak-mod/wiki/TeamSpeak-Plugins#tessumod-plugin",
 		ignore_state   = "off"
 	)
 

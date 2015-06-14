@@ -56,6 +56,7 @@ void UiAdapter::showSettingsUi( const Entity::Settings &settings, const QStringL
 
 		connect( settingsDialog, SIGNAL(applied()), this, SLOT(onSettingsChanged()) );
 		connect( settingsDialog, SIGNAL(testButtonClicked()), this, SLOT(onTestButtonClicked()) );
+		connect( settingsDialog, SIGNAL(helpButtonClicked()), this, SLOT(onHelpButtonClicked()) );
 		connect( settingsDialog, SIGNAL(finished(int)), settingsDialog, SLOT(deleteLater()) );
 
 		settingsDialog->setModal( true );
@@ -95,6 +96,11 @@ void UiAdapter::onTestButtonClicked()
 			settingsDialog->setTestButtonEnabled( done );
 		}
 	} );
+}
+
+void UiAdapter::onHelpButtonClicked()
+{
+	useCaseFactory->showPluginHelp();
 }
 
 Entity::Settings UiAdapter::collectSettingsFromUI() const

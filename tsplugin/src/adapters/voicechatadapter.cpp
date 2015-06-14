@@ -38,6 +38,8 @@ VoiceChatAdapter::VoiceChatAdapter( Interfaces::VoiceChatDriver* driver, Interfa
 			 this,            SLOT(onPlaybackVolumeChanged()) );
 	connect( driver->qtObj(), SIGNAL(settingsUiRequested(QWidget*)),
 			 this,            SLOT(onSettingsUiRequested(QWidget*)) );
+	connect( driver->qtObj(), SIGNAL(pluginHelpRequested()),
+			 this,            SLOT(onPluginHelpRequested()) );
 }
 
 quint16 VoiceChatAdapter::getMyUserId() const
@@ -78,6 +80,11 @@ void VoiceChatAdapter::onPlaybackVolumeChanged()
 void VoiceChatAdapter::onSettingsUiRequested( QWidget *parent )
 {
 	useCaseFactory->showSettingsUi( parent );
+}
+
+void VoiceChatAdapter::onPluginHelpRequested()
+{
+	useCaseFactory->showPluginHelp();
 }
 
 }

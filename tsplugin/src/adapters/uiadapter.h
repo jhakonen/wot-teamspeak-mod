@@ -48,6 +48,7 @@ public:
 private slots:
 	void onSettingsChanged();
 	void onTestButtonClicked();
+	void onHelpButtonClicked();
 
 private:
 	Entity::Settings collectSettingsFromUI() const;

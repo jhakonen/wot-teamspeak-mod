@@ -36,7 +36,8 @@ enum AudioBackend
  * These IDs are freely choosable by the plugin author. It's not really needed to use an enum, it just looks prettier.
  */
 enum {
-	MENU_ID_GLOBAL_SETTINGS
+	MENU_ID_GLOBAL_SETTINGS,
+	MENU_ID_GLOBAL_HELP
 };
 
 enum RotateMode

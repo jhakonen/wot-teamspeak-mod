@@ -34,7 +34,7 @@
 #include <iostream>
 
 SettingsDialog::SettingsDialog( QWidget *parent )
-	: QDialog( parent ), ui( new Ui::SettingsDialog )
+	: QDialog( parent, Qt::WindowTitleHint | Qt::WindowCloseButtonHint ), ui( new Ui::SettingsDialog )
 {
 	ui->setupUi( this );
 	hrtfDataSetsModel = new QStandardItemModel( this );
@@ -272,6 +272,10 @@ void SettingsDialog::on_buttonBox_clicked( QAbstractButton *button )
 		hrtfDataSet = getHrtfDataSet();
 		loggingLevel = getLoggingLevel();
 		enableApplyButton( areSettingsUnapplied() );
+	}
+	else if( button == ui->buttonBox->button( QDialogButtonBox::Help ) )
+	{
+		emit helpButtonClicked();
 	}
 }
 

@@ -311,7 +311,8 @@ void ts3plugin_initMenus( PluginMenuItem*** menuItems, char** menuIcon )
 	 */
 
 	BEGIN_CREATE_MENUS( 1 );  /* IMPORTANT: Number of menu items must be correct! */
-	CREATE_MENU_ITEM( PLUGIN_MENU_TYPE_GLOBAL,  Entity::MENU_ID_GLOBAL_SETTINGS,  "Settings" );
+	CREATE_MENU_ITEM( PLUGIN_MENU_TYPE_GLOBAL, Entity::MENU_ID_GLOBAL_SETTINGS, "Settings" );
+	CREATE_MENU_ITEM( PLUGIN_MENU_TYPE_GLOBAL, Entity::MENU_ID_GLOBAL_HELP,     "Help" );
 	END_CREATE_MENUS;  /* Includes an assert checking if the number of menu items matched */
 
 	/*
@@ -395,6 +396,8 @@ void ts3plugin_onMenuItemEvent( uint64 serverConnectionHandlerID, PluginMenuType
 		case Entity::MENU_ID_GLOBAL_SETTINGS:
 			Driver::TeamSpeakPlugin::singleton()->showSettingsUi( getMainWindowWidget() );
 			break;
+		case Entity::MENU_ID_GLOBAL_HELP:
+			Driver::TeamSpeakPlugin::singleton()->showPluginHelp();
 		default:
 			break;
 		}
@@ -599,6 +602,11 @@ QString TeamSpeakPlugin::getPluginDataPath() const
 void TeamSpeakPlugin::showSettingsUi( QWidget *parent )
 {
 	emit settingsUiRequested( parent );
+}
+
+void TeamSpeakPlugin::showPluginHelp()
+{
+	emit pluginHelpRequested();
 }
 
 TeamSpeakAudioBackend *TeamSpeakPlugin::createAudioBackend()

@@ -53,6 +53,7 @@ public:
 	virtual void showSettingsUi( QWidget *parent ) = 0;
 	virtual void saveSettings( const Entity::Settings &settings ) = 0;
 	virtual void playTestAudioWithSettings( const Entity::Settings &settings, Callback result ) = 0;
+	virtual void showPluginHelp() = 0;
 };
 
 }
