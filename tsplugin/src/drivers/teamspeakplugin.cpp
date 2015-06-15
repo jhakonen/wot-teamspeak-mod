@@ -331,11 +331,6 @@ void ts3plugin_onConnectStatusChangeEvent( uint64 serverConnectionHandlerID, int
 
 void ts3plugin_onClientMoveEvent( uint64 serverConnectionHandlerID, anyID clientID, uint64 oldChannelID, uint64 newChannelID, int visibility, const char *moveMessage )
 {
-	Log::debug() << "onClientMoveEvent() :: "
-				 << "clientID: " << clientID << ", "
-				 << "oldChannelID: " << oldChannelID << ", "
-				 << "newChannelID: " << newChannelID << ", "
-				 << "visibility: " << visibility;
 	Driver::TeamSpeakPlugin::singleton()->onClientMoveEvent( serverConnectionHandlerID, clientID, oldChannelID, newChannelID, visibility, moveMessage );
 }
 
@@ -557,7 +552,6 @@ void TeamSpeakPlugin::onClientMoveEvent( uint64 serverConnectionHandlerID, anyID
 	// I moved to a new channel
 	if( getMyUserId() == clientID )
 	{
-		Log::debug() << "I moved to new channel";
 		foreach( anyID clientID, d->clientsInChannel )
 		{
 			emit chatUserRemoved( clientID );
@@ -573,14 +567,12 @@ void TeamSpeakPlugin::onClientMoveEvent( uint64 serverConnectionHandlerID, anyID
 	// someone else moved to my channel
 	else if( getMyChannelID() == newChannelID )
 	{
-		Log::debug() << "Client " << clientID << " entered my channel";
 		emit chatUserAdded( clientID );
 		d->clientsInChannel.insert( clientID );
 	}
 	// someone else moved away from my channel
 	else if( getMyChannelID() == oldChannelID )
 	{
-		Log::debug() << "Client " << clientID << " left my channel";
 		d->clientsInChannel.remove( clientID );
 		emit chatUserRemoved( clientID );
 	}
@@ -866,7 +858,6 @@ bool TeamSpeakAudioBackend::isEnabled() const
 void TeamSpeakAudioBackend::addUser( quint16 id )
 {
 	Q_D( TeamSpeakAudioBackend );
-	Log::debug() << "TeamSpeakAudioBackend::addUser() :: id: " << id;
 	QMutexLocker locker( &audioBackendMutex );
 	d->clientPositions[id] = Entity::Vector();
 }
@@ -874,7 +865,6 @@ void TeamSpeakAudioBackend::addUser( quint16 id )
 void TeamSpeakAudioBackend::removeUser( quint16 id )
 {
 	Q_D( TeamSpeakAudioBackend );
-	Log::debug() << "TeamSpeakAudioBackend::removeUser() :: id: " << id;
 	OpFunc op = []{};
 	{
 		QMutexLocker locker( &audioBackendMutex );
@@ -891,7 +881,6 @@ void TeamSpeakAudioBackend::removeUser( quint16 id )
 void TeamSpeakAudioBackend::positionUser( quint16 id, const Entity::Vector &position )
 {
 	Q_D( TeamSpeakAudioBackend );
-	//Log::debug() << "TeamSpeakAudioBackend::positionUser() :: id: " << id << ", pos: " << position;
 	OpFunc op = []{};
 	{
 		QMutexLocker locker( &audioBackendMutex );
@@ -908,7 +897,6 @@ void TeamSpeakAudioBackend::positionUser( quint16 id, const Entity::Vector &posi
 void TeamSpeakAudioBackend::positionCamera( const Entity::Vector &position, const Entity::Vector &forward, const Entity::Vector &up )
 {
 	Q_D( TeamSpeakAudioBackend );
-	//Log::debug() << "TeamSpeakAudioBackend::positionCamera() :: pos: " << position << ", forward: " << forward << ", up: " << up;
 	OpFuncList ops;
 	{
 		QMutexLocker locker( &audioBackendMutex );
@@ -962,7 +950,6 @@ void TeamSpeakAudioBackend::positionTestSound( const Entity::Vector &position )
 		}
 		throw Entity::Failure( "Failed to position test tone" );
 	}
-	Log::debug() << "position: " << position;
 }
 
 void TeamSpeakAudioBackend::stopTestSound()

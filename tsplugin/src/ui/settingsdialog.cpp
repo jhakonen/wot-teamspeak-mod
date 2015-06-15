@@ -175,7 +175,6 @@ void SettingsDialog::setTestButtonEnabled( bool enabled )
 
 void SettingsDialog::setHrtfDataFileNames( const QStringList &fileNames )
 {
-	Log::debug() << "SettingsDialog::setHrtfDataFileNames()";
 	hrtfDataSetsModel->clear();
 	foreach( QString fileName, fileNames )
 	{

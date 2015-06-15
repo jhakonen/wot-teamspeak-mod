@@ -174,7 +174,6 @@ void OpenALBackend::setEnabled( bool enabled )
 {
 	Q_D( OpenALBackend );
 	QMutexLocker locker( &mutex );
-	Log::debug() << "OpenALBackend::setEnabled(" << enabled << "), state: " << d->isEnabled;
 	d->isEnabled = enabled;
 }
 
@@ -189,7 +188,6 @@ void OpenALBackend::removeUser( quint16 id )
 {
 	Q_D( OpenALBackend );
 	QMutexLocker locker( &mutex );
-	Log::debug() << "OpenALBackend::removeUser(" << id << ")";
 	if( d->userPositions.contains( id ) )
 	{
 		d->userPositions.remove( id );
@@ -200,7 +198,6 @@ void OpenALBackend::positionUser( quint16 id, const Entity::Vector &position )
 {
 	Q_D( OpenALBackend );
 	QMutexLocker locker( &mutex );
-	//Log::debug() << "OpenALBackend::positionUser(" << id << ", " << position << ")";
 	d->userPositions[id] = position;
 }
 
@@ -208,7 +205,6 @@ void OpenALBackend::positionCamera( const Entity::Vector &position, const Entity
 {
 	Q_D( OpenALBackend );
 	QMutexLocker locker( &mutex );
-	Log::debug() << "OpenALBackend::positionCamera(" << position << ", " << forward << ", " << up << ")";
 	d->cameraPosition = position;
 	d->cameraForward = forward;
 	d->cameraUp = up;
@@ -230,7 +226,6 @@ void OpenALBackend::setPlaybackDeviceName( const QString &name )
 {
 	Q_D( OpenALBackend );
 	QMutexLocker locker( &mutex );
-	Log::debug() << "OpenALBackend::setPlaybackDeviceName('" << name << "')";
 	d->playbackDeviceName = name;
 }
 
@@ -238,7 +233,6 @@ void OpenALBackend::setPlaybackVolume( float volume )
 {
 	Q_D( OpenALBackend );
 	QMutexLocker locker( &mutex );
-	Log::debug() << "OpenALBackend::setPlaybackVolume(" << volume << ")";
 	d->playbackVolume = volume;
 
 	if( d->isEnabled )
@@ -263,8 +257,6 @@ void OpenALBackend::setHrtfEnabled( bool enabled )
 void OpenALBackend::setHrtfDataSet( const QString &name )
 {
 	Q_D( OpenALBackend );
-	Log::debug() << "OpenALBackend::setHrtfDataSet(): " << name;
-
 	if( OpenAL::setConfigValue( "hrtf_tables", name ) )
 	{
 		if( d->isEnabled )
@@ -284,7 +276,6 @@ void OpenALBackend::setHrtfDataSet( const QString &name )
 void OpenALBackend::setLoggingLevel( int level )
 {
 	Q_D( OpenALBackend );
-	Log::debug() << "OpenALBackend::setLoggingLevel(): " << level;
 	if( OpenAL::setupLogging( level ) )
 	{
 		if( d->isEnabled )

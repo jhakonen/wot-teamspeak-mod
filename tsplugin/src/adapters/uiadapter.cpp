@@ -39,7 +39,6 @@ UiAdapter::UiAdapter( Interfaces::UseCaseFactory *useCaseFactory, Interfaces::Co
 
 void UiAdapter::showSettingsUi( const Entity::Settings &settings, const QStringList &hrtfDataNames, QWidget *parent )
 {
-	Log::info() << "UiAdapter::showSettingsUi()";
 	if( !settingsDialog )
 	{
 		originalSettings = settings;
