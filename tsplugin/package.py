@@ -34,7 +34,7 @@ Type = {type}\r
 Author = {author}\r
 Version = {version}\r
 Platforms = {platforms}\r
-Description = {description}\r
+Description = "{description}"\r
 """
 
 def build_ts_plugin_binary(qtdir, arch):
@@ -131,7 +131,7 @@ if __name__ == "__main__":
 		author = "Janne Hakonen (jhakonen @ WOT EU server)",
 		version = args.version,
 		platforms = ["win32", "win64"],
-		description = "This plugin provides positional audio support for World of Tanks.",
+		description = "This plugin provides support for 3D audio, with help of TessuMod, it positions users voice in TeamSpeak so that their voices appear to come from their vehicle's direction on battlefield.",
 		files = files
 	)
 
