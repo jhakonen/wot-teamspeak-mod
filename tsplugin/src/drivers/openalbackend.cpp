@@ -438,9 +438,12 @@ void OpenALConfFile::onFileChanged()
 void OpenALConfFile::createConfFile()
 {
 	QFile resourceFile( dataPath + "/alsoft.ini" );
-	if( !resourceFile.copy( getFilePath() ) )
+	if( !QFileInfo( getFilePath() ).exists() )
 	{
-		Log::error() << "Failed to save OpenAL INI-file to '" << getFilePath() << "', reason: " << resourceFile.errorString();
+		if( !resourceFile.copy( getFilePath() ) )
+		{
+			Log::error() << "Failed to save OpenAL INI-file to '" << getFilePath() << "', reason: " << resourceFile.error() << ", " << resourceFile.errorString();
+		}
 	}
 }
 
