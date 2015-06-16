@@ -722,18 +722,33 @@ class UserFilterProxy(object):
 		return len(self._client_ids)
 
 	def _on_source_added(self, client_id):
-		if self._filter_func(self._source[client_id]):
+		if self.__is_client_included(client_id):
+			self.__add_client(client_id)
+
+	def _on_source_removed(self, client_id):
+		self.__remove_client(client_id)
+
+	def _on_source_modified(self, client_id):
+		if self.__is_client_included(client_id):
+			if client_id in self._client_ids:
+				self.on_modified(client_id)
+			else:
+				self.__add_client(client_id)
+		else:
+			self.__remove_client(client_id)
+
+	def __is_client_included(self, client_id):
+		return self._filter_func(self._source[client_id])
+
+	def __add_client(self, client_id):
+		if client_id not in self._client_ids:
 			self._client_ids.add(client_id)
 			self.on_added(client_id)
 
-	def _on_source_removed(self, client_id):
+	def __remove_client(self, client_id):
 		if client_id in self._client_ids:
 			self._client_ids.remove(client_id)
 			self.on_removed(client_id)
-
-	def _on_source_modified(self, client_id):
-		if client_id in self._client_ids:
-			self.on_modified(client_id)
 
 def parse_client_query_parameter(parameters_str, parameter):
 	# NOTE: this can raise error (too many values to unpack) if 'parameters_str'
