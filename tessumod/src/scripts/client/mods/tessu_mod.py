@@ -217,7 +217,7 @@ def on_tsplugin_ignore_toggled(type_id, msg_id, data):
 	notifications.update_message(type_id, msg_id, data)
 
 def on_tsplugin_moreinfo_clicked(type_id, msg_id, data):
-	subprocess.call(["start", os.path.normpath(data["moreinfo_url"])], shell=True)
+	subprocess.call(["start", data["moreinfo_url"]], shell=True)
 
 def in_test_suite():
 	import sys
