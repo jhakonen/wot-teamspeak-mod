@@ -140,13 +140,13 @@ class PositionalAudio(object):
 			self.__positional_data_api.set_data(data)
 
 	def _get_data_entries(self):
-		entries = []
+		entries = {}
 		for user in self._ts_users.itervalues():
 			for player_id in self._ts_user_to_player_ids(user):
 				position = self._get_vehicle_id_position(self._player_id_to_vehicle_id(player_id))
-				if position:
-					entries.append((user.client_id, position))
-		return entries
+				if position and user.client_id not in entries:
+					entries[user.client_id] = position
+		return entries.items()
 
 	def _ts_user_to_player_ids(self, ts_user):
 		return self._user_cache.get_paired_player_ids(ts_user.unique_id)
