@@ -662,7 +662,7 @@ class UserModel(object):
 
 		if is_new:
 			self.on_added(client_id)
-		elif old_hash == hash(user):
+		elif old_hash != hash(user):
 			self.on_modified(client_id)
 
 	def remove(self, client_id):
