@@ -209,7 +209,13 @@ def on_users_list_received(tags):
 		g_user_cache.add_player(player.name, player.id)
 
 def on_tsplugin_install(type_id, msg_id, data):
-	subprocess.call([os.path.normpath(utils.get_plugin_installer_path())], shell=True)
+	threading.Thread(
+		target = partial(
+			func  = subprocess.call,
+			args  = [os.path.normpath(utils.get_plugin_installer_path())],
+			shell = True
+		)
+	).start()
 
 def on_tsplugin_ignore_toggled(type_id, msg_id, data):
 	data["ignore_state"] = "on" if data["ignore_state"] == "off" else "off"
@@ -306,6 +312,7 @@ try:
 	from PlayerEvents import g_playerEvents
 	import os
 	import subprocess
+	import threading
 	from functools import partial
 
 	if not in_test_suite():
