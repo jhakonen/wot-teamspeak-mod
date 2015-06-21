@@ -21,6 +21,7 @@
 #include "teamspeakplugin.h"
 #include "../entities/enums.h"
 #include "../entities/failures.h"
+#include "config.h"
 
 #include <Windows.h>
 #include <iostream>
@@ -155,13 +156,13 @@ typedef QList<OpFunc> OpFuncList;
 /* Unique name identifying this plugin */
 const char* ts3plugin_name()
 {
-	return "TessuMod Plugin";
+	return Config::PLUGIN_NAME;
 }
 
 /* Plugin version */
 const char* ts3plugin_version()
 {
-	return "0.1";
+	return Config::PLUGIN_VERSION;
 }
 
 /* Plugin API version. Must be the same as the clients API major version, else the plugin fails to load. */
@@ -173,13 +174,13 @@ int ts3plugin_apiVersion()
 /* Plugin author */
 const char* ts3plugin_author()
 {
-	return "jhakonen @ EU";
+	return Config::PLUGIN_AUTHOR;
 }
 
 /* Plugin description */
 const char* ts3plugin_description()
 {
-	return "This plugin provides positional audio support for World of Tanks.";
+	return Config::PLUGIN_DESCRIPTION;
 }
 
 /* Set TeamSpeak 3 callback functions */

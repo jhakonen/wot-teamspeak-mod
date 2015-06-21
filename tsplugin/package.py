@@ -37,12 +37,21 @@ Platforms = {platforms}\r
 Description = "{description}"\r
 """
 
-def build_ts_plugin_binary(qtdir, arch):
+def build_ts_plugin_binary(qtdir, arch, name, description, author, version, **kwargs):
 	target           = "tessumod_plugin_" + arch
 	build_dir        = os.path.join(BUILD_DIR, arch)
 	batch_path       = os.path.join(build_dir, "build.bat")
 	binary_file_path = os.path.join(build_dir, target + ".dll")
 	debug_file_path  = os.path.join(build_dir, target + ".pdb")
+	qmake_defs       = dict(
+		DLLDESTDIR             = ("=", build_dir),
+		TARGET                 = ("=", target),
+		QMAKE_CXXFLAGS_RELEASE = ("+=", "/Fd{0}.pdb".format(target)),
+		PLUGIN_NAME            = ("=", name),
+		PLUGIN_DESCRIPTION     = ("=", description),
+		PLUGIN_AUTHOR          = ("=", author),
+		PLUGIN_VERSION         = ("=", version)
+	)
 	# create empty build dir
 	if os.path.isdir(build_dir):
 		shutil.rmtree(build_dir)
@@ -51,11 +60,10 @@ def build_ts_plugin_binary(qtdir, arch):
 	with open(batch_path, "w") as file:
 		file.write("@echo off\r\n")
 		file.write("call \"{0}\" {1} \r\n".format(get_vcvarsall_path(), arch_to_vcvars_arg(arch)))
-		file.write("\"{qtdir}\\bin\qmake.exe\" {source_dir} -after \"DLLDESTDIR={build_dir}\" \"TARGET={target}\" \"QMAKE_CXXFLAGS_RELEASE+=/Fd{target}.pdb\"\r\n".format(
+		file.write("\"{qtdir}\\bin\qmake.exe\" {source_dir} -after {qmake_defs}\r\n".format(
 			qtdir      = qtdir,
 			source_dir = SOURCE_DIR,
-			build_dir  = build_dir,
-			target     = target
+			qmake_defs = " ".join("\"{0}{1}{2}\"".format(d, *qmake_defs[d]) for d in qmake_defs).replace("'", "\\'")
 		))
 		file.write("nmake\r\n")
 	# execute the batch file
@@ -112,8 +120,17 @@ if __name__ == "__main__":
 	if not os.getenv("QTDIR_X64"):
 		raise RuntimeError("QTDIR_X64 environment variable not defined!")
 
-	x86_bin_path, x86_dbg_path = build_ts_plugin_binary(os.getenv("QTDIR_X86"), "x86")
-	x64_bin_path, x64_dbg_path = build_ts_plugin_binary(os.getenv("QTDIR_X64"), "x64")
+	info = dict(
+		name        = "TessuMod Plugin",
+		author      = "Janne Hakonen (jhakonen @ WOT EU server)",
+		version     = args.version,
+		description = "This plugin provides support for 3D audio, with help of TessuMod, it positions users voice in TeamSpeak so that their voices appear to come from their vehicle's direction on battlefield.",
+		type        = "Plugin",
+		platforms   = ["win32", "win64"]
+	)
+
+	x86_bin_path, x86_dbg_path = build_ts_plugin_binary(os.getenv("QTDIR_X86"), "x86", **info)
+	x64_bin_path, x64_dbg_path = build_ts_plugin_binary(os.getenv("QTDIR_X64"), "x64", **info)
 
 	files = {
 		"plugins\\" + os.path.basename(x86_bin_path): x86_bin_path,
@@ -126,13 +143,8 @@ if __name__ == "__main__":
 
 	build_ts_installer(
 		installer_path = PLUGIN_INSTALLER_PATH,
-		name = "TessuMod Plugin",
-		type = "Plugin",
-		author = "Janne Hakonen (jhakonen @ WOT EU server)",
-		version = args.version,
-		platforms = ["win32", "win64"],
-		description = "This plugin provides support for 3D audio, with help of TessuMod, it positions users voice in TeamSpeak so that their voices appear to come from their vehicle's direction on battlefield.",
-		files = files
+		files = files,
+		**info
 	)
 
 	build_debug_archive(
