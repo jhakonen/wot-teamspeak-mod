@@ -1,16 +1,16 @@
 TessuMod
 ========
+A modification for integrating TeamSpeak into Wargaming's World of Tanks game.
 
-JHakonen's mod for integrating TeamSpeak(TS) into World of Tanks (WOT).
+The mod provides visual feedback in-game when a player speaks in TeamSpeak and positions speakers voice in TeamSpeak so that their voice appears to come from their vehicle's direction on battlefield.
 
-This mod enables ingame notifications when a player speaks in TS. The notifications include:
-- Normal ingame voice chat notifications:
-  - green wave animations under player's name at garage in e.g. training room, platoon, etc. views,
-  - green wave animations at battle in the player panels,
-  - speaker icon on top of a tank in battle
-- Notication in minimap around speaking player's tank marker
+The visual feedback includes:
+- Normal ingame voice chat notifications under player's name in e.g. training room, platoon, etc. views:
+![](https://github.com/jhakonen/wot-teamspeak-mod/blob/master/docs/wiki/trainingroom.png)
+- and in battle (under player's name in side panels, speaker icon above vehicles and focus animation in minimap):
+![](https://github.com/jhakonen/wot-teamspeak-mod/blob/master/docs/wiki/battle_preview.jpg)
 
-Compatible with WOT version 0.9.6. 
+For enabling audio positioning you need to [install TessuMod plugin](https://github.com/jhakonen/wot-teamspeak-mod/wiki/TeamSpeak-Plugins#tessumod-plugin) for TeamSpeak. Plugin's installer is included in mod's release archive.
 
 Installation
 ------------
