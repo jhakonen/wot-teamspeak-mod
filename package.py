@@ -21,7 +21,7 @@ import re
 import shutil
 
 # configuration
-MOD_VERSION        = "0.6.0-test3"
+MOD_VERSION        = "0.6.0"
 ROOT_DIR           = os.path.dirname(os.path.realpath(__file__))
 BUILD_DIR          = os.path.join(os.getcwd(), "build")
 MOD_PACKAGE_PATH   = os.path.join(os.getcwd(), "tessumod-{0}-bin.zip".format(MOD_VERSION))
