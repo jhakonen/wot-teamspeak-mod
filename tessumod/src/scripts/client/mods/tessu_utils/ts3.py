@@ -57,6 +57,7 @@ import async
 
 _RETRY_TIMEOUT = 10
 _COMMAND_WAIT_TIMEOUT = 30
+_UNREGISTER_WAIT_TIMEOUT = 5
 _API_NOT_CONNECTED_TO_SERVER = 1794
 _API_INVALID_SCHANDLER_ID = 1799
 
@@ -155,7 +156,7 @@ class TS3Client(object):
 		self.users_in_my_channel.invalidate()
 
 		def unregister(callback):
-			self._send_command("clientnotifyunregister", callback, timeout=5)
+			self._send_command("clientnotifyunregister", callback, timeout=_UNREGISTER_WAIT_TIMEOUT)
 		def register_connection_change(callback):
 			self._send_command("clientnotifyregister schandlerid=0 event=notifycurrentserverconnectionchanged", callback)
 		def get_currentschandlerid(callback):
