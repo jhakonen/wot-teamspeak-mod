@@ -211,7 +211,7 @@ def on_users_list_received(tags):
 def on_tsplugin_install(type_id, msg_id, data):
 	threading.Thread(
 		target = partial(
-			func  = subprocess.call,
+			subprocess.call,
 			args  = [os.path.normpath(utils.get_plugin_installer_path())],
 			shell = True
 		)
