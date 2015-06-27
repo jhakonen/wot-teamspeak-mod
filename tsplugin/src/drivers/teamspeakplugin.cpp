@@ -311,7 +311,7 @@ void ts3plugin_initMenus( PluginMenuItem*** menuItems, char** menuIcon )
 	 * e.g. for "test_plugin.dll", icon "1.png" is loaded from <TeamSpeak 3 Client install dir>\plugins\test_plugin\1.png
 	 */
 
-	BEGIN_CREATE_MENUS( 1 );  /* IMPORTANT: Number of menu items must be correct! */
+	BEGIN_CREATE_MENUS( 2 );  /* IMPORTANT: Number of menu items must be correct! */
 	CREATE_MENU_ITEM( PLUGIN_MENU_TYPE_GLOBAL, Entity::MENU_ID_GLOBAL_SETTINGS, "Settings" );
 	CREATE_MENU_ITEM( PLUGIN_MENU_TYPE_GLOBAL, Entity::MENU_ID_GLOBAL_HELP,     "Help" );
 	END_CREATE_MENUS;  /* Includes an assert checking if the number of menu items matched */
