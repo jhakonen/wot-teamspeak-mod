@@ -200,8 +200,8 @@ def ts_user_to_player(ts_user, extract_patterns=[], mappings={}, players=[], use
 	# user's nickname using nick_extract_patterns
 	for pattern in extract_patterns:
 		matches = pattern.match(ts_user.nick)
-		if matches is not None:
-			extracted_nick = matches.group(1)
+		if matches is not None and matches.groups():
+			extracted_nick = matches.group(1).strip()
 			player = find_player(extracted_nick)
 			if player:
 				LOG_DEBUG("Matched TS user to player with pattern", ts_user, player, pattern.pattern)
