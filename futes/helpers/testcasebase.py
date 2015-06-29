@@ -61,11 +61,12 @@ class TestCaseBase(unittest.TestCase):
 	def verify(self):
 		raise NotImplementedError()
 
-	def run_in_event_loop(self, verifiers, timeout=20):
+	def run_in_event_loop(self, verifiers, timeout=20, min_wait=0):
 		self.__verifiers = verifiers
 		self.event_loop.call(self.__on_loop, repeat=True, timeout=0.05)
 		self.event_loop.call(self.__check_verify, repeat=True, timeout=1)
-		self.__end_time = time.time() + timeout
+		self.__max_end_time = time.time() + timeout
+		self.__min_end_time = time.time() + min_wait
 		self.event_loop.execute()
 
 	def change_ts_client_state(self, **state):
@@ -75,25 +76,27 @@ class TestCaseBase(unittest.TestCase):
 			for name, data in state["users"].iteritems():
 				self.ts_client_query_server.set_user(name, **data)
 
-	def change_game_state(self, mode, players):
+	def change_game_state(self, **state):
 		import BigWorld, Avatar, Account
-		if mode == "battle":
+		if state["mode"] == "battle":
 			BigWorld.player(Avatar.Avatar())
-			for player in players:
-				vehicle_id = random.randint(0, 1000000)
-				dbid = random.randint(0, 1000000)
-				BigWorld.player().arena.vehicles[vehicle_id] = {
-					"accountDBID": dbid,
-					"name":        player["name"],
-					"isAlive":     True
-				}
-		elif mode == "lobby":
-			BigWorld.player(Account.Account())
-			for id, player in enumerate(players):
-				BigWorld.player().prebattle.rosters[0][id] = {
-					"name": player["name"],
-					"dbID": random.randint(0, 1000000)
-				}
+			if "players" in state:
+				for player in state["players"]:
+					vehicle_id = random.randint(0, 1000000)
+					dbid = random.randint(0, 1000000)
+					BigWorld.player().arena.vehicles[vehicle_id] = {
+						"accountDBID": dbid,
+						"name":        player["name"],
+						"isAlive":     True
+					}
+		elif state["mode"] == "lobby":
+			BigWorld.player(Account.PlayerAccount())
+			if "players" in state:
+				for id, player in enumerate(state["players"]):
+					BigWorld.player().prebattle.rosters[0][id] = {
+						"name": player["name"],
+						"dbID": random.randint(0, 1000000)
+					}
 
 	def get_player_id(self, name):
 		import BigWorld
@@ -121,11 +124,11 @@ class TestCaseBase(unittest.TestCase):
 		import BigWorld
 		BigWorld.tick()
 		self.ts_client_query_server.check()
-		self.assertLess(time.time(), self.__end_time, "Execution took too long")
+		self.assertLess(time.time(), self.__max_end_time, "Execution took too long")
 
 	def __check_verify(self):
 		try:
-			if all(verifier() for verifier in self.__verifiers):
+			if time.time() >= self.__min_end_time and all(verifier() for verifier in self.__verifiers):
 				self.event_loop.exit()
 		except Exception as error:
 			print error

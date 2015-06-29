@@ -1,9 +1,6 @@
 from helpers.testcasebase import TestCaseBase
+from helpers.utils import *
 import mock
-
-def mock_was_called_with(mock_obj, *args, **kwargs):
-	'''Returns True if 'mock_obj' was ever called with provided arguments.'''
-	return mock.call(*args, **kwargs) in mock_obj.call_args_list
 
 class SpeakStatusChanges(TestCaseBase):
 	'''
@@ -173,7 +170,7 @@ class SpeakStatusChanges(TestCaseBase):
 				lambda: self.change_ts_client_state(users={"Erkki Meikalainen": {"speaking": True}})
 			]
 		})
-		self.run_in_event_loop(verifiers=[
+		self.run_in_event_loop(min_wait=5, verifiers=[
 			lambda: mock_was_called_with(self.Minimap_showActionMarker, self.get_vehicle_id("TuhoajaErkki"), "attack"),
 			lambda: not mock_was_called_with(self.VOIP_onPlayerSpeaking, self.get_player_id("TuhoajaErkki"), True)
 		])
@@ -194,7 +191,7 @@ class SpeakStatusChanges(TestCaseBase):
 				lambda: self.change_ts_client_state(users={"Erkki Meikalainen": {"speaking": True}})
 			]
 		})
-		self.run_in_event_loop(verifiers=[
+		self.run_in_event_loop(min_wait=5, verifiers=[
 			lambda: not mock_was_called_with(self.Minimap_showActionMarker, self.get_vehicle_id("TuhoajaErkki"), "attack"),
 			lambda: mock_was_called_with(self.VOIP_onPlayerSpeaking, self.get_player_id("TuhoajaErkki"), True)
 		])
