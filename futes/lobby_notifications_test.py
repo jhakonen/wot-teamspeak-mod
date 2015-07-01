@@ -26,21 +26,23 @@ class LobbyNotifications(TestCaseBase):
 		if type == "info":
 			sm_type = gui.SystemMessages.SM_TYPE.Information
 		if type == "warning":
-			sm_type = gui.SystemMessages.SM_TYPE.Information
+			sm_type = gui.SystemMessages.SM_TYPE.Warning
+		if type == "error":
+			sm_type = gui.SystemMessages.SM_TYPE.Error
 		return mock_was_called_with(gui.SystemMessages.pushMessage, message, sm_type)
 
 	def test_notification_connected_to_teamspeak_server_is_shown(self):
 		self.start_ts_client(connected_to_server=True)
 		self.start_game(mode="lobby")
 		self.run_in_event_loop(verifiers=[
-			lambda: self.__is_system_notification_sent(message="Connected to TeamSpeak server 'Dummy Server'", type="info")
+			lambda: self.__is_system_notification_sent(message=contains_match("Connected to TeamSpeak server"), type="info")
 		])
 
 	def test_notification_connected_to_teamspeak_server_is_not_shown(self):
 		self.start_ts_client(connected_to_server=False)
 		self.start_game(mode="lobby")
 		self.run_in_event_loop(min_wait=5, verifiers=[
-			lambda: not self.__is_system_notification_sent(message="Connected to TeamSpeak server 'Dummy Server'", type="info")
+			lambda: not self.__is_system_notification_sent(message=contains_match("Connected to TeamSpeak server"), type="info")
 		])
 
 	def test_notification_disconnected_from_teamspeak_client_is_shown(self):
@@ -51,7 +53,7 @@ class LobbyNotifications(TestCaseBase):
 			]
 		})
 		self.run_in_event_loop(verifiers=[
-			lambda: not self.__is_system_notification_sent(message="Disconnected from TeamSpeak client", type="warning")
+			lambda: self.__is_system_notification_sent(message="Disconnected from TeamSpeak client", type="warning")
 		])
 
 	def test_notifications_not_shown_in_battle(self):
@@ -66,6 +68,18 @@ class LobbyNotifications(TestCaseBase):
 		})
 		self.run_in_event_loop(verifiers=[
 			lambda: self.__is_event_seen("on_disconnected_from_ts_client"),
-			lambda: not self.__is_system_notification_sent(message="Connected to TeamSpeak server 'Dummy Server'", type="info"),
+			lambda: not self.__is_system_notification_sent(message=contains_match("Connected to TeamSpeak server"), type="info"),
 			lambda: not self.__is_system_notification_sent(message="Disconnected from TeamSpeak client", type="warning")
+		])
+
+	def test_notification_user_cache_error_is_shown(self):
+		self.change_mod_user_cache(
+			# undefined TS user and player paired together
+			UserPlayerPairings = {
+				"Erkki Meikalainen": "TuhoajaErkki"
+			}
+		)
+		self.start_game(mode="lobby")
+		self.run_in_event_loop(verifiers=[
+			lambda: self.__is_system_notification_sent(message=contains_match("Failed to read file"), type="error")
 		])

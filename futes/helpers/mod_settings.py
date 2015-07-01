@@ -8,9 +8,6 @@ def remove_file(path):
 	if os.path.exists(path):
 		os.remove(path)
 
-def remove_cache_file():
-	remove_file(os.path.join(get_ini_dirpath(), "tessu_mod_cache.ini"))
-
 def reset_settings_file():
 	if not os.path.exists(get_ini_dirpath()):
 		os.makedirs(get_ini_dirpath())
@@ -41,10 +38,27 @@ def reset_settings_file():
 	with open(path, "w") as f:
 		parser.write(f)
 
-def set_setting(group, name, value):
-	path = os.path.join(get_ini_dirpath(), "tessu_mod.ini")
+def reset_cache_file():
+	if not os.path.exists(get_ini_dirpath()):
+		os.makedirs(get_ini_dirpath())
+	path = os.path.join(get_ini_dirpath(), "tessu_mod_cache.ini")
+	remove_file(path)
 	parser = ConfigParser.SafeConfigParser()
-	parser.read([path])
-	parser.set(group, name, value)
+	parser.add_section("TeamSpeakUsers")
+	parser.add_section("GamePlayers")
+	parser.add_section("UserPlayerPairings")
 	with open(path, "w") as f:
+		parser.write(f)
+
+def set_setting(group, name, value):
+	_set_ini_value(os.path.join(get_ini_dirpath(), "tessu_mod.ini"), group, name, value)
+
+def set_cache_entry(group, name, value):
+	_set_ini_value(os.path.join(get_ini_dirpath(), "tessu_mod_cache.ini"), group, name, value)
+
+def _set_ini_value(filepath, group, name, value):
+	parser = ConfigParser.SafeConfigParser()
+	parser.read([filepath])
+	parser.set(group, name, value)
+	with open(filepath, "w") as f:
 		parser.write(f)

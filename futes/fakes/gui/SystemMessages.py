@@ -1,6 +1,7 @@
 class SM_TYPE(object):
-	Warning = 0
-	Information = 1
+	Information = 0
+	Warning = 1
+	Error = 2
 
 g_instance = True
 

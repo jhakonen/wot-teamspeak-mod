@@ -25,7 +25,7 @@ class TestCaseBase(unittest.TestCase):
 		if MOD_DIRPATH not in sys.path:
 			sys.path.append(MOD_DIRPATH)
 
-		mod_settings.remove_cache_file()
+		mod_settings.reset_cache_file()
 		mod_settings.reset_settings_file()
 		self.change_mod_settings(
 			General = {
@@ -38,7 +38,8 @@ class TestCaseBase(unittest.TestCase):
 		)
 
 	def tearDown(self):
-		self.ts_client_query_server.stop()
+		if self.ts_client_query_server:
+			self.ts_client_query_server.stop()
 		sys.path.remove(FAKES_DIRPATH)
 		sys.path.remove(MOD_DIRPATH)
 
@@ -81,11 +82,11 @@ class TestCaseBase(unittest.TestCase):
 		self.event_loop.execute()
 
 	def change_ts_client_state(self, **state):
+		assert self.ts_client_query_server, "TS client must be running to change its state"
 		if "running" in state:
-			if state["running"]:
-				self.ts_client_query_server.start()
-			else:
+			if not state["running"]:
 				self.ts_client_query_server.stop()
+				self.ts_client_query_server = None
 		if "connected_to_server" in state:
 			self.ts_client_query_server.set_connected_to_server(state["connected_to_server"])
 		if "users" in state:
@@ -135,13 +136,19 @@ class TestCaseBase(unittest.TestCase):
 			for var_name, var_value in variables.iteritems():
 				mod_settings.set_setting(group_name, var_name, var_value)
 
+	def change_mod_user_cache(self, **groups):
+		for group_name, variables in groups.iteritems():
+			for var_name, var_value in variables.iteritems():
+				mod_settings.set_cache_entry(group_name, var_name, var_value)
+
 	def call_later(self, callback, timeout=0):
 		self.event_loop.call(callback, timeout=timeout)
 
 	def __on_loop(self):
 		import BigWorld
 		BigWorld.tick()
-		self.ts_client_query_server.check()
+		if self.ts_client_query_server:
+			self.ts_client_query_server.check()
 		self.assertLess(time.time(), self.__max_end_time, "Execution took too long")
 
 	def __check_verify(self):
