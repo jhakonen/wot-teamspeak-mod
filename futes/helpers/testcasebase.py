@@ -17,6 +17,7 @@ class TestCaseBase(unittest.TestCase):
 
 	def setUp(self):
 		self.tessu_mod = None
+		self.ts_client_query_server = None
 		self.event_loop = EventLoop()
 
 		if FAKES_DIRPATH not in sys.path:
@@ -24,11 +25,9 @@ class TestCaseBase(unittest.TestCase):
 		if MOD_DIRPATH not in sys.path:
 			sys.path.append(MOD_DIRPATH)
 
-		self.ts_client_query_server = TSClientQueryService()
-		self.ts_client_query_server.start()
 		mod_settings.remove_cache_file()
 		mod_settings.reset_settings_file()
-		self.change_mod_settings_state(
+		self.change_mod_settings(
 			General = {
 				# "log_level": "0", # enable for debug logging
 				"speak_stop_delay": "0" # makes tests execute faster
@@ -43,14 +42,20 @@ class TestCaseBase(unittest.TestCase):
 		sys.path.remove(FAKES_DIRPATH)
 		sys.path.remove(MOD_DIRPATH)
 
-	def load_mod(self, events={}):
+	def start_ts_client(self, **state):
+		assert self.ts_client_query_server == None, "Cannot start TS client if it is already running"
+		self.ts_client_query_server = TSClientQueryService()
+		self.ts_client_query_server.start()
+		self.change_ts_client_state(**state)
+
+	def start_game(self, on_events={}, **game_state):
 		import tessu_mod
 		self.tessu_mod = tessu_mod
 
 		def call_wrapper(callback, *args, **kwargs):
 			callback()
 
-		for name, callbacks in events.iteritems():
+		for name, callbacks in on_events.iteritems():
 			for callback in callbacks:
 				wrapped_callback = partial(call_wrapper, callback)
 				if name == "on_connected_to_ts_server":
@@ -65,9 +70,7 @@ class TestCaseBase(unittest.TestCase):
 		# hack to speed up testing
 		import tessu_utils.ts3
 		tessu_utils.ts3._UNREGISTER_WAIT_TIMEOUT = 0.5
-
-	def verify(self):
-		raise NotImplementedError()
+		self.change_game_state(**game_state)
 
 	def run_in_event_loop(self, verifiers, timeout=20, min_wait=0):
 		self.__verifiers = verifiers
@@ -127,7 +130,7 @@ class TestCaseBase(unittest.TestCase):
 				if vehicle["name"] == name:
 					return vehicle_id
 
-	def change_mod_settings_state(self, **groups):
+	def change_mod_settings(self, **groups):
 		for group_name, variables in groups.iteritems():
 			for var_name, var_value in variables.iteritems():
 				mod_settings.set_setting(group_name, var_name, var_value)
