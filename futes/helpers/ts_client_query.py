@@ -14,7 +14,7 @@ _NO_RESPONSE = (None, None)
 class TSClientQueryService(object):
 
 	def __init__(self):
-		self.__sock_map = None
+		self.__sock_map = {}
 		self._clids = []
 		self._server = None
 		self._data = Data()
@@ -26,17 +26,17 @@ class TSClientQueryService(object):
 		self.set_user(_SELF_USER_NAME)
 
 	def start(self):
-		try:
-			self.__sock_map = {}
-			self._server = TSClientQueryServer("localhost", 25639, self.__sock_map, self._data)
-		except:
-			self.stop()
+		if not self._server:
+			try:
+				self._server = TSClientQueryServer("localhost", 25639, self.__sock_map, self._data)
+			except:
+				self.stop()
 
 	def stop(self):
-		self._server = None
 		if self.__sock_map:
 			for socket in self.__sock_map.values():
 				socket.close()
+			self.__sock_map.clear()
 
 	def check(self):
 		if self.__sock_map:

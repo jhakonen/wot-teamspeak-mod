@@ -51,8 +51,13 @@ class TestCaseBase(unittest.TestCase):
 
 		for name, callbacks in events.iteritems():
 			for callback in callbacks:
+				wrapped_callback = partial(call_wrapper, callback)
 				if name == "on_connected_to_ts_server":
-					tessu_mod.g_ts.on_connected_to_server += partial(call_wrapper, callback)
+					tessu_mod.g_ts.on_connected_to_server += wrapped_callback
+				elif name == "on_connected_to_ts_client":
+					tessu_mod.g_ts.on_connected += wrapped_callback
+				else:
+					raise RuntimeError("No such event: {0}".format(name))
 
 		# hack to speed up testing
 		import tessu_utils.ts3
@@ -70,6 +75,11 @@ class TestCaseBase(unittest.TestCase):
 		self.event_loop.execute()
 
 	def change_ts_client_state(self, **state):
+		if "running" in state:
+			if state["running"]:
+				self.ts_client_query_server.start()
+			else:
+				self.ts_client_query_server.stop()
 		if "connected_to_server" in state:
 			self.ts_client_query_server.set_connected_to_server(state["connected_to_server"])
 		if "users" in state:
