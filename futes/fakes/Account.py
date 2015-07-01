@@ -1,4 +1,5 @@
 import random
+from PlayerEvents import g_playerEvents
 
 class PlayerAccount(object):
 
@@ -7,7 +8,10 @@ class PlayerAccount(object):
 		self.name = "TestiNukke"
 	
 	def onBecomePlayer(self):
-		pass
+		g_playerEvents.onAccountBecomePlayer()
+
+	def onBecomeNonPlayer(self):
+		g_playerEvents.onAccountBecomeNonPlayer()
 
 class Prebattle(object):
 

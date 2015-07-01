@@ -37,6 +37,8 @@ _player = None
 def player(entity=None):
 	global _player
 	if entity is not None:
+		if _player is not None:
+			_player.onBecomeNonPlayer()
 		_player = entity
 		_player.onBecomePlayer()
 	return _player

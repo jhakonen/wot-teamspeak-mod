@@ -7,5 +7,6 @@ class _PlayerEvents(object):
 		self.onAvatarBecomeNonPlayer = Event.Event()
 		self.onAvatarReady = Event.Event()
 		self.onAccountBecomePlayer = Event.Event()
+		self.onAccountBecomeNonPlayer = Event.Event()
 
 g_playerEvents = _PlayerEvents()

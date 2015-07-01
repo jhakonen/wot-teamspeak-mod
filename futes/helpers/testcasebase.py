@@ -16,6 +16,7 @@ MOD_DIRPATH    = os.path.join(SCRIPT_DIRPATH, "..", "..", "tessumod", "src", "sc
 class TestCaseBase(unittest.TestCase):
 
 	def setUp(self):
+		self.tessu_mod = None
 		self.event_loop = EventLoop()
 
 		if FAKES_DIRPATH not in sys.path:
@@ -56,6 +57,8 @@ class TestCaseBase(unittest.TestCase):
 					tessu_mod.g_ts.on_connected_to_server += wrapped_callback
 				elif name == "on_connected_to_ts_client":
 					tessu_mod.g_ts.on_connected += wrapped_callback
+				elif name == "on_disconnected_from_ts_client":
+					tessu_mod.g_ts.on_disconnected += wrapped_callback
 				else:
 					raise RuntimeError("No such event: {0}".format(name))
 
@@ -88,6 +91,8 @@ class TestCaseBase(unittest.TestCase):
 
 	def change_game_state(self, **state):
 		import BigWorld, Avatar, Account
+		assert self.tessu_mod, "Mod must be loaded first before changing game state"
+
 		if state["mode"] == "battle":
 			BigWorld.player(Avatar.Avatar())
 			if "players" in state:
