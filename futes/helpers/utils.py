@@ -9,3 +9,13 @@ def contains_match(pattern):
 		def __eq__(self, string):
 			return pattern.lower() in string.lower()
 	return Matcher()
+
+def message_decorator_matches_fragments(fragments):
+	class Matcher(object):
+		def __eq__(self, decorator):
+			contents_str = repr(decorator.getListVO())
+			for fragment in fragments:
+				if fragment not in contents_str:
+					return False
+			return True
+	return Matcher()

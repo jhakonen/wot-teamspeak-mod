@@ -10,10 +10,11 @@ from event_loop import EventLoop
 from ts_client_query import TSClientQueryService
 import mod_settings
 
-SCRIPT_DIRPATH = os.path.dirname(os.path.realpath(__file__))
-FAKES_DIRPATH  = os.path.join(SCRIPT_DIRPATH, "..", "fakes")
-MOD_DIRPATH    = os.path.join(SCRIPT_DIRPATH, "..", "..", "tessumod", "src", "scripts", "client", "mods")
-TMP_DIRPATH    = os.path.join(os.getcwd(), "tmp")
+SCRIPT_DIRPATH      = os.path.dirname(os.path.realpath(__file__))
+FAKES_DIRPATH       = os.path.join(SCRIPT_DIRPATH, "..", "fakes")
+MOD_SRC_DIRPATH     = os.path.join(SCRIPT_DIRPATH, "..", "..", "tessumod", "src")
+MOD_SCRIPTS_DIRPATH = os.path.join(MOD_SRC_DIRPATH, "scripts", "client", "mods")
+TMP_DIRPATH         = os.path.join(os.getcwd(), "tmp")
 
 class TestCaseBase(unittest.TestCase):
 
@@ -26,10 +27,13 @@ class TestCaseBase(unittest.TestCase):
 
 		if FAKES_DIRPATH not in sys.path:
 			sys.path.append(FAKES_DIRPATH)
-		if MOD_DIRPATH not in sys.path:
-			sys.path.append(MOD_DIRPATH)
+		if MOD_SCRIPTS_DIRPATH not in sys.path:
+			sys.path.append(MOD_SCRIPTS_DIRPATH)
 
 		res_mods_version_dirpath = os.path.join(TMP_DIRPATH, "res_mods", "version")
+		os.makedirs(res_mods_version_dirpath)
+
+		shutil.copytree(os.path.join(MOD_SRC_DIRPATH, "gui"), os.path.join(res_mods_version_dirpath, "gui"))
 
 		import ResMgr
 		ResMgr.RES_MODS_VERSION_PATH = res_mods_version_dirpath
@@ -45,12 +49,14 @@ class TestCaseBase(unittest.TestCase):
 				"polling_interval": "0" # makes tests execute faster
 			}
 		)
+		# create empty ts plugin installer file
+		open(os.path.join(res_mods_version_dirpath, "tessumod.ts3_plugin"), "w").close()
 
 	def tearDown(self):
 		if self.ts_client_query_server:
 			self.ts_client_query_server.stop()
 		sys.path.remove(FAKES_DIRPATH)
-		sys.path.remove(MOD_DIRPATH)
+		sys.path.remove(MOD_SCRIPTS_DIRPATH)
 
 	def start_ts_client(self, **state):
 		assert self.ts_client_query_server == None, "Cannot start TS client if it is already running"

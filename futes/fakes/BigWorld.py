@@ -1,4 +1,4 @@
-import time
+import time as _time
 from debug_utils import LOG_CURRENT_EXCEPTION
 
 g_callback_events = {}
@@ -9,7 +9,7 @@ class UserDataObject(object):
 
 def callback(secs, func):
 	global g_next_handle
-	g_callback_events[g_next_handle] = (time.time()+secs, func)
+	g_callback_events[g_next_handle] = (_time.time()+secs, func)
 	g_next_handle += 1
 
 def cancelCallback(handle):
@@ -20,7 +20,7 @@ def cancelCallback(handle):
 
 def tick():
 	try:
-		t = time.time()
+		t = _time.time()
 		for handle in g_callback_events.keys():
 			event = g_callback_events[handle]
 			if t > event[0]:
@@ -42,3 +42,6 @@ def player(entity=None):
 		_player = entity
 		_player.onBecomePlayer()
 	return _player
+
+def time():
+	return _time.time()

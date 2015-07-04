@@ -1,3 +1,5 @@
 
 class NotificationGuiSettings(object):
-	pass
+
+	def __init__(self, isNotify, showAt):
+		pass
