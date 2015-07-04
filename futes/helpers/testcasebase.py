@@ -5,22 +5,29 @@ import time
 import random
 from functools import partial
 import shutil
+import mmap
+import struct
+import json
 
 from event_loop import EventLoop
 from ts_client_query import TSClientQueryService
 import mod_settings
 
-SCRIPT_DIRPATH      = os.path.dirname(os.path.realpath(__file__))
-FAKES_DIRPATH       = os.path.join(SCRIPT_DIRPATH, "..", "fakes")
-MOD_SRC_DIRPATH     = os.path.join(SCRIPT_DIRPATH, "..", "..", "tessumod", "src")
-MOD_SCRIPTS_DIRPATH = os.path.join(MOD_SRC_DIRPATH, "scripts", "client", "mods")
-TMP_DIRPATH         = os.path.join(os.getcwd(), "tmp")
+SCRIPT_DIRPATH           = os.path.dirname(os.path.realpath(__file__))
+FAKES_DIRPATH            = os.path.join(SCRIPT_DIRPATH, "..", "fakes")
+MOD_SRC_DIRPATH          = os.path.join(SCRIPT_DIRPATH, "..", "..", "tessumod", "src")
+MOD_SCRIPTS_DIRPATH      = os.path.join(MOD_SRC_DIRPATH, "scripts", "client", "mods")
+TMP_DIRPATH              = os.path.join(os.getcwd(), "tmp")
+MODS_VERSION_DIRPATH     = os.path.join(TMP_DIRPATH, "res_mods", "version")
+INI_DIRPATH              = os.path.join(MODS_VERSION_DIRPATH, "..", "configs", "tessu_mod")
+TS_PLUGIN_INSTALLER_PATH = os.path.join(MODS_VERSION_DIRPATH, "tessumod.ts3_plugin")
 
 class TestCaseBase(unittest.TestCase):
 
 	def setUp(self):
 		self.tessu_mod = None
 		self.ts_client_query_server = None
+		self.__ts_plugin_info = None
 		self.event_loop = EventLoop()
 
 		shutil.rmtree(TMP_DIRPATH, ignore_errors=True)
@@ -30,14 +37,14 @@ class TestCaseBase(unittest.TestCase):
 		if MOD_SCRIPTS_DIRPATH not in sys.path:
 			sys.path.append(MOD_SCRIPTS_DIRPATH)
 
-		res_mods_version_dirpath = os.path.join(TMP_DIRPATH, "res_mods", "version")
-		os.makedirs(res_mods_version_dirpath)
+		os.makedirs(MODS_VERSION_DIRPATH)
 
-		shutil.copytree(os.path.join(MOD_SRC_DIRPATH, "gui"), os.path.join(res_mods_version_dirpath, "gui"))
+		shutil.copytree(os.path.join(MOD_SRC_DIRPATH, "gui"), os.path.join(MODS_VERSION_DIRPATH, "gui"))
 
 		import ResMgr
-		ResMgr.RES_MODS_VERSION_PATH = res_mods_version_dirpath
-		mod_settings.INI_DIRPATH = os.path.join(res_mods_version_dirpath, "..", "configs", "tessu_mod")
+		ResMgr.RES_MODS_VERSION_PATH = MODS_VERSION_DIRPATH
+
+		mod_settings.INI_DIRPATH = INI_DIRPATH
 		mod_settings.reset_cache_file()
 		mod_settings.reset_settings_file()
 		self.change_mod_settings(
@@ -50,9 +57,11 @@ class TestCaseBase(unittest.TestCase):
 			}
 		)
 		# create empty ts plugin installer file
-		open(os.path.join(res_mods_version_dirpath, "tessumod.ts3_plugin"), "w").close()
+		open(TS_PLUGIN_INSTALLER_PATH, "w").close()
 
 	def tearDown(self):
+		if self.__ts_plugin_info:
+			self.__ts_plugin_info.close()
 		if self.ts_client_query_server:
 			self.ts_client_query_server.stop()
 		sys.path.remove(FAKES_DIRPATH)
@@ -63,6 +72,10 @@ class TestCaseBase(unittest.TestCase):
 		self.ts_client_query_server = TSClientQueryService()
 		self.ts_client_query_server.start()
 		self.change_ts_client_state(**state)
+
+	def enable_ts_client_tessumod_plugin(self, version=0):
+		self.__ts_plugin_info = mmap.mmap(0, 1, "TessuModTSPluginInfo", mmap.ACCESS_WRITE)
+		self.__ts_plugin_info.write(struct.pack("=B", version))
 
 	def start_game(self, on_events={}, **game_state):
 		import tessu_mod
@@ -155,6 +168,14 @@ class TestCaseBase(unittest.TestCase):
 		for group_name, variables in groups.iteritems():
 			for var_name, var_value in variables.iteritems():
 				mod_settings.set_cache_entry(group_name, var_name, var_value)
+
+	def change_mod_state_variables(self, **variables):
+		states_dirpath = os.path.join(INI_DIRPATH, "states")
+		if not os.path.exists(states_dirpath):
+			os.makedirs(states_dirpath)
+		for key, value in variables.iteritems():
+			with open(os.path.join(states_dirpath, key), "w") as file:
+				file.write(json.dumps(value))
 
 	def call_later(self, callback, timeout=0):
 		self.event_loop.call(callback, timeout=timeout)
