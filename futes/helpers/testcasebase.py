@@ -4,6 +4,7 @@ import os
 import time
 import random
 from functools import partial
+import shutil
 
 from event_loop import EventLoop
 from ts_client_query import TSClientQueryService
@@ -12,6 +13,7 @@ import mod_settings
 SCRIPT_DIRPATH = os.path.dirname(os.path.realpath(__file__))
 FAKES_DIRPATH  = os.path.join(SCRIPT_DIRPATH, "..", "fakes")
 MOD_DIRPATH    = os.path.join(SCRIPT_DIRPATH, "..", "..", "tessumod", "src", "scripts", "client", "mods")
+TMP_DIRPATH    = os.path.join(os.getcwd(), "tmp")
 
 class TestCaseBase(unittest.TestCase):
 
@@ -20,11 +22,18 @@ class TestCaseBase(unittest.TestCase):
 		self.ts_client_query_server = None
 		self.event_loop = EventLoop()
 
+		shutil.rmtree(TMP_DIRPATH, ignore_errors=True)
+
 		if FAKES_DIRPATH not in sys.path:
 			sys.path.append(FAKES_DIRPATH)
 		if MOD_DIRPATH not in sys.path:
 			sys.path.append(MOD_DIRPATH)
 
+		res_mods_version_dirpath = os.path.join(TMP_DIRPATH, "res_mods", "version")
+
+		import ResMgr
+		ResMgr.RES_MODS_VERSION_PATH = res_mods_version_dirpath
+		mod_settings.INI_DIRPATH = os.path.join(res_mods_version_dirpath, "..", "configs", "tessu_mod")
 		mod_settings.reset_cache_file()
 		mod_settings.reset_settings_file()
 		self.change_mod_settings(

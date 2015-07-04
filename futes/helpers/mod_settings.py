@@ -1,8 +1,10 @@
 import ConfigParser
 import os
 
+INI_DIRPATH = ""
+
 def get_ini_dirpath():
-	return os.path.join(os.getcwd(), "res_mods", "configs", "tessu_mod")
+	return INI_DIRPATH
 
 def remove_file(path):
 	if os.path.exists(path):

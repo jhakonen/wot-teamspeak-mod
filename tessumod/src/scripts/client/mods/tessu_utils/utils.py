@@ -144,7 +144,7 @@ def find_res_mods_version_path():
 	return ""
 
 def get_ini_dir_path():
-	return os.path.join(os.getcwd(), "res_mods", "configs", "tessu_mod")
+	return os.path.join(find_res_mods_version_path(), "..", "configs", "tessu_mod")
 
 def get_old_ini_dir_path():
 	path = os.path.join(find_res_mods_version_path(), "scripts", "client", "mods")
