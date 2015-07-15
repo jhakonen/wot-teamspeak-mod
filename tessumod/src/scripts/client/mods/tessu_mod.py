@@ -109,6 +109,10 @@ def on_connected_to_ts3():
 	LOG_NOTE("Connected to TeamSpeak client")
 	installer_path = utils.get_plugin_installer_path()
 
+	# plugin doesn't work in WinXP so check that we are running on
+	# sufficiently recent Windows OS
+	if not is_vista_or_newer():
+		return
 	if not os.path.isfile(installer_path):
 		return
 	if is_newest_plugin_version(get_installed_plugin_version()):
@@ -120,6 +124,15 @@ def on_connected_to_ts3():
 		moreinfo_url   = "https://github.com/jhakonen/wot-teamspeak-mod/wiki/TeamSpeak-Plugins#tessumod-plugin",
 		ignore_state   = "off"
 	)
+
+def is_vista_or_newer():
+	'''Returns True if the game is running on Windows Vista or newer OS.'''
+	try:
+		import sys
+		return sys.getwindowsversion()[0] >= 6
+	except:
+		LOG_ERROR("Failed to get current Windows OS version")
+		return True
 
 def get_installed_plugin_version():
 	with mytsplugin.InfoAPI() as api:
