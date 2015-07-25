@@ -20,8 +20,8 @@ import sys
 import ConfigParser
 
 base_path = os.path.dirname(os.path.realpath(__file__))
-fakes_path = os.path.join(base_path, "..", "..", "..", "..", "..", "..", "features", "helpers", "fakes")
-tmp_path = os.path.join(base_path, "..", "..", "..", "..", "..", "..", "tmp")
+fakes_path = os.path.realpath(os.path.join(base_path, "..", "..", "..", "..", "..", "..", "features", "helpers", "fakes"))
+tmp_path = os.path.realpath(os.path.join(base_path, "..", "..", "..", "..", "..", "..", "tmp"))
 ini_path = os.path.join(tmp_path, "tessu_mod_cache.ini")
 
 sys.path.append(fakes_path)
@@ -40,6 +40,10 @@ def has_cache_value(section, name):
 class TestUserCache(object):
 
 	def setUp(self):
+		try:
+			os.makedirs(os.path.dirname(ini_path))
+		except:
+			pass
 		try:
 			os.remove(ini_path)
 		except:
