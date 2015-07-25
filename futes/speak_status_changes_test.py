@@ -1,7 +1,9 @@
 from helpers.testcasebase import TestCaseBase
 from helpers.utils import *
 import mock
+import nosepipe
 
+@nosepipe.isolate
 class SpeakStatusChanges(TestCaseBase):
 	'''
 	This fute test tests that changes in TeamSpeak user's speaking status is shown in-game.

@@ -1,7 +1,9 @@
 from helpers.testcasebase import TestCaseBase
 from helpers.utils import *
 import mock
+import nosepipe
 
+@nosepipe.isolate
 class LobbyNotifications(TestCaseBase):
 	'''
 	This fute test tests that notifications are shown in lobby.

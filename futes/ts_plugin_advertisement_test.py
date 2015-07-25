@@ -2,7 +2,9 @@ from helpers.testcasebase import TestCaseBase, TS_PLUGIN_INSTALLER_PATH
 from helpers.utils import *
 import mock
 import os
+import nosepipe
 
+@nosepipe.isolate
 class TSPluginAdvertisement(TestCaseBase):
 	'''
 	This fute test tests TessuMod Plugin is advertised in lobby.
