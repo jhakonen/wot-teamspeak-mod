@@ -22,6 +22,7 @@ import _winreg
 import argparse
 import zipfile
 import glob
+import sys
 
 BUILD_DIR  = os.getcwd()
 SOURCE_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -67,7 +68,14 @@ def build_ts_plugin_binary(qtdir, arch, name, description, author, version, **kw
 		))
 		file.write("nmake\r\n")
 	# execute the batch file
-	proc = subprocess.Popen([batch_path], cwd=build_dir)
+	proc = subprocess.Popen([batch_path], cwd=build_dir, stderr=subprocess.PIPE)
+	while proc.poll() is None:
+		output = proc.stderr.readline()
+		# filter out warnings when compiling in Windows 10
+		if "Qt: Untested Windows version 10.0 detected!" in output:
+			pass
+		else:
+			sys.stderr.write(output)
 	proc.communicate()
 	# verify results
 	if proc.returncode != 0:
