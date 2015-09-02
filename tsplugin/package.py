@@ -87,7 +87,7 @@ def build_ts_plugin_binary(qtdir, arch, name, description, author, version, **kw
 	return binary_file_path, debug_file_path
 
 def get_vcvarsall_path():
-	key = _winreg.OpenKeyEx(_winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\VisualStudio\\11.0\\Setup\\VC")
+	key = _winreg.OpenKeyEx(_winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\VisualStudio\\12.0\\Setup\\VC")
 	path = _winreg.QueryValueEx(key, "ProductDir")[0]
 	return os.path.abspath(path + "\\" + "vcvarsall.bat")
 
