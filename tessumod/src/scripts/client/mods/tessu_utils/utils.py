@@ -17,7 +17,6 @@
 
 import BigWorld
 import debug_utils
-from gui.WindowsManager import g_windowsManager
 from messenger.storage import storage_getter
 from messenger.proto.shared_find_criteria import FriendsFindCriteria
 import ResMgr
@@ -345,7 +344,9 @@ class MinimapMarkerAnimation(object):
 
 	def _updateMinimap(self):
 		try:
-			g_windowsManager.battleWindow.minimap.showActionMarker(self._vehicle_id, self._action)
+			from gui.app_loader import g_appLoader
+			app = g_appLoader.getApp()
+			app.minimap.showActionMarker(self._vehicle_id, self._action)
 		except AttributeError:
 			pass
 

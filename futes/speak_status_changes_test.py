@@ -14,9 +14,11 @@ class SpeakStatusChanges(TestCaseBase):
 
 	def setUp(self):
 		TestCaseBase.setUp(self)
-		import VOIP, gui.WindowsManager
+
+		import VOIP
+		from gui.app_loader import g_appLoader
 		self.VOIP_onPlayerSpeaking = VOIP.getVOIPManager().onPlayerSpeaking = mock.Mock()
-		self.Minimap_showActionMarker = gui.WindowsManager.g_windowsManager.battleWindow.minimap.showActionMarker = mock.Mock()
+		self.Minimap_showActionMarker = g_appLoader.getApp().minimap.showActionMarker = mock.Mock()
 
 	def test_speak_feedback_starts_for_player_with_tessumod_installed(self):
 		self.change_mod_settings_state(
