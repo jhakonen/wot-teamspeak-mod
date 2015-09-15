@@ -15,7 +15,9 @@ class TSPluginAdvertisement(TestCaseBase):
 	def setUp(self):
 		TestCaseBase.setUp(self)
 		import notification
-		self.mock_addNotification = notification.NotificationMVC.g_instance.getModel().addNotification = mock.Mock()
+		self.mock_addNotification = notification.NotificationMVC.g_instance.getModel().addNotification = mock.Mock(
+			wraps=notification.NotificationMVC.g_instance.getModel().addNotification
+		)
 
 	def __is_advertisement_shown(self):
 		return mock_was_called_with(self.mock_addNotification, message_decorator_matches_fragments(
@@ -50,4 +52,16 @@ class TSPluginAdvertisement(TestCaseBase):
 		self.start_game(mode="lobby")
 		self.run_in_event_loop(min_wait=5, verifiers=[
 			lambda: not self.__is_advertisement_shown()
+		])
+
+	@mock.patch("subprocess.call")
+	def test_install_button_starts_plugin_installer(self, subprocess_call_mock):
+		self.start_ts_client()
+		self.start_game(mode="lobby")
+		import notification
+		def on_notification(msg):
+			notification.NotificationMVC.g_instance.handleAction(typeID=msg.getType(), entityID=msg.getID(), action="TessuModTSPluginInstall")
+		notification.NotificationMVC.g_instance.futes_on_add_notification += on_notification
+		self.run_in_event_loop(min_wait=5, verifiers=[
+			lambda: mock_was_called_with(subprocess_call_mock, args=[contains_match("tessumod.ts3_plugin")], shell=True)
 		])
