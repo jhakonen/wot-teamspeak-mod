@@ -177,6 +177,13 @@ class TestCaseBase(unittest.TestCase):
 			with open(os.path.join(states_dirpath, key), "w") as file:
 				file.write(json.dumps(value))
 
+	def get_mod_state_variable(self, key):
+		states_dirpath = os.path.join(INI_DIRPATH, "states")
+		key_path = os.path.join(states_dirpath, key)
+		if os.path.exists(key_path):
+			with open(key_path, "r") as file:
+				return file.read()
+
 	def call_later(self, callback, timeout=0):
 		self.event_loop.call(callback, timeout=timeout)
 

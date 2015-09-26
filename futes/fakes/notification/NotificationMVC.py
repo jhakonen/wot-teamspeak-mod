@@ -25,6 +25,9 @@ class _NotificationModel(object):
 		self.collection.addItem(msg)
 		BigWorld.callback(0, partial(self.__mvc.futes_on_add_notification, msg))
 
+	def updateNotification(self, typeID, entityID, entity, isStateChanged):
+		pass
+
 class _NotificationCollection(object):
 
 	def __init__(self):

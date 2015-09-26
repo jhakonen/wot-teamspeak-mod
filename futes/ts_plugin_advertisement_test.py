@@ -62,6 +62,18 @@ class TSPluginAdvertisement(TestCaseBase):
 		def on_notification(msg):
 			notification.NotificationMVC.g_instance.handleAction(typeID=msg.getType(), entityID=msg.getID(), action="TessuModTSPluginInstall")
 		notification.NotificationMVC.g_instance.futes_on_add_notification += on_notification
-		self.run_in_event_loop(min_wait=5, verifiers=[
+		self.run_in_event_loop(verifiers=[
 			lambda: mock_was_called_with(subprocess_call_mock, args=[contains_match("tessumod.ts3_plugin")], shell=True)
+		])
+
+	def test_ignore_link_saves_ignore_state(self):
+		self.start_ts_client()
+		self.start_game(mode="lobby")
+		import notification
+		def on_notification(msg):
+			notification.NotificationMVC.g_instance.handleAction(typeID=msg.getType(), entityID=msg.getID(), action="TessuModTSPluginIgnore")
+		notification.NotificationMVC.g_instance.futes_on_add_notification += on_notification
+		assert self.get_mod_state_variable("ignored_plugin_version") != "1"
+		self.run_in_event_loop(verifiers=[
+			lambda: self.get_mod_state_variable("ignored_plugin_version") == "1"
 		])
