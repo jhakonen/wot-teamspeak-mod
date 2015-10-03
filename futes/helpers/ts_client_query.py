@@ -63,11 +63,16 @@ class TSClientQueryService(object):
 			kwargs["schandlerid"] = self._data.schandler_id
 		self._data.users[clid].set(**kwargs)
 
-	def get_user(self, name):
-		for clid in self._data.users:
-			user = self._data.users[clid]
-			if user.name == name:
-				return user
+	def get_user(self, name=None, clid=None):
+		if clid is not None:
+			return self._data.users[str(clid)]
+		elif name is not None:
+			for user_clid in self._data.users:
+				user = self._data.users[user_clid]
+				if user.name == name:
+					return user
+		else:
+			raise RuntimeError("Parameter missing")
 
 class User(object):
 

@@ -77,6 +77,35 @@ class TestCaseBase(unittest.TestCase):
 		self.__ts_plugin_info = mmap.mmap(0, 1, "TessuModTSPluginInfo", mmap.ACCESS_WRITE)
 		self.__ts_plugin_info.write(struct.pack("=B", version))
 
+	def get_shared_memory_contents(self, memory):
+		assert memory == "TessuModTSPlugin3dAudio" # currently this is only memory supported
+		shmem = mmap.mmap(0, 1024, memory, mmap.ACCESS_READ)
+		(
+			timestamp,
+			camera_pos_x,
+			camera_pos_y,
+			camera_pos_z,
+			camera_dir_x,
+			camera_dir_y,
+			camera_dir_z,
+			client_count
+		) = struct.unpack("=I3f3fB", shmem.read(4+3*4+3*4+1))
+		clients = {}
+		for client_index in range(0, client_count):
+			client_id, x, y, z = struct.unpack("=h3f", shmem.read(2+3*4))
+			clients[self.ts_client_query_server.get_user(clid=client_id).name] = {
+				"position": (x, y, z)
+			}
+
+		return {
+			"timestamp": timestamp,
+			"camera": {
+				"position": (camera_pos_x, camera_pos_y, camera_pos_z),
+				"direction": (camera_dir_x, camera_dir_y, camera_dir_z)
+			},
+			"clients": clients
+		}
+
 	def start_game(self, on_events={}, **game_state):
 		import tessu_mod
 		self.tessu_mod = tessu_mod
@@ -136,6 +165,11 @@ class TestCaseBase(unittest.TestCase):
 						"name":        player["name"],
 						"isAlive":     True
 					}
+					if vehicle_id not in BigWorld.entities:
+						BigWorld.entities[vehicle_id] = BigWorld.Entity()
+					if "position" in player:
+						BigWorld.player().arena.positions[vehicle_id] = player["position"]
+						BigWorld.entities[vehicle_id].position = BigWorld.Vector(*player["position"])
 		elif state["mode"] == "lobby":
 			BigWorld.player(Account.PlayerAccount())
 			if "players" in state:

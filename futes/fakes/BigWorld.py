@@ -45,3 +45,26 @@ def player(entity=None):
 
 def time():
 	return _time.time()
+
+def camera():
+	return Camera()
+
+class Camera(object):
+
+	def __init__(self):
+		self.position = Vector(0.0, 0.0, 0.0)
+		self.direction = Vector(0.0, 0.0, 0.0)
+
+class Vector(object):
+
+	def __init__(self, x, y, z):
+		self.x = x
+		self.y = y
+		self.z = z
+
+entities = {}
+
+class Entity(object):
+
+	def __init__(self):
+		self.position = Vector(0, 0, 0)
