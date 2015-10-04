@@ -35,11 +35,8 @@ class SpeakStatusChanges(TestCaseBase):
 				"action": "attack"
 			}
 		)
-		self.start_game(mode="battle", players=[{"name": "TuhoajaErkki"}], on_events={
-			"on_connected_to_ts_server": [
-				lambda: self.change_ts_client_state(users={"Erkki Meikalainen": {"speaking": True}})
-			]
-		})
+		self.start_game(mode="battle", players=[{"name": "TuhoajaErkki"}])
+		self.on_event("on_connected_to_ts_server", lambda: self.change_ts_client_state(users={"Erkki Meikalainen": {"speaking": True}}))
 		self.assert_finally_true(lambda: self.__has_minimap_feedback(name="TuhoajaErkki", action="attack"))
 		self.assert_finally_true(lambda: self.__has_speaking_state_changed(name="TuhoajaErkki", speaking=True))
 
@@ -53,12 +50,9 @@ class SpeakStatusChanges(TestCaseBase):
 				"action": "firstEnemy"
 			}
 		)
-		self.start_game(mode="battle", players=[{"name": "TuhoajaErkki"}], on_events={
-			"on_connected_to_ts_server": [
-				lambda: self.change_ts_client_state(users={"Erkki Meikalainen": {"speaking": True}}),
-				lambda: self.call_later(lambda: self.change_ts_client_state(users={"Erkki Meikalainen": {"speaking": False}}), timeout=1)
-			]
-		})
+		self.start_game(mode="battle", players=[{"name": "TuhoajaErkki"}])
+		self.on_event("on_connected_to_ts_server", lambda: self.change_ts_client_state(users={"Erkki Meikalainen": {"speaking": True}}))
+		self.on_event("on_connected_to_ts_server", lambda: self.call_later(lambda: self.change_ts_client_state(users={"Erkki Meikalainen": {"speaking": False}}), timeout=1))
 		self.assert_finally_true(lambda: self.__has_minimap_feedback(name="TuhoajaErkki", action="firstEnemy"))
 		self.assert_finally_true(lambda: self.__has_speaking_state_changed(name="TuhoajaErkki", speaking=False))
 
@@ -72,11 +66,8 @@ class SpeakStatusChanges(TestCaseBase):
 				"action": "help_me"
 			}
 		)
-		self.start_game(mode="battle", players=[{"name": "TuhoajaErkki"}], on_events={
-			"on_connected_to_ts_server": [
-				lambda: self.change_ts_client_state(users={"TuhoajaERKKI [DUMMY]": {"speaking": True}})
-			]
-		})
+		self.start_game(mode="battle", players=[{"name": "TuhoajaErkki"}])
+		self.on_event("on_connected_to_ts_server", lambda: self.change_ts_client_state(users={"TuhoajaERKKI [DUMMY]": {"speaking": True}}))
 		self.assert_finally_true(lambda: self.__has_minimap_feedback(name="TuhoajaErkki", action="help_me"))
 		self.assert_finally_true(lambda: self.__has_speaking_state_changed(name="TuhoajaErkki", speaking=True))
 
@@ -94,11 +85,8 @@ class SpeakStatusChanges(TestCaseBase):
 				"action": "negative"
 			}
 		)
-		self.start_game(mode="battle", players=[{"name": "TuhoajaErkki"}], on_events={
-			"on_connected_to_ts_server": [
-				lambda: self.change_ts_client_state(users={"TuhoajaErkki / Erkki Meikalainen [DUMMY]": {"speaking": True}})
-			]
-		})
+		self.start_game(mode="battle", players=[{"name": "TuhoajaErkki"}])
+		self.on_event("on_connected_to_ts_server", lambda: self.change_ts_client_state(users={"TuhoajaErkki / Erkki Meikalainen [DUMMY]": {"speaking": True}}))
 		self.assert_finally_true(lambda: self.__has_minimap_feedback(name="TuhoajaErkki", action="negative"))
 		self.assert_finally_true(lambda: self.__has_speaking_state_changed(name="TuhoajaErkki", speaking=True))
 
@@ -115,11 +103,8 @@ class SpeakStatusChanges(TestCaseBase):
 				"action": "positive"
 			}
 		)
-		self.start_game(mode="battle", players=[{"name": "TuhoajaErkki"}], on_events={
-			"on_connected_to_ts_server": [
-				lambda: self.change_ts_client_state(users={"Erkki Meikalainen": {"speaking": True}})
-			]
-		})
+		self.start_game(mode="battle", players=[{"name": "TuhoajaErkki"}])
+		self.on_event("on_connected_to_ts_server", lambda: self.change_ts_client_state(users={"Erkki Meikalainen": {"speaking": True}}))
 		self.assert_finally_true(lambda: self.__has_minimap_feedback(name="TuhoajaErkki", action="positive"))
 		self.assert_finally_true(lambda: self.__has_speaking_state_changed(name="TuhoajaErkki", speaking=True))
 
@@ -140,11 +125,8 @@ class SpeakStatusChanges(TestCaseBase):
 				"action": "stop"
 			}
 		)
-		self.start_game(mode="battle", players=[{"name": "TuhoajaErkki"}], on_events={
-			"on_connected_to_ts_server": [
-				lambda: self.change_ts_client_state(users={"Erkki Meikalainen [DUMMY]": {"speaking": True}})
-			]
-		})
+		self.start_game(mode="battle", players=[{"name": "TuhoajaErkki"}])
+		self.on_event("on_connected_to_ts_server", lambda: self.change_ts_client_state(users={"Erkki Meikalainen [DUMMY]": {"speaking": True}}))
 		self.assert_finally_true(lambda: self.__has_minimap_feedback(name="TuhoajaErkki", action="stop"))
 		self.assert_finally_true(lambda: self.__has_speaking_state_changed(name="TuhoajaErkki", speaking=True))
 
@@ -161,11 +143,8 @@ class SpeakStatusChanges(TestCaseBase):
 				"action": "attack"
 			}
 		)
-		self.start_game(mode="battle", players=[{"name": "TuhoajaErkki"}], on_events={
-			"on_connected_to_ts_server": [
-				lambda: self.change_ts_client_state(users={"Erkki Meikalainen": {"speaking": True}})
-			]
-		})
+		self.start_game(mode="battle", players=[{"name": "TuhoajaErkki"}])
+		self.on_event("on_connected_to_ts_server", lambda: self.change_ts_client_state(users={"Erkki Meikalainen": {"speaking": True}}))
 		self.assert_finally_true(lambda: self.__has_minimap_feedback(name="TuhoajaErkki", action="attack"))
 		self.assert_finally_false(lambda: self.__has_speaking_state_changed(name="TuhoajaErkki", speaking=True))
 		self.wait_at_least(secs=5)
@@ -181,11 +160,8 @@ class SpeakStatusChanges(TestCaseBase):
 				"enabled": "off"
 			}
 		)
-		self.start_game(mode="battle", players=[{"name": "TuhoajaErkki"}], on_events={
-			"on_connected_to_ts_server": [
-				lambda: self.change_ts_client_state(users={"Erkki Meikalainen": {"speaking": True}})
-			]
-		})
+		self.start_game(mode="battle", players=[{"name": "TuhoajaErkki"}])
+		self.on_event("on_connected_to_ts_server", lambda: self.change_ts_client_state(users={"Erkki Meikalainen": {"speaking": True}}))
 		self.assert_finally_false(lambda: self.__has_minimap_feedback(name="TuhoajaErkki", action="attack"))
 		self.assert_finally_true(lambda: self.__has_speaking_state_changed(name="TuhoajaErkki", speaking=True))
 		self.wait_at_least(secs=5)

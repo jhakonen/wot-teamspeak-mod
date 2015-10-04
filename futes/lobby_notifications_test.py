@@ -49,24 +49,16 @@ class LobbyNotifications(TestCaseBase):
 	@use_event_loop
 	def test_notification_disconnected_from_teamspeak_client_is_shown(self):
 		self.start_ts_client()
-		self.start_game(mode="lobby", on_events={
-			"on_connected_to_ts_client": [
-				lambda: self.change_ts_client_state(running=False)
-			]
-		})
+		self.start_game(mode="lobby")
+		self.on_event("on_connected_to_ts_client", lambda: self.change_ts_client_state(running=False))
 		self.assert_finally_true(lambda: self.__is_system_notification_sent(message="Disconnected from TeamSpeak client", type="warning"))
 
 	@use_event_loop
 	def test_notifications_not_shown_in_battle(self):
 		self.start_ts_client()
-		self.start_game(mode="battle", on_events={
-			"on_connected_to_ts_client": [
-				lambda: self.change_ts_client_state(running=False)
-			],
-			"on_disconnected_from_ts_client": [
-				lambda: self.__set_seen_event("on_disconnected_from_ts_client")
-			]
-		})
+		self.start_game(mode="battle")
+		self.on_event("on_connected_to_ts_client", lambda: self.change_ts_client_state(running=False))
+		self.on_event("on_disconnected_from_ts_client", lambda: self.__set_seen_event("on_disconnected_from_ts_client"))
 		self.assert_finally_true(lambda: self.__is_event_seen("on_disconnected_from_ts_client"))
 		self.assert_finally_false(lambda: self.__is_system_notification_sent(message=contains_match("Connected to TeamSpeak server"), type="info"))
 		self.assert_finally_false(lambda: self.__is_system_notification_sent(message="Disconnected from TeamSpeak client", type="warning"))

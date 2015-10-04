@@ -22,17 +22,14 @@ class PositionalAudioTest(TestCaseBase):
 			"TuhoajaErkki": {},
 			"KaapuKalle": {}
 		})
+		self.enable_ts_client_tessumod_plugin()
 		self.start_game(mode="battle", players=[
 			dict(name="TuhoajaErkki", position=(100, 100, 10)),
 			dict(name="KaapuKalle", position=(150, 150, 20))
-		], on_events={
-			"on_connected_to_ts_server": [
-				lambda: self.change_ts_client_state(users={
-					"TuhoajaErkki": {"speaking": True},
-					"KaapuKalle": {"speaking": True}
-				})
-			]
-		})
-		self.enable_ts_client_tessumod_plugin()
+		])
+		self.on_event("on_connected_to_ts_server", lambda: self.change_ts_client_state(users={
+			"TuhoajaErkki": {"speaking": True},
+			"KaapuKalle": {"speaking": True}
+		}))
 		self.assert_finally_equal((100, 100, 10), lambda: self.get_shared_memory_contents("TessuModTSPlugin3dAudio")["clients"]["TuhoajaErkki"]["position"])
 		self.assert_finally_equal((150, 150, 20), lambda: self.get_shared_memory_contents("TessuModTSPlugin3dAudio")["clients"]["KaapuKalle"]["position"])

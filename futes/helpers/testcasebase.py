@@ -32,6 +32,7 @@ class TestCaseBase(unittest.TestCase):
 		self.__verifiers = []
 		self.__max_end_time = None
 		self.__min_end_time = None
+		self.__event_handlers = {}
 
 		shutil.rmtree(TMP_DIRPATH, ignore_errors=True)
 
@@ -109,24 +110,35 @@ class TestCaseBase(unittest.TestCase):
 			"clients": clients
 		}
 
-	def start_game(self, on_events={}, **game_state):
+	def on_event(self, name, callback):
+		def call_wrapper(callback, *args, **kwargs):
+			callback()
+		wrapped_callback = partial(call_wrapper, callback)
+		if not self.__install_event_handler(name, wrapped_callback):
+			if name not in self.__event_handlers:
+				self.__event_handlers[name] = []
+			self.__event_handlers[name].append(wrapped_callback)
+
+	def __install_event_handler(self, name, callback):
+		if self.tessu_mod is not None:
+			if name == "on_connected_to_ts_server":
+				self.tessu_mod.g_ts.on_connected_to_server += callback
+			elif name == "on_connected_to_ts_client":
+				self.tessu_mod.g_ts.on_connected += callback
+			elif name == "on_disconnected_from_ts_client":
+				self.tessu_mod.g_ts.on_disconnected += callback
+			else:
+				raise RuntimeError("No such event: {0}".format(name))
+		else:
+			return False
+
+	def start_game(self, **game_state):
 		import tessu_mod
 		self.tessu_mod = tessu_mod
 
-		def call_wrapper(callback, *args, **kwargs):
-			callback()
-
-		for name, callbacks in on_events.iteritems():
+		for name, callbacks in self.__event_handlers.iteritems():
 			for callback in callbacks:
-				wrapped_callback = partial(call_wrapper, callback)
-				if name == "on_connected_to_ts_server":
-					tessu_mod.g_ts.on_connected_to_server += wrapped_callback
-				elif name == "on_connected_to_ts_client":
-					tessu_mod.g_ts.on_connected += wrapped_callback
-				elif name == "on_disconnected_from_ts_client":
-					tessu_mod.g_ts.on_disconnected += wrapped_callback
-				else:
-					raise RuntimeError("No such event: {0}".format(name))
+				self.__install_event_handler(name, callback)
 
 		# hack to speed up testing
 		import tessu_utils.ts3
