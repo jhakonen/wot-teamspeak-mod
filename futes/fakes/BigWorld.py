@@ -46,8 +46,13 @@ def player(entity=None):
 def time():
 	return _time.time()
 
+_camera = None
+
 def camera():
-	return Camera()
+	global _camera
+	if _camera is None:
+		_camera = Camera()
+	return _camera
 
 class Camera(object):
 

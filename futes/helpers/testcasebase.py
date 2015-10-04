@@ -185,6 +185,11 @@ class TestCaseBase(unittest.TestCase):
 					if "position" in player:
 						BigWorld.player().arena.positions[vehicle_id] = player["position"]
 						BigWorld.entities[vehicle_id].position = BigWorld.Vector(*player["position"])
+			if "camera" in state:
+				if "position" in state["camera"]:
+					BigWorld.camera().position = BigWorld.Vector(*state["camera"]["position"])
+				if "direction" in state["camera"]:
+					BigWorld.camera().direction = BigWorld.Vector(*state["camera"]["direction"])
 		elif state["mode"] == "lobby":
 			BigWorld.player(Account.PlayerAccount())
 			if "players" in state:
