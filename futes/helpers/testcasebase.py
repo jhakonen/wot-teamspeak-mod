@@ -29,6 +29,9 @@ class TestCaseBase(unittest.TestCase):
 		self.ts_client_query_server = None
 		self.__ts_plugin_info = None
 		self.event_loop = EventLoop()
+		self.__verifiers = []
+		self.__max_end_time = None
+		self.__min_end_time = None
 
 		shutil.rmtree(TMP_DIRPATH, ignore_errors=True)
 
@@ -130,12 +133,12 @@ class TestCaseBase(unittest.TestCase):
 		tessu_utils.ts3._UNREGISTER_WAIT_TIMEOUT = 0.5
 		self.change_game_state(**game_state)
 
-	def run_in_event_loop(self, verifiers, timeout=20, min_wait=0):
-		self.__verifiers = verifiers
+	def run_in_event_loop(self, timeout=20):
 		self.event_loop.call(self.__on_loop, repeat=True, timeout=0.05)
 		self.event_loop.call(self.__check_verify, repeat=True, timeout=1)
 		self.__max_end_time = time.time() + timeout
-		self.__min_end_time = time.time() + min_wait
+		if self.__min_end_time is None:
+			self.__min_end_time = time.time()
 		self.event_loop.execute()
 
 	def change_ts_client_state(self, **state):
@@ -234,3 +237,17 @@ class TestCaseBase(unittest.TestCase):
 				self.event_loop.exit()
 		except Exception as error:
 			print error
+
+	def assert_finally_equal(self, a, b):
+		actual_getter = a if callable(a) else b
+		expected = b if callable(a) else a
+		self.__verifiers.append(lambda: actual_getter() == expected)
+
+	def assert_finally_true(self, x):
+		self.__verifiers.append(x)
+
+	def assert_finally_false(self, x):
+		self.__verifiers.append(lambda: not x())
+
+	def wait_at_least(self, secs):
+		self.__min_end_time = time.time() + secs

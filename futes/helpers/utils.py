@@ -1,4 +1,5 @@
 import mock
+import functools
 
 def mock_was_called_with(mock_obj, *args, **kwargs):
 	'''Returns True if 'mock_obj' was ever called with provided arguments.'''
@@ -19,3 +20,10 @@ def message_decorator_matches_fragments(fragments):
 					return False
 			return True
 	return Matcher()
+
+def use_event_loop(method):
+	def wrapper(self, *args, **kwargs):
+		method(self, *args, **kwargs)
+		self.run_in_event_loop()
+	functools.update_wrapper(wrapper, method)
+	return wrapper
