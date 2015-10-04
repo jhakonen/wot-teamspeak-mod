@@ -18,7 +18,7 @@
 import sys
 import os
 base_path = os.path.dirname(os.path.realpath(__file__))
-fakes_path = os.path.join(base_path, "..", "..", "..", "..", "..", "..", "features", "helpers", "fakes")
+fakes_path = os.path.join(base_path, "..", "..", "..", "..", "..", "..", "futes", "fakes")
 tmp_path = os.path.join(base_path, "..", "..", "..", "..", "..", "..", "tmp")
 sys.path.append(fakes_path)
 from statemachine import StateMachine

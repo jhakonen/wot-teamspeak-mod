@@ -1,1 +1,0 @@
-g_windowsManager = None
