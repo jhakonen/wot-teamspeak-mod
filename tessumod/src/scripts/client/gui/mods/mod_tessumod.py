@@ -17,6 +17,101 @@
 
 AVAILABLE_PLUGIN_VERSION = 1
 
+try:
+	import game
+	from tessumod.utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
+	from tessumod.ts3 import TS3Client
+	from tessumod import utils, mytsplugin, notifications
+	from tessumod.settings import settings
+	from tessumod.user_cache import UserCache
+	from tessumod.keyvaluestorage import KeyValueStorage
+	import tessumod.positional_audio as positional_audio
+	import BigWorld
+	import VOIP
+	import BattleReplay
+	from messenger.proto.events import g_messengerEvents
+	from PlayerEvents import g_playerEvents
+	import os
+	import subprocess
+	import threading
+	from functools import partial
+except:
+	import traceback
+	print traceback.format_exc()
+
+def init():
+	'''Mod's main entry point. Called by WoT's built-in mod loader.'''
+	try:
+		global g_ts, g_talk_states, g_minimap_ctrl, g_user_cache, g_positional_audio, g_keyvaluestorage
+
+		# make sure that ini-folder exists
+		try:
+			os.makedirs(utils.get_ini_dir_path())
+		except os.error:
+			pass
+		settings_ini_path     = os.path.join(utils.get_ini_dir_path(), "tessu_mod.ini")
+		old_settings_ini_path = os.path.join(utils.get_old_ini_dir_path(), "tessu_mod.ini")
+		cache_ini_path        = os.path.join(utils.get_ini_dir_path(), "tessu_mod_cache.ini")
+		# when updating from mod version 0.3.x to 0.4 (or newer) the ini-file needs
+		# to be copied to the new location
+		if os.path.isfile(old_settings_ini_path) and not os.path.isfile(settings_ini_path):
+			os.rename(old_settings_ini_path, settings_ini_path)
+
+		# do all intializations here
+		settings(settings_ini_path).on_reloaded += load_settings
+		g_user_cache = UserCache(cache_ini_path)
+		g_user_cache.on_read_error += on_user_cache_read_error
+		g_user_cache.init()
+
+		g_talk_states = {}
+		g_minimap_ctrl = utils.MinimapMarkersController()
+		g_ts = TS3Client()
+
+		g_positional_audio = positional_audio.PositionalAudio(
+			ts_users      = g_ts.users_in_my_channel,
+			user_cache    = g_user_cache
+		)
+
+		load_settings()
+
+		g_ts.connect()
+		g_ts.on_connected += on_connected_to_ts3
+		g_ts.on_disconnected += on_disconnected_from_ts3
+		g_ts.on_connected_to_server += on_connected_to_ts3_server
+		g_ts.on_disconnected_from_server += on_disconnected_from_ts3_server
+		g_ts.on_speak_status_changed += on_speak_status_changed
+		g_ts.users_in_my_channel.on_added += on_ts3_user_in_my_channel_added
+		utils.call_in_loop(settings().get_client_query_interval(), g_ts.check_events)
+
+		g_playerEvents.onAvatarReady           += g_positional_audio.enable
+		g_playerEvents.onAvatarBecomeNonPlayer += g_positional_audio.disable
+
+		# don't show system center notifications in battle
+		g_playerEvents.onAvatarBecomePlayer    += partial(notifications.set_notifications_enabled, False)
+		g_playerEvents.onAvatarBecomeNonPlayer += partial(notifications.set_notifications_enabled, True)
+
+		g_playerEvents.onAvatarBecomePlayer    += update_wot_nickname_to_ts
+		g_playerEvents.onAccountBecomePlayer   += update_wot_nickname_to_ts
+
+		# if nothing broke so far then it should be safe to patch the needed
+		# functions (modified functions have dependencies to g_* global variables)
+		VOIP.VOIPManager.isParticipantTalking = VOIPManager_isParticipantTalking(VOIP.VOIPManager.isParticipantTalking)
+		BattleReplay.BattleReplay.play = BattleReplay_play(BattleReplay.BattleReplay.play)
+
+		g_messengerEvents.users.onUsersListReceived += on_users_list_received
+
+		notifications.add_event_handler(notifications.TSPLUGIN_INSTALL, on_tsplugin_install)
+		notifications.add_event_handler(notifications.TSPLUGIN_IGNORED, on_tsplugin_ignore_toggled)
+		notifications.add_event_handler(notifications.TSPLUGIN_MOREINFO, on_tsplugin_moreinfo_clicked)
+
+		g_keyvaluestorage = KeyValueStorage(utils.get_states_dir_path())
+
+		utils.call_in_loop(settings().get_ini_check_interval, sync_configs)
+		print "TessuMod version {0} ({1})".format(utils.get_mod_version(), utils.get_support_url())
+
+	except:
+		LOG_CURRENT_EXCEPTION()
+
 def on_speak_status_changed(user):
 	'''Called when TeamSpeak user's speak status changes.'''
 	g_user_cache.add_ts_user(user.nick, user.unique_id)
@@ -237,99 +332,3 @@ def on_tsplugin_ignore_toggled(type_id, msg_id, data):
 
 def on_tsplugin_moreinfo_clicked(type_id, msg_id, data):
 	subprocess.call(["start", data["moreinfo_url"]], shell=True)
-
-def in_test_suite():
-	import sys
-	return "behave" in sys.argv[0]
-
-def load_mod():
-	global g_ts, g_talk_states, g_minimap_ctrl, g_user_cache, g_positional_audio, g_keyvaluestorage
-
-	# make sure that ini-folder exists
-	try:
-		os.makedirs(utils.get_ini_dir_path())
-	except os.error:
-		pass
-	settings_ini_path     = os.path.join(utils.get_ini_dir_path(), "tessu_mod.ini")
-	old_settings_ini_path = os.path.join(utils.get_old_ini_dir_path(), "tessu_mod.ini")
-	cache_ini_path        = os.path.join(utils.get_ini_dir_path(), "tessu_mod_cache.ini")
-	# when updating from mod version 0.3.x to 0.4 (or newer) the ini-file needs
-	# to be copied to the new location
-	if os.path.isfile(old_settings_ini_path) and not os.path.isfile(settings_ini_path):
-		os.rename(old_settings_ini_path, settings_ini_path)
-
-	# do all intializations here
-	settings(settings_ini_path).on_reloaded += load_settings
-	g_user_cache = UserCache(cache_ini_path)
-	g_user_cache.on_read_error += on_user_cache_read_error
-	g_user_cache.init()
-
-	g_talk_states = {}
-	g_minimap_ctrl = utils.MinimapMarkersController()
-	g_ts = TS3Client()
-
-	g_positional_audio = positional_audio.PositionalAudio(
-		ts_users      = g_ts.users_in_my_channel,
-		user_cache    = g_user_cache
-	)
-
-	load_settings()
-
-	g_ts.connect()
-	g_ts.on_connected += on_connected_to_ts3
-	g_ts.on_disconnected += on_disconnected_from_ts3
-	g_ts.on_connected_to_server += on_connected_to_ts3_server
-	g_ts.on_disconnected_from_server += on_disconnected_from_ts3_server
-	g_ts.on_speak_status_changed += on_speak_status_changed
-	g_ts.users_in_my_channel.on_added += on_ts3_user_in_my_channel_added
-	utils.call_in_loop(settings().get_client_query_interval(), g_ts.check_events)
-
-	g_playerEvents.onAvatarReady           += g_positional_audio.enable
-	g_playerEvents.onAvatarBecomeNonPlayer += g_positional_audio.disable
-
-	# don't show system center notifications in battle
-	g_playerEvents.onAvatarBecomePlayer    += partial(notifications.set_notifications_enabled, False)
-	g_playerEvents.onAvatarBecomeNonPlayer += partial(notifications.set_notifications_enabled, True)
-
-	g_playerEvents.onAvatarBecomePlayer    += update_wot_nickname_to_ts
-	g_playerEvents.onAccountBecomePlayer   += update_wot_nickname_to_ts
-
-	# if nothing broke so far then it should be safe to patch the needed
-	# functions (modified functions have dependencies to g_* global variables)
-	VOIP.VOIPManager.isParticipantTalking = VOIPManager_isParticipantTalking(VOIP.VOIPManager.isParticipantTalking)
-	BattleReplay.BattleReplay.play = BattleReplay_play(BattleReplay.BattleReplay.play)
-
-	g_messengerEvents.users.onUsersListReceived += on_users_list_received
-
-	notifications.add_event_handler(notifications.TSPLUGIN_INSTALL, on_tsplugin_install)
-	notifications.add_event_handler(notifications.TSPLUGIN_IGNORED, on_tsplugin_ignore_toggled)
-	notifications.add_event_handler(notifications.TSPLUGIN_MOREINFO, on_tsplugin_moreinfo_clicked)
-
-	g_keyvaluestorage = KeyValueStorage(utils.get_states_dir_path())
-
-	utils.call_in_loop(settings().get_ini_check_interval, sync_configs)
-
-try:
-	import game
-	from tessu_utils.utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
-	from tessu_utils.ts3 import TS3Client
-	from tessu_utils import utils, mytsplugin, notifications
-	from tessu_utils.settings import settings
-	from tessu_utils.user_cache import UserCache
-	from tessu_utils.keyvaluestorage import KeyValueStorage
-	import tessu_utils.positional_audio as positional_audio
-	import BigWorld
-	import VOIP
-	import BattleReplay
-	from messenger.proto.events import g_messengerEvents
-	from PlayerEvents import g_playerEvents
-	import os
-	import subprocess
-	import threading
-	from functools import partial
-
-	if not in_test_suite():
-		print "TessuMod version {0} ({1})".format(utils.get_mod_version(), utils.get_support_url())
-		load_mod()
-except:
-	LOG_CURRENT_EXCEPTION()

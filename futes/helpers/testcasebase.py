@@ -16,7 +16,7 @@ import mod_settings
 SCRIPT_DIRPATH           = os.path.dirname(os.path.realpath(__file__))
 FAKES_DIRPATH            = os.path.join(SCRIPT_DIRPATH, "..", "fakes")
 MOD_SRC_DIRPATH          = os.path.join(SCRIPT_DIRPATH, "..", "..", "tessumod", "src")
-MOD_SCRIPTS_DIRPATH      = os.path.join(MOD_SRC_DIRPATH, "scripts", "client", "mods")
+MOD_SCRIPTS_DIRPATH      = os.path.join(MOD_SRC_DIRPATH, "scripts", "client", "gui", "mods")
 TMP_DIRPATH              = os.path.join(os.getcwd(), "tmp")
 MODS_VERSION_DIRPATH     = os.path.join(TMP_DIRPATH, "res_mods", "version")
 INI_DIRPATH              = os.path.join(MODS_VERSION_DIRPATH, "..", "configs", "tessu_mod")
@@ -25,7 +25,7 @@ TS_PLUGIN_INSTALLER_PATH = os.path.join(MODS_VERSION_DIRPATH, "tessumod.ts3_plug
 class TestCaseBase(unittest.TestCase):
 
 	def setUp(self):
-		self.tessu_mod = None
+		self.mod_tessumod = None
 		self.ts_client_query_server = None
 		self.__ts_plugin_info = None
 		self.event_loop = EventLoop()
@@ -120,29 +120,30 @@ class TestCaseBase(unittest.TestCase):
 			self.__event_handlers[name].append(wrapped_callback)
 
 	def __install_event_handler(self, name, callback):
-		if self.tessu_mod is not None:
+		if self.mod_tessumod is not None:
 			if name == "on_connected_to_ts_server":
-				self.tessu_mod.g_ts.on_connected_to_server += callback
+				self.mod_tessumod.g_ts.on_connected_to_server += callback
 			elif name == "on_connected_to_ts_client":
-				self.tessu_mod.g_ts.on_connected += callback
+				self.mod_tessumod.g_ts.on_connected += callback
 			elif name == "on_disconnected_from_ts_client":
-				self.tessu_mod.g_ts.on_disconnected += callback
+				self.mod_tessumod.g_ts.on_disconnected += callback
 			else:
 				raise RuntimeError("No such event: {0}".format(name))
 		else:
 			return False
 
 	def start_game(self, **game_state):
-		import tessu_mod
-		self.tessu_mod = tessu_mod
+		import mod_tessumod
+		self.mod_tessumod = mod_tessumod
+		self.mod_tessumod.init()
 
 		for name, callbacks in self.__event_handlers.iteritems():
 			for callback in callbacks:
 				self.__install_event_handler(name, callback)
 
 		# hack to speed up testing
-		import tessu_utils.ts3
-		tessu_utils.ts3._UNREGISTER_WAIT_TIMEOUT = 0.5
+		import tessumod.ts3
+		tessumod.ts3._UNREGISTER_WAIT_TIMEOUT = 0.5
 		self.change_game_state(**game_state)
 
 	def run_in_event_loop(self, timeout=20):
@@ -167,7 +168,7 @@ class TestCaseBase(unittest.TestCase):
 
 	def change_game_state(self, **state):
 		import BigWorld, Avatar, Account
-		assert self.tessu_mod, "Mod must be loaded first before changing game state"
+		assert self.mod_tessumod, "Mod must be loaded first before changing game state"
 
 		if state["mode"] == "battle":
 			BigWorld.player(Avatar.Avatar())
