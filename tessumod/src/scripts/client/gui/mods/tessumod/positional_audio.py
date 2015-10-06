@@ -22,6 +22,7 @@ import os
 import BigWorld
 
 import mytsplugin
+import entities
 from utils import RepeatTimer
 import utils
 
@@ -106,7 +107,7 @@ class PositionalAudio(object):
 		table for converting vehicle ID to position.
 		'''
 		for vehicle_id in self._arena().positions:
-			self._vehicle_positions[vehicle_id] = mytsplugin.Vector(*self._arena().positions[vehicle_id])
+			self._vehicle_positions[vehicle_id] = entities.Vector(*self._arena().positions[vehicle_id])
 		self._data_updated = True
 
 	def on_refresh_entity_positions(self):
@@ -133,7 +134,7 @@ class PositionalAudio(object):
 			self._camera_position = camera.position
 			self._camera_direction = camera.direction
 
-			data = mytsplugin.PositionalData()
+			data = entities.PositionalData()
 			data.camera_position = camera.position
 			data.camera_direction = camera.direction
 			data.client_positions = self._get_data_entries()

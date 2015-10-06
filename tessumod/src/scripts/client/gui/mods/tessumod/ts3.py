@@ -54,6 +54,7 @@ from utils import (
 )
 from statemachine import StateMachine
 import async
+import entities
 
 _RETRY_TIMEOUT = 10
 _COMMAND_WAIT_TIMEOUT = 30
@@ -601,38 +602,6 @@ class ProtocolClosed(Exception):
 class CommandIgnoredError(Exception):
 	pass
 
-class User(object):
-
-	def __init__(self):
-		self.nick = None
-		self.wot_nick = None
-		self.client_id = None
-		self.unique_id = None
-		self.channel_id = None
-		self.speaking = False
-
-	def __hash__(self):
-		return (
-			hash(self.client_id) ^
-			hash(self.nick) ^
-			hash(self.wot_nick) ^
-			hash(self.unique_id) ^
-			hash(self.channel_id)
-		)
-
-	def __eq__(self, other):
-		return hash(self) == hash(other)
-
-	def __repr__(self):
-		return "User (client_id={0}, nick={1}, wot_nick={2}, unique_id={3}, channel_id={4}, speaking={5})".format(
-			repr(self.client_id),
-			repr(self.nick),
-			repr(self.wot_nick),
-			repr(self.unique_id),
-			repr(self.channel_id),
-			repr(self.speaking)
-		)
-
 class UserModel(object):
 
 	def __init__(self):
@@ -647,7 +616,7 @@ class UserModel(object):
 
 		is_new = client_id not in self._users
 		if is_new:
-			self._users[client_id] = User()
+			self._users[client_id] = entities.TeamSpeakUser()
 		user = self._users[client_id]
 		old_hash = hash(user)
 

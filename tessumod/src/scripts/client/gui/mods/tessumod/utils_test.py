@@ -23,6 +23,7 @@ tmp_path   = os.path.realpath(os.path.join(base_path, "..", "..", "..", "..", ".
 sys.path.append(fakes_path)
 import utils
 import ts3
+import entities
 import random
 import re
 
@@ -32,14 +33,14 @@ class TestUtilsTSUserToPlayer(object):
 		pass
 
 	def create_ts_user(self, nick=None, wot_nick=None):
-		ts_user = ts3.User()
+		ts_user = entities.TeamSpeakUser()
 		ts_user.nick = nick
 		ts_user.wot_nick = wot_nick
 		return ts_user
 
 	def create_players(self, *nicks):
 		for nick in nicks:
-			yield utils.Player(nick, random.uniform(0, 999999999))
+			yield entities.GamePlayer(nick, random.uniform(0, 999999999))
 
 	def create_patterns(self, *patterns):
 		for pattern in patterns:

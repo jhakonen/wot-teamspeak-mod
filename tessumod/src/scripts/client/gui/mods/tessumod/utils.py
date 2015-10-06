@@ -25,6 +25,7 @@ import os
 import functools
 import inspect
 import time
+import entities
 
 def noop(*args, **kwargs):
 	'''Function that does nothing. A safe default value for callback
@@ -240,7 +241,7 @@ def get_players(in_battle=False, in_prebattle=False, clanmembers=False, friends=
 			for id in vehicles:
 				vehicle = vehicles[id]
 				LOG_DEBUG("Found player from battle", vehicle["name"])
-				yield Player(vehicle["name"], vehicle["accountDBID"])
+				yield entities.GamePlayer(vehicle["name"], vehicle["accountDBID"])
 		except AttributeError:
 			pass
 	if in_prebattle:
@@ -249,7 +250,7 @@ def get_players(in_battle=False, in_prebattle=False, clanmembers=False, friends=
 			for unit in BigWorld.player().unitMgr.units.itervalues():
 				for id, player in unit.getPlayers().iteritems():
 					LOG_DEBUG("Found player from unit", player["nickName"])
-					yield Player(player["nickName"], id)
+					yield entities.GamePlayer(player["nickName"], id)
 		except AttributeError:
 			pass
 		try:
@@ -257,35 +258,18 @@ def get_players(in_battle=False, in_prebattle=False, clanmembers=False, friends=
 			for roster in BigWorld.player().prebattle.rosters.itervalues():
 				for info in roster.itervalues():
 					LOG_DEBUG("Found player from rosters", info["name"])
-					yield Player(info["name"], info["dbID"])
+					yield entities.GamePlayer(info["name"], info["dbID"])
 		except AttributeError:
 			pass
 	users_storage = storage_getter('users')()
 	if clanmembers:
 		for member in users_storage.getClanMembersIterator(False):
 			LOG_DEBUG("Found clan member", member.getName())
-			yield Player(member.getName(), member.getID())
+			yield entities.GamePlayer(member.getName(), member.getID())
 	if friends:
 		for friend in users_storage.getList(FriendsFindCriteria()):
 			LOG_DEBUG("Found friend", friend.getName())
-			yield Player(friend.getName(), friend.getID())
-
-class Player(object):
-
-	def __init__(self, name, id):
-		self._name = name
-		self._id = id
-
-	@property
-	def name(self):
-		return self._name
-
-	@property
-	def id(self):
-		return self._id
-
-	def __repr__(self):
-		return "Player(name={0}, id={1})".format(self._name, self._id)
+			yield entities.GamePlayer(friend.getName(), friend.getID())
 
 class MinimapMarkersController(object):
 	'''MinimapMarkersController class repeatably starts given marker 'action' every

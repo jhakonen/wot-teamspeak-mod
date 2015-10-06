@@ -84,17 +84,3 @@ class PositionalDataAPI(_SharedMemory):
 
 	def __pack_float_vector(self, vector):
 		return struct.pack("3f", vector.x, vector.y, vector.z)
-
-class PositionalData(object):
-
-	def __init__(self):
-		self.camera_position = None
-		self.camera_direction = None
-		self.client_positions = {}
-
-class Vector(object):
-
-	def __init__(self, x, y, z):
-		self.x = x
-		self.y = y
-		self.z = z
