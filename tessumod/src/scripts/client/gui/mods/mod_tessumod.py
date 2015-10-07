@@ -21,7 +21,7 @@ try:
 	import game
 	from tessumod.utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
 	from tessumod.ts3 import TS3Client
-	from tessumod import utils, mytsplugin, notifications
+	from tessumod import utils, mytsplugin, notifications, usecases
 	from tessumod.settings import settings
 	from tessumod.user_cache import UserCache
 	from tessumod.keyvaluestorage import KeyValueStorage
@@ -107,6 +107,12 @@ def init():
 		g_keyvaluestorage = KeyValueStorage(utils.get_states_dir_path())
 
 		utils.call_in_loop(settings().get_ini_check_interval, sync_configs)
+
+		usecases.settings = settings()
+		usecases.user_cache = g_user_cache
+		usecases.speak_states = g_talk_states
+		usecases.minimap_ctrl = g_minimap_ctrl
+
 		print "TessuMod version {0} ({1})".format(utils.get_mod_version(), utils.get_support_url())
 
 	except:
@@ -114,76 +120,8 @@ def init():
 
 def on_speak_status_changed(user):
 	'''Called when TeamSpeak user's speak status changes.'''
-	g_user_cache.add_ts_user(user.nick, user.unique_id)
-
-	player = utils.ts_user_to_player(user,
-		use_metadata = settings().get_wot_nick_from_ts_metadata(),
-		use_ts_nick_search = settings().is_ts_nick_search_enabled(),
-		extract_patterns = settings().get_nick_extract_patterns(),
-		mappings = settings().get_name_mappings(),
-		players = utils.get_players(in_battle=True, in_prebattle=True)
-	)
-
-	if player:
-		g_user_cache.add_player(player.name, player.id)
-		g_user_cache.pair(player_id=player.id, ts_user_id=user.unique_id)
-
-	for player_id in g_user_cache.get_paired_player_ids(user.unique_id):
-		talk_status(player_id, user.speaking)
-		if user.speaking:
-			# set speaking state immediately
-			update_player_speak_status(player_id)
-		else:
-			# keep speaking state for a little longer
-			BigWorld.callback(settings().get_speak_stop_delay(), utils.with_args(update_player_speak_status, player_id))
-
-def talk_status(player_id, talking=None):
-	if talking is not None:
-		g_talk_states[player_id] = talking
-	try:
-		return g_talk_states[player_id]
-	except:
-		return False
-
-def update_player_speak_status(player_id):
-	'''Updates given 'player_id's talking status to VOIP system and minimap.''' 
-	try:
-		talking = is_voice_chat_speak_allowed(player_id) and talk_status(player_id)
-		VOIP.getVOIPManager().onPlayerSpeaking(player_id, talking)
-	except:
-		LOG_CURRENT_EXCEPTION()
-
-	try:
-		info = utils.get_player_info_by_dbid(player_id)
-		talking = (
-			talk_status(player_id) and
-			is_minimap_speak_allowed(player_id) and
-			utils.get_vehicle(info["vehicle_id"])["isAlive"]
-		)
-		if talking:
-			g_minimap_ctrl.start(info["vehicle_id"], settings().get_minimap_action(), settings().get_minimap_action_interval())
-		else:
-			g_minimap_ctrl.stop(info["vehicle_id"])
-	except KeyError:
-		# not an error, occurs in garage where there are no vehicles and
-		# such no "vehicle_id"
-		pass
-	except:
-		LOG_CURRENT_EXCEPTION()
-
-def is_voice_chat_speak_allowed(player_id):
-	if not settings().is_voice_chat_notifications_enabled():
-		return False
-	if not settings().is_self_voice_chat_notifications_enabled() and utils.get_my_dbid() == player_id:
-		return False
-	return True
-
-def is_minimap_speak_allowed(player_id):
-	if not settings().is_minimap_notifications_enabled():
-		return False
-	if not settings().is_self_minimap_notifications_enabled() and utils.get_my_dbid() == player_id:
-		return False
-	return True
+	usecases.find_and_pair_teamspeak_user_to_player(user)
+	usecases.set_teamspeak_user_speaking(user)
 
 def clear_speak_statuses():
 	'''Clears speak status of all players.'''
@@ -289,10 +227,8 @@ def VOIPManager_isParticipantTalking(orig_method):
 		'''Called by other game modules (but not by minimap) to determine
 		current speaking status.
 		'''
-		try:
-			return is_voice_chat_speak_allowed(dbid) and talk_status(dbid)
-		except:
-			LOG_CURRENT_EXCEPTION()
+		if dbid in g_talk_states:
+			return g_talk_states[dbid] and usecases.is_voice_chat_speak_allowed(dbid)
 		return orig_method(self, dbid)
 	return wrapper
 
