@@ -63,17 +63,32 @@ class TeamSpeakUser(object):
 
 class GamePlayer(object):
 
-	def __init__(self, name, id):
-		self._name = name
-		self._id = id
+	def __init__(self, name, id, vehicle_id=None, is_alive=True):
+		self.__name = name
+		self.__id = id
+		self.__vehicle_id = vehicle_id
+		self.__is_alive = is_alive
 
 	@property
 	def name(self):
-		return self._name
+		return self.__name
 
 	@property
 	def id(self):
-		return self._id
+		return self.__id
+
+	@property
+	def vehicle_id(self):
+		return self.__vehicle_id
+
+	@property
+	def is_alive(self):
+		return self.__is_alive
 
 	def __repr__(self):
-		return "GamePlayer(name={0}, id={1})".format(self._name, self._id)
+		return "GamePlayer(name={0}, id={1}, vehicle_id={2}, is_alive={3})".format(
+			self.__name,
+			self.__id,
+			self.__vehicle_id,
+			self.__is_alive
+		)

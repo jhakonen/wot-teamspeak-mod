@@ -225,60 +225,24 @@ class Settings(object):
 	def _is_modified(self):
 		return self._load_time < self._get_modified_time()
 
-	def get_log_level(self):
-		return self._parser.getint("General", "log_level")
+	def get_str(self, section, option):
+		return self._parser.get(section, option)
 
-	def get_ini_check_interval(self):
-		return self._parser.getfloat("General", "ini_check_interval")
+	def get_int(self, section, option):
+		return self._parser.getint(section, option)
 
-	def get_speak_stop_delay(self):
-		return self._parser.getfloat("General", "speak_stop_delay")
+	def get_float(self, section, option):
+		return self._parser.getfloat(section, option)
 
-	def get_wot_nick_from_ts_metadata(self):
-		return self._parser.getboolean("General", "get_wot_nick_from_ts_metadata")
+	def get_boolean(self, section, option):
+		return self._parser.getboolean(section, option)
 
-	def should_update_cache_in_replays(self):
-		return self._parser.getboolean("General", "update_cache_in_replays")
+	def get_list(self, section, option):
+		items = []
+		for row in csv.reader([self._parser.get(section, option)]):
+			for item in row:
+				items.append(item)
+		return items
 
-	def is_ts_nick_search_enabled(self):
-		return self._parser.getboolean("General", "ts_nick_search_enabled")
-
-	def get_nick_extract_patterns(self):
-		patterns = []
-		for row in csv.reader([self._parser.get("General", "nick_extract_patterns")]):
-			for pattern in row:
-				patterns.append(re.compile(pattern, re.IGNORECASE))
-		return patterns
-
-	def get_name_mappings(self):
-		results = {}
-		for option in self._parser.options("NameMappings"):
-			results[option.lower()] = self._parser.get("NameMappings", option).lower()
-		return results
-
-	def get_client_query_host(self):
-		return self._parser.get("TSClientQueryService", "host")
-
-	def get_client_query_port(self):
-		return self._parser.getint("TSClientQueryService", "port")
-
-	def get_client_query_interval(self):
-		return self._parser.getfloat("TSClientQueryService", "polling_interval")
-
-	def is_voice_chat_notifications_enabled(self):
-		return self._parser.getboolean("VoiceChatNotifications", "enabled")
-
-	def is_self_voice_chat_notifications_enabled(self):
-		return self._parser.getboolean("VoiceChatNotifications", "self_enabled")
-
-	def is_minimap_notifications_enabled(self):
-		return self._parser.getboolean("MinimapNotifications", "enabled")
-
-	def is_self_minimap_notifications_enabled(self):
-		return self._parser.getboolean("MinimapNotifications", "self_enabled")
-
-	def get_minimap_action(self):
-		return self._parser.get("MinimapNotifications", "action")
-
-	def get_minimap_action_interval(self):
-		return self._parser.getfloat("MinimapNotifications", "repeat_interval")
+	def get_dict(self, section):
+		return {option: self._parser.get(section, option) for option in self._parser.options(section)}

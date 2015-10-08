@@ -21,7 +21,7 @@ try:
 	import game
 	from tessumod.utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
 	from tessumod.ts3 import TS3Client
-	from tessumod import utils, mytsplugin, notifications, usecases
+	from tessumod import utils, mytsplugin, notifications, usecases, adapters
 	from tessumod.settings import settings
 	from tessumod.user_cache import UserCache
 	from tessumod.keyvaluestorage import KeyValueStorage
@@ -72,6 +72,10 @@ def init():
 			user_cache    = g_user_cache
 		)
 
+		adapters.g_settings = adapters.SettingsAdapter(settings())
+		adapters.g_minimap = adapters.MinimapAdapter(g_minimap_ctrl)
+		adapters.g_user_cache = adapters.UserCacheAdapter(g_user_cache)
+
 		load_settings()
 
 		g_ts.connect()
@@ -81,7 +85,7 @@ def init():
 		g_ts.on_disconnected_from_server += on_disconnected_from_ts3_server
 		g_ts.on_speak_status_changed += on_speak_status_changed
 		g_ts.users_in_my_channel.on_added += on_ts3_user_in_my_channel_added
-		utils.call_in_loop(settings().get_client_query_interval(), g_ts.check_events)
+		utils.call_in_loop(adapters.g_settings.get_client_query_interval(), g_ts.check_events)
 
 		g_playerEvents.onAvatarReady           += g_positional_audio.enable
 		g_playerEvents.onAvatarBecomeNonPlayer += g_positional_audio.disable
@@ -106,12 +110,9 @@ def init():
 
 		g_keyvaluestorage = KeyValueStorage(utils.get_states_dir_path())
 
-		utils.call_in_loop(settings().get_ini_check_interval, sync_configs)
+		utils.call_in_loop(adapters.g_settings.get_ini_check_interval, sync_configs)
 
-		usecases.settings = settings()
-		usecases.user_cache = g_user_cache
 		usecases.speak_states = g_talk_states
-		usecases.minimap_ctrl = g_minimap_ctrl
 
 		print "TessuMod version {0} ({1})".format(utils.get_mod_version(), utils.get_support_url())
 
@@ -211,9 +212,9 @@ def on_user_cache_read_error(message):
 
 def load_settings():
 	LOG_NOTE("Settings loaded from ini file")
-	utils.CURRENT_LOG_LEVEL = settings().get_log_level()
-	g_ts.HOST = settings().get_client_query_host()
-	g_ts.PORT = settings().get_client_query_port()
+	utils.CURRENT_LOG_LEVEL = adapters.g_settings.get_log_level()
+	g_ts.HOST = adapters.g_settings.get_client_query_host()
+	g_ts.PORT = adapters.g_settings.get_client_query_port()
 
 def sync_configs():
 	g_user_cache.sync()
@@ -239,7 +240,7 @@ def BattleReplay_play(orig_method):
 		plays someone else's replay and user's TS ID would get matched with the
 		replay's player name.
 		'''
-		g_user_cache.is_write_enabled = settings().should_update_cache_in_replays()
+		g_user_cache.is_write_enabled = adapters.g_settings.should_update_cache_in_replays()
 		return orig_method(*args, **kwargs)
 	return wrapper
 

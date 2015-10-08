@@ -113,23 +113,18 @@ def find_prebattle_account_info(matcher):
 	except AttributeError:
 		pass
 
-def get_player_info_by_dbid(dbid):
+def get_player_by_dbid(dbid):
 	'''Extracts player information with matching account 'dbid' from
-	various locations. Returns 'player_name' and 'vehicle_id' in a dict if
-	available, returns empty dict if nothing found.
+	various locations.
 	''' 
 	vehicle_id = find_vehicle_id(lambda v: v["accountDBID"] == dbid)
 	if vehicle_id is not None:
-		return {
-			"player_name": get_vehicle(vehicle_id)["name"],
-			"vehicle_id": vehicle_id
-		}
+		vehicle = get_vehicle(vehicle_id)
+		return entities.GamePlayer(id=dbid, name=vehicle["name"], vehicle_id=vehicle_id, is_alive=vehicle["isAlive"])
 	info = find_prebattle_account_info(lambda i: i["dbID"] == dbid)
 	if info:
-		return {
-			"player_name": info["name"]
-		}
-	return {}
+		return entities.GamePlayer(id=dbid, name=info["name"])
+	return None
 
 def get_resource_paths():
 	res = ResMgr.openSection('../paths.xml')
