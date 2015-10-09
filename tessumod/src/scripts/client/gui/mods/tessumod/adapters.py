@@ -16,11 +16,14 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 import re
+from utils import LOG_NOTE
 
 g_settings = None
 g_minimap = None
+g_chat_indicator = None
 g_user_cache = None
 g_chat_client = None
+g_notifications = None
 
 class TeamSpeakChatClientAdapter(object):
 
@@ -28,11 +31,24 @@ class TeamSpeakChatClientAdapter(object):
 		self.__ts = ts
 		self.__usecases = usecases
 		self.__ts.on_speak_status_changed += self.__on_speak_status_changed
+		self.__ts.on_disconnected += self.__on_disconnected_from_ts
+		self.__ts.on_disconnected_from_server += self.__on_disconnected_from_ts_server
 
 	def __on_speak_status_changed(self, user):
 		'''Called when TeamSpeak user's speak status changes.'''
 		self.__usecases.find_and_pair_chat_user_to_player(user)
 		self.__usecases.set_teamspeak_user_speaking(user)
+
+	def __on_disconnected_from_ts(self):
+		'''Called when TessuMod loses connection to TeamSpeak client.'''
+		LOG_NOTE("Disconnected from TeamSpeak client")
+		self.__usecases.clear_speak_statuses()
+		self.__usecases.notify_chat_client_disconnected()
+
+	def __on_disconnected_from_ts_server(self):
+		LOG_NOTE("Disconnected from TeamSpeak server")
+		self.__usecases.clear_speak_statuses()
+
 
 class SettingsAdapter(object):
 
@@ -90,6 +106,25 @@ class SettingsAdapter(object):
 	def get_minimap_action_interval(self):
 		return self.__settings.get_float("MinimapNotifications", "repeat_interval")
 
+class ChatIndicatorAdapter(object):
+
+	def __init__(self, voip_manager):
+		self.__voip_manager = voip_manager
+		self.__speakers = set()
+
+	def set_player_speaking(self, player, speaking):
+		if speaking and player.id not in self.__speakers:
+			self.__speakers.add(player.id)
+			self.__voip_manager.onPlayerSpeaking(player.id, True)
+		elif not speaking and player.id in self.__speakers:
+			self.__speakers.remove(player.id)
+			self.__voip_manager.onPlayerSpeaking(player.id, False)
+
+	def clear_all_players_speaking(self):
+		for speaker in self.__speakers:
+			self.__voip_manager.onPlayerSpeaking(speaker.id, False)
+		self.__speakers.clear()
+
 class MinimapAdapter(object):
 
 	def __init__(self, minimap_ctrl):
@@ -100,6 +135,9 @@ class MinimapAdapter(object):
 			self.__minimap_ctrl.start(player.vehicle_id, g_settings.get_minimap_action(), g_settings.get_minimap_action_interval())
 		else:
 			self.__minimap_ctrl.stop(player.vehicle_id)
+
+	def clear_all_players_speaking(self):
+		self.__minimap_ctrl.stop_all()
 
 class UserCacheAdapter(object):
 
@@ -117,3 +155,11 @@ class UserCacheAdapter(object):
 
 	def get_paired_player_ids(self, user):
 		return self.__user_cache.get_paired_player_ids(user.unique_id)
+
+class NotificationsAdapter(object):
+
+	def __init__(self, notifications):
+		self.__notifications = notifications
+
+	def notify_warning(self, message):
+		self.__notifications.push_warning_message(message)

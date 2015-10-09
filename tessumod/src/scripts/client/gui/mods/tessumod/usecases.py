@@ -16,6 +16,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 import utils
+import entities
 import adapters
 import BigWorld
 import VOIP
@@ -39,42 +40,59 @@ def find_and_pair_chat_user_to_player(user):
 
 def set_teamspeak_user_speaking(user):
 	for player_id in adapters.g_user_cache.get_paired_player_ids(user):
-		speak_states[player_id] = user.speaking
+		player = utils.get_player_by_dbid(player_id)
+		speak_states[player.id] = user.speaking
 		if user.speaking:
 			# set speaking state immediately
-			_update_player_speak_status(player_id)
+			_update_player_speak_status(player)
 		else:
 			# keep speaking state for a little longer
-			BigWorld.callback(adapters.g_settings.get_speak_stop_delay(), utils.with_args(_update_player_speak_status, player_id))
+			BigWorld.callback(adapters.g_settings.get_speak_stop_delay(), utils.with_args(_update_player_speak_status, player))
 
-def is_voice_chat_speak_allowed(player_id):
+def is_voice_chat_speak_allowed(player):
 	if not adapters.g_settings.is_voice_chat_notifications_enabled():
 		return False
-	if not adapters.g_settings.is_self_voice_chat_notifications_enabled() and utils.get_my_dbid() == player_id:
+	if not adapters.g_settings.is_self_voice_chat_notifications_enabled() and utils.get_my_dbid() == player.id:
 		return False
 	return True
 
-def _update_player_speak_status(player_id):
+def _update_player_speak_status(player):
 	try:
-		speaking = is_voice_chat_speak_allowed(player_id) and speak_states.get(player_id)
-		VOIP.getVOIPManager().onPlayerSpeaking(player_id, speaking)
-	except:
-		LOG_CURRENT_EXCEPTION()
-
-	try:
-		player = utils.get_player_by_dbid(player_id)
-		speaking = (
-			speak_states.get(player.id) and
-			_is_minimap_speak_allowed(player.id) and
-			player.is_alive
+		speaking = is_voice_chat_speak_allowed(player.id) and speak_states.get(player.id)
+		adapters.g_chat_indicator.set_player_speaking(
+			player=player,
+			speaking=(
+				is_voice_chat_speak_allowed(player.id) and
+				speak_states.get(player.id)
+			)
 		)
-		adapters.g_minimap.set_player_speaking(player, speaking)
 	except:
 		LOG_CURRENT_EXCEPTION()
 
-def _is_minimap_speak_allowed(player_id):
+	try:
+		adapters.g_minimap.set_player_speaking(
+			player=player,
+			speaking=(
+				speak_states.get(player.id) and
+				_is_minimap_speak_allowed(player) and
+				player.is_alive
+			)
+		)
+	except:
+		LOG_CURRENT_EXCEPTION()
+
+def _is_minimap_speak_allowed(player):
 	if not adapters.g_settings.is_minimap_notifications_enabled():
 		return False
-	if not adapters.g_settings.is_self_minimap_notifications_enabled() and utils.get_my_dbid() == player_id:
+	if not adapters.g_settings.is_self_minimap_notifications_enabled() and utils.get_my_dbid() == player.id:
 		return False
 	return True
+
+def clear_speak_statuses():
+	'''Clears speak status of all players.'''
+	speak_states.clear()
+	adapters.g_minimap.clear_all_players_speaking()
+	adapters.g_chat_indicator.clear_all_players_speaking()
+
+def notify_chat_client_disconnected():
+	adapters.g_notifications.notify_warning("Disconnected from TeamSpeak client")

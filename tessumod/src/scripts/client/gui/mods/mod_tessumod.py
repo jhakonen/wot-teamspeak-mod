@@ -74,16 +74,16 @@ def init():
 
 		adapters.g_settings = adapters.SettingsAdapter(settings())
 		adapters.g_minimap = adapters.MinimapAdapter(g_minimap_ctrl)
+		adapters.g_chat_indicator = adapters.ChatIndicatorAdapter(VOIP.getVOIPManager())
 		adapters.g_user_cache = adapters.UserCacheAdapter(g_user_cache)
 		adapters.g_chat_client = adapters.TeamSpeakChatClientAdapter(g_ts, usecases)
+		adapters.g_notifications = adapters.NotificationsAdapter(notifications)
 
 		load_settings()
 
 		g_ts.connect()
 		g_ts.on_connected += on_connected_to_ts3
-		g_ts.on_disconnected += on_disconnected_from_ts3
 		g_ts.on_connected_to_server += on_connected_to_ts3_server
-		g_ts.on_disconnected_from_server += on_disconnected_from_ts3_server
 		g_ts.users_in_my_channel.on_added += on_ts3_user_in_my_channel_added
 		utils.call_in_loop(adapters.g_settings.get_client_query_interval(), g_ts.check_events)
 
@@ -118,18 +118,6 @@ def init():
 
 	except:
 		LOG_CURRENT_EXCEPTION()
-
-def clear_speak_statuses():
-	'''Clears speak status of all players.'''
-	players_speaking = [id for id in g_talk_states if g_talk_states[id]]
-	g_talk_states.clear()
-	g_minimap_ctrl.stop_all()
-
-	for id in players_speaking:
-		try:
-			VOIP.getVOIPManager().onPlayerSpeaking(id, False)
-		except:
-			pass
 
 def on_connected_to_ts3():
 	'''Called when TessuMod manages to connect TeamSpeak client. However, this
@@ -178,20 +166,10 @@ def get_ignored_plugin_version():
 def set_plugin_install_ignored(ignored):
 	g_keyvaluestorage["ignored_plugin_version"] = AVAILABLE_PLUGIN_VERSION if ignored else 0
 
-def on_disconnected_from_ts3():
-	'''Called when TessuMod loses connection to TeamSpeak client.'''
-	LOG_NOTE("Disconnected from TeamSpeak client")
-	clear_speak_statuses()
-	notifications.push_warning_message("Disconnected from TeamSpeak client")
-
 def on_connected_to_ts3_server(server_name):
 	LOG_NOTE("Connected to TeamSpeak server '{0}'".format(server_name))
 	notifications.push_info_message("Connected to TeamSpeak server '{0}'".format(server_name))
 	update_wot_nickname_to_ts()
-
-def on_disconnected_from_ts3_server():
-	LOG_NOTE("Disconnected from TeamSpeak server")
-	clear_speak_statuses()
 
 def on_ts3_user_in_my_channel_added(client_id):
 	'''This function populates user cache with TeamSpeak users whenever they
