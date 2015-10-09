@@ -23,11 +23,11 @@ from utils import LOG_CURRENT_EXCEPTION
 
 speak_states = None
 
-def find_and_pair_teamspeak_user_to_player(user):
-	adapters.g_user_cache.add_teamspeak_user(user)
+def find_and_pair_chat_user_to_player(user):
+	adapters.g_user_cache.add_chat_user(user)
 	player = utils.ts_user_to_player(user,
-		use_metadata = adapters.g_settings.get_wot_nick_from_ts_metadata(),
-		use_ts_nick_search = adapters.g_settings.is_ts_nick_search_enabled(),
+		use_metadata = adapters.g_settings.get_game_nick_from_chat_metadata(),
+		use_ts_nick_search = adapters.g_settings.is_chat_nick_search_enabled(),
 		extract_patterns = adapters.g_settings.get_nick_extract_patterns(),
 		mappings = adapters.g_settings.get_name_mappings(),
 		# TODO: should we use clanmembers=True, friends=True here too??

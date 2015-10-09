@@ -75,6 +75,7 @@ def init():
 		adapters.g_settings = adapters.SettingsAdapter(settings())
 		adapters.g_minimap = adapters.MinimapAdapter(g_minimap_ctrl)
 		adapters.g_user_cache = adapters.UserCacheAdapter(g_user_cache)
+		adapters.g_chat_client = adapters.TeamSpeakChatClientAdapter(g_ts, usecases)
 
 		load_settings()
 
@@ -83,7 +84,6 @@ def init():
 		g_ts.on_disconnected += on_disconnected_from_ts3
 		g_ts.on_connected_to_server += on_connected_to_ts3_server
 		g_ts.on_disconnected_from_server += on_disconnected_from_ts3_server
-		g_ts.on_speak_status_changed += on_speak_status_changed
 		g_ts.users_in_my_channel.on_added += on_ts3_user_in_my_channel_added
 		utils.call_in_loop(adapters.g_settings.get_client_query_interval(), g_ts.check_events)
 
@@ -118,11 +118,6 @@ def init():
 
 	except:
 		LOG_CURRENT_EXCEPTION()
-
-def on_speak_status_changed(user):
-	'''Called when TeamSpeak user's speak status changes.'''
-	usecases.find_and_pair_teamspeak_user_to_player(user)
-	usecases.set_teamspeak_user_speaking(user)
 
 def clear_speak_statuses():
 	'''Clears speak status of all players.'''

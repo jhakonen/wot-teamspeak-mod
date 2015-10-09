@@ -20,6 +20,19 @@ import re
 g_settings = None
 g_minimap = None
 g_user_cache = None
+g_chat_client = None
+
+class TeamSpeakChatClientAdapter(object):
+
+	def __init__(self, ts, usecases):
+		self.__ts = ts
+		self.__usecases = usecases
+		self.__ts.on_speak_status_changed += self.__on_speak_status_changed
+
+	def __on_speak_status_changed(self, user):
+		'''Called when TeamSpeak user's speak status changes.'''
+		self.__usecases.find_and_pair_chat_user_to_player(user)
+		self.__usecases.set_teamspeak_user_speaking(user)
 
 class SettingsAdapter(object):
 
@@ -35,13 +48,13 @@ class SettingsAdapter(object):
 	def get_speak_stop_delay(self):
 		return self.__settings.get_float("General", "speak_stop_delay")
 
-	def get_wot_nick_from_ts_metadata(self):
+	def get_game_nick_from_chat_metadata(self):
 		return self.__settings.get_boolean("General", "get_wot_nick_from_ts_metadata")
 
 	def should_update_cache_in_replays(self):
 		return self.__settings.get_boolean("General", "update_cache_in_replays")
 
-	def is_ts_nick_search_enabled(self):
+	def is_chat_nick_search_enabled(self):
 		return self.__settings.get_boolean("General", "ts_nick_search_enabled")
 
 	def get_nick_extract_patterns(self):
@@ -93,7 +106,7 @@ class UserCacheAdapter(object):
 	def __init__(self, user_cache):
 		self.__user_cache = user_cache
 
-	def add_teamspeak_user(self, user):
+	def add_chat_user(self, user):
 		self.__user_cache.add_ts_user(user.nick, user.unique_id)
 
 	def add_player(self, player):
