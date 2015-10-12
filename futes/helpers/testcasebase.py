@@ -142,8 +142,8 @@ class TestCaseBase(unittest.TestCase):
 				self.__install_event_handler(name, callback)
 
 		# hack to speed up testing
-		import tessumod.ts3
-		tessumod.ts3._UNREGISTER_WAIT_TIMEOUT = 0.5
+		import tessumod.infrastructure.ts3
+		tessumod.infrastructure.ts3._UNREGISTER_WAIT_TIMEOUT = 0.5
 		self.change_game_state(**game_state)
 
 	def run_in_event_loop(self, timeout=20):
@@ -254,7 +254,7 @@ class TestCaseBase(unittest.TestCase):
 			if time.time() >= self.__min_end_time and all(verifier() for verifier in self.__verifiers):
 				self.event_loop.exit()
 		except Exception as error:
-			print error
+			print "{0} in __check_verify: {1}".format(error.__class__.__name__, error)
 
 	def assert_finally_equal(self, a, b):
 		actual_getter = a if callable(a) else b

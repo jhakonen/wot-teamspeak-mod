@@ -16,39 +16,60 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 import re
-from utils import LOG_NOTE
-
-g_settings = None
-g_minimap = None
-g_chat_indicator = None
-g_user_cache = None
-g_chat_client = None
-g_notifications = None
+from infrastructure.utils import LOG_NOTE
 
 class TeamSpeakChatClientAdapter(object):
 
 	def __init__(self, ts, usecases):
 		self.__ts = ts
 		self.__usecases = usecases
-		self.__ts.on_speak_status_changed += self.__on_speak_status_changed
 		self.__ts.on_disconnected += self.__on_disconnected_from_ts
 		self.__ts.on_disconnected_from_server += self.__on_disconnected_from_ts_server
+		self.__ts.users.on_added += self.__on_user_added
+		self.__ts.users.on_removed += self.__on_user_removed
+		self.__ts.users.on_modified += self.__on_user_modified
+		self.__ts.on_channel_changed += self.__current_chat_channel_changed
 
-	def __on_speak_status_changed(self, user):
-		'''Called when TeamSpeak user's speak status changes.'''
-		self.__usecases.find_and_pair_chat_user_to_player(user)
-		self.__usecases.set_teamspeak_user_speaking(user)
+	def get_current_channel_id(self):
+		return self.__ts.get_current_channel_id()
 
 	def __on_disconnected_from_ts(self):
 		'''Called when TessuMod loses connection to TeamSpeak client.'''
 		LOG_NOTE("Disconnected from TeamSpeak client")
-		self.__usecases.clear_speak_statuses()
-		self.__usecases.notify_chat_client_disconnected()
+		self.__usecases.usecase_clear_speak_statuses()
+		self.__usecases.usecase_notify_chat_client_disconnected()
 
 	def __on_disconnected_from_ts_server(self):
 		LOG_NOTE("Disconnected from TeamSpeak server")
-		self.__usecases.clear_speak_statuses()
+		self.__usecases.usecase_clear_speak_statuses()
 
+	def __on_user_added(self, client_id):
+		user = self.__ts.users[client_id]
+		self.__usecases.usecase_insert_chat_user(
+			nick = user["nick"],
+			game_nick = user["wot_nick"],
+			client_id = user["client_id"],
+			unique_id = user["unique_id"],
+			channel_id = user["channel_id"],
+			speaking = user["speaking"]
+		)
+
+	def __on_user_removed(self, client_id):
+		self.__usecases.usecase_remove_chat_user(client_id=client_id)
+
+	def __on_user_modified(self, client_id):
+		user = self.__ts.users[client_id]
+		self.__usecases.usecase_insert_chat_user(
+			nick = user["nick"],
+			game_nick = user["wot_nick"],
+			client_id = user["client_id"],
+			unique_id = user["unique_id"],
+			channel_id = user["channel_id"],
+			speaking = user["speaking"]
+		)
+
+	def __current_chat_channel_changed(self):
+		self.__usecases.usecase_change_chat_channel(self.get_current_channel_id())
 
 class SettingsAdapter(object):
 
@@ -113,28 +134,29 @@ class ChatIndicatorAdapter(object):
 		self.__speakers = set()
 
 	def set_player_speaking(self, player, speaking):
-		if speaking and player.id not in self.__speakers:
-			self.__speakers.add(player.id)
-			self.__voip_manager.onPlayerSpeaking(player.id, True)
-		elif not speaking and player.id in self.__speakers:
-			self.__speakers.remove(player.id)
-			self.__voip_manager.onPlayerSpeaking(player.id, False)
+		if speaking and player["id"] not in self.__speakers:
+			self.__speakers.add(player["id"])
+			self.__voip_manager.onPlayerSpeaking(player["id"], True)
+		elif not speaking and player["id"] in self.__speakers:
+			self.__speakers.remove(player["id"])
+			self.__voip_manager.onPlayerSpeaking(player["id"], False)
 
 	def clear_all_players_speaking(self):
 		for speaker in self.__speakers:
-			self.__voip_manager.onPlayerSpeaking(speaker.id, False)
+			self.__voip_manager.onPlayerSpeaking(speaker, False)
 		self.__speakers.clear()
 
 class MinimapAdapter(object):
 
-	def __init__(self, minimap_ctrl):
+	def __init__(self, minimap_ctrl, settings_api):
 		self.__minimap_ctrl = minimap_ctrl
+		self.__settings_api = settings_api
 
 	def set_player_speaking(self, player, speaking):
 		if speaking:
-			self.__minimap_ctrl.start(player.vehicle_id, g_settings.get_minimap_action(), g_settings.get_minimap_action_interval())
+			self.__minimap_ctrl.start(player["vehicle_id"], self.__settings_api.get_minimap_action(), self.__settings_api.get_minimap_action_interval())
 		else:
-			self.__minimap_ctrl.stop(player.vehicle_id)
+			self.__minimap_ctrl.stop(player["vehicle_id"])
 
 	def clear_all_players_speaking(self):
 		self.__minimap_ctrl.stop_all()
@@ -144,17 +166,17 @@ class UserCacheAdapter(object):
 	def __init__(self, user_cache):
 		self.__user_cache = user_cache
 
-	def add_chat_user(self, user):
-		self.__user_cache.add_ts_user(user.nick, user.unique_id)
+	def add_chat_user(self, nick, unique_id):
+		self.__user_cache.add_ts_user(nick, unique_id)
 
-	def add_player(self, player):
-		self.__user_cache.add_player(player.name, player.id)
+	def add_player(self, id, name):
+		self.__user_cache.add_player(name, id)
 
-	def pair(self, player, user):
-		self.__user_cache.pair(player_id=player.id, ts_user_id=user.unique_id)
+	def pair(self, player_id, user_unique_id):
+		self.__user_cache.pair(player_id=player_id, ts_user_id=user_unique_id)
 
-	def get_paired_player_ids(self, user):
-		return self.__user_cache.get_paired_player_ids(user.unique_id)
+	def get_paired_player_ids(self, user_unique_id):
+		return self.__user_cache.get_paired_player_ids(user_unique_id)
 
 class NotificationsAdapter(object):
 

@@ -25,7 +25,6 @@ import os
 import functools
 import inspect
 import time
-import entities
 
 def noop(*args, **kwargs):
 	'''Function that does nothing. A safe default value for callback

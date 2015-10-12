@@ -19,13 +19,13 @@ AVAILABLE_PLUGIN_VERSION = 1
 
 try:
 	import game
-	from tessumod.utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
-	from tessumod.ts3 import TS3Client
-	from tessumod import utils, mytsplugin, notifications, usecases, adapters
-	from tessumod.settings import settings
-	from tessumod.user_cache import UserCache
-	from tessumod.keyvaluestorage import KeyValueStorage
-	import tessumod.positional_audio as positional_audio
+	from tessumod.infrastructure.utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
+	from tessumod.infrastructure.ts3 import TS3Client
+	from tessumod.infrastructure import utils, mytsplugin, notifications, positional_audio
+	from tessumod.infrastructure.settings import settings
+	from tessumod.infrastructure.user_cache import UserCache
+	from tessumod.infrastructure.keyvaluestorage import KeyValueStorage
+	from tessumod import usecases, adapters, repositories
 	import BigWorld
 	import VOIP
 	import BattleReplay
@@ -43,6 +43,7 @@ def init():
 	'''Mod's main entry point. Called by WoT's built-in mod loader.'''
 	try:
 		global g_ts, g_talk_states, g_minimap_ctrl, g_user_cache, g_positional_audio, g_keyvaluestorage
+		global settings_adapter
 
 		# make sure that ini-folder exists
 		try:
@@ -72,12 +73,29 @@ def init():
 			user_cache    = g_user_cache
 		)
 
-		adapters.g_settings = adapters.SettingsAdapter(settings())
-		adapters.g_minimap = adapters.MinimapAdapter(g_minimap_ctrl)
-		adapters.g_chat_indicator = adapters.ChatIndicatorAdapter(VOIP.getVOIPManager())
-		adapters.g_user_cache = adapters.UserCacheAdapter(g_user_cache)
-		adapters.g_chat_client = adapters.TeamSpeakChatClientAdapter(g_ts, usecases)
-		adapters.g_notifications = adapters.NotificationsAdapter(notifications)
+		g_keyvaluestorage = KeyValueStorage(utils.get_states_dir_path())
+
+		settings_adapter = adapters.SettingsAdapter(settings())
+		minimap_adapter = adapters.MinimapAdapter(g_minimap_ctrl, settings_adapter)
+		chat_indicator_adapter = adapters.ChatIndicatorAdapter(VOIP.getVOIPManager())
+		user_cache_adapter = adapters.UserCacheAdapter(g_user_cache)
+		chat_client_adapter = adapters.TeamSpeakChatClientAdapter(g_ts, usecases)
+		notifications_adapter = adapters.NotificationsAdapter(notifications)
+
+		chat_user_repository = repositories.ChatUserRepository()
+		player_repository = repositories.GamePlayerRepository()
+		key_value_repository = repositories.KeyValueRepository(g_keyvaluestorage)
+
+		usecases.provide_dependency("settings_api",           settings_adapter)
+		usecases.provide_dependency("minimap_api",            minimap_adapter)
+		usecases.provide_dependency("chat_indicator_api",     chat_indicator_adapter)
+		usecases.provide_dependency("user_cache_api",         user_cache_adapter)
+		usecases.provide_dependency("chat_client_api",        chat_client_adapter)
+		usecases.provide_dependency("notifications_api",      notifications_adapter)
+		usecases.provide_dependency("chat_user_repository",   chat_user_repository)
+		usecases.provide_dependency("player_repository",      player_repository)
+		usecases.provide_dependency("key_value_repository",   key_value_repository)
+		usecases.provide_dependency("speak_state_repository", g_talk_states)
 
 		load_settings()
 
@@ -85,7 +103,7 @@ def init():
 		g_ts.on_connected += on_connected_to_ts3
 		g_ts.on_connected_to_server += on_connected_to_ts3_server
 		g_ts.users_in_my_channel.on_added += on_ts3_user_in_my_channel_added
-		utils.call_in_loop(adapters.g_settings.get_client_query_interval(), g_ts.check_events)
+		utils.call_in_loop(settings_adapter.get_client_query_interval(), g_ts.check_events)
 
 		g_playerEvents.onAvatarReady           += g_positional_audio.enable
 		g_playerEvents.onAvatarBecomeNonPlayer += g_positional_audio.disable
@@ -108,9 +126,7 @@ def init():
 		notifications.add_event_handler(notifications.TSPLUGIN_IGNORED, on_tsplugin_ignore_toggled)
 		notifications.add_event_handler(notifications.TSPLUGIN_MOREINFO, on_tsplugin_moreinfo_clicked)
 
-		g_keyvaluestorage = KeyValueStorage(utils.get_states_dir_path())
-
-		utils.call_in_loop(adapters.g_settings.get_ini_check_interval, sync_configs)
+		utils.call_in_loop(settings_adapter.get_ini_check_interval, sync_configs)
 
 		usecases.speak_states = g_talk_states
 
@@ -176,7 +192,7 @@ def on_ts3_user_in_my_channel_added(client_id):
 	enter our TeamSpeak channel.
 	'''
 	user = g_ts.users[client_id]
-	g_user_cache.add_ts_user(user.nick, user.unique_id)
+	g_user_cache.add_ts_user(user["nick"], user["unique_id"])
 
 def on_user_cache_read_error(message):
 	'''This function is called if user cache's reading fails.'''
@@ -185,9 +201,9 @@ def on_user_cache_read_error(message):
 
 def load_settings():
 	LOG_NOTE("Settings loaded from ini file")
-	utils.CURRENT_LOG_LEVEL = adapters.g_settings.get_log_level()
-	g_ts.HOST = adapters.g_settings.get_client_query_host()
-	g_ts.PORT = adapters.g_settings.get_client_query_port()
+	utils.CURRENT_LOG_LEVEL = settings_adapter.get_log_level()
+	g_ts.HOST = settings_adapter.get_client_query_host()
+	g_ts.PORT = settings_adapter.get_client_query_port()
 
 def sync_configs():
 	g_user_cache.sync()
@@ -213,7 +229,7 @@ def BattleReplay_play(orig_method):
 		plays someone else's replay and user's TS ID would get matched with the
 		replay's player name.
 		'''
-		g_user_cache.is_write_enabled = adapters.g_settings.should_update_cache_in_replays()
+		g_user_cache.is_write_enabled = settings_adapter.should_update_cache_in_replays()
 		return orig_method(*args, **kwargs)
 	return wrapper
 
