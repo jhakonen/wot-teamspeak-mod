@@ -31,6 +31,7 @@ class TeamSpeakChatClientAdapter(object):
 		self.__usecases = usecases
 		self.__ts.on_connected += self.__on_connected_to_ts
 		self.__ts.on_disconnected += self.__on_disconnected_from_ts
+		self.__ts.on_connected_to_server += self.__on_connected_to_ts_server
 		self.__ts.on_disconnected_from_server += self.__on_disconnected_from_ts_server
 		self.__ts.users.on_added += self.__on_user_added
 		self.__ts.users.on_removed += self.__on_user_removed
@@ -56,6 +57,9 @@ class TeamSpeakChatClientAdapter(object):
 	def show_plugin_info_url(self, url):
 		subprocess.call(["start", url], shell=True)
 
+	def set_game_nickname(self, nick):
+		self.__ts.set_wot_nickname(nick)
+
 	def __on_connected_to_ts(self):
 		'''Called when TessuMod manages to connect TeamSpeak client. However, this
 		doesn't mean that the client is connected to any TeamSpeak server.
@@ -68,6 +72,11 @@ class TeamSpeakChatClientAdapter(object):
 		LOG_NOTE("Disconnected from TeamSpeak client")
 		self.__usecases.usecase_clear_speak_statuses()
 		self.__usecases.usecase_notify_chat_client_disconnected()
+
+	def __on_connected_to_ts_server(self, server_name):
+		LOG_NOTE("Connected to TeamSpeak server '{0}'".format(server_name))
+		self.__usecases.usecase_notify_connected_to_chat_server(server_name)
+		self.__usecases.usecase_publish_game_nick_to_chat_server()
 
 	def __on_disconnected_from_ts_server(self):
 		LOG_NOTE("Disconnected from TeamSpeak server")
@@ -157,6 +166,16 @@ class SettingsAdapter(object):
 	def get_minimap_action_interval(self):
 		return self.__settings.get_float("MinimapNotifications", "repeat_interval")
 
+class GameAdapter(object):
+
+	def __init__(self, player_events, usecases):
+		self.__usecases = usecases
+		player_events.onAvatarBecomePlayer  += self.__on_become_player
+		player_events.onAccountBecomePlayer += self.__on_become_player
+
+	def __on_become_player(self):
+		self.__usecases.usecase_publish_game_nick_to_chat_server()
+
 class ChatIndicatorAdapter(object):
 
 	def __init__(self, voip_manager):
@@ -216,6 +235,9 @@ class NotificationsAdapter(object):
 		self.__notifications.add_event_handler(notifications.TSPLUGIN_INSTALL, self.__on_plugin_install)
 		self.__notifications.add_event_handler(notifications.TSPLUGIN_IGNORED, self.__on_plugin_ignore_toggled)
 		self.__notifications.add_event_handler(notifications.TSPLUGIN_MOREINFO, self.__on_plugin_moreinfo_clicked)
+
+	def show_info_message(self, message):
+		self.__notifications.push_info_message(message)
 
 	def show_warning_message(self, message):
 		self.__notifications.push_warning_message(message)

@@ -261,3 +261,17 @@ class ShowChatClientPluginInfoUrl(object):
 
 	def execute(self, url):
 		self.chat_client_api.show_plugin_info_url(url)
+
+class NotifyConnectedToChatServer(object):
+
+	notifications_api = None
+
+	def execute(self, server_name):
+		self.notifications_api.show_info_message("Connected to TeamSpeak server '{0}'".format(server_name))
+
+class PublishGameNickToChatServer(object):
+
+	chat_client_api = None
+
+	def execute(self):
+		self.chat_client_api.set_game_nickname(utils.get_my_name())

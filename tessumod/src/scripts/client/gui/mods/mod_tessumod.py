@@ -81,6 +81,7 @@ def init():
 		user_cache_adapter = adapters.UserCacheAdapter(g_user_cache)
 		chat_client_adapter = adapters.TeamSpeakChatClientAdapter(g_ts, usecases)
 		notifications_adapter = adapters.NotificationsAdapter(notifications, usecases)
+		game_adapter = adapters.GameAdapter(g_playerEvents, usecases)
 
 		chat_user_repository = repositories.ChatUserRepository()
 		player_repository = repositories.GamePlayerRepository()
@@ -92,6 +93,7 @@ def init():
 		usecases.provide_dependency("user_cache_api",         user_cache_adapter)
 		usecases.provide_dependency("chat_client_api",        chat_client_adapter)
 		usecases.provide_dependency("notifications_api",      notifications_adapter)
+		usecases.provide_dependency("game_api",               game_adapter)
 		usecases.provide_dependency("chat_user_repository",   chat_user_repository)
 		usecases.provide_dependency("player_repository",      player_repository)
 		usecases.provide_dependency("key_value_repository",   key_value_repository)
@@ -100,7 +102,6 @@ def init():
 		load_settings()
 
 		g_ts.connect()
-		g_ts.on_connected_to_server += on_connected_to_ts3_server
 		g_ts.users_in_my_channel.on_added += on_ts3_user_in_my_channel_added
 		utils.call_in_loop(settings_adapter.get_client_query_interval(), g_ts.check_events)
 
@@ -110,9 +111,6 @@ def init():
 		# don't show system center notifications in battle
 		g_playerEvents.onAvatarBecomePlayer    += partial(notifications.set_notifications_enabled, False)
 		g_playerEvents.onAvatarBecomeNonPlayer += partial(notifications.set_notifications_enabled, True)
-
-		g_playerEvents.onAvatarBecomePlayer    += update_wot_nickname_to_ts
-		g_playerEvents.onAccountBecomePlayer   += update_wot_nickname_to_ts
 
 		# if nothing broke so far then it should be safe to patch the needed
 		# functions (modified functions have dependencies to g_* global variables)
@@ -129,11 +127,6 @@ def init():
 
 	except:
 		LOG_CURRENT_EXCEPTION()
-
-def on_connected_to_ts3_server(server_name):
-	LOG_NOTE("Connected to TeamSpeak server '{0}'".format(server_name))
-	notifications.push_info_message("Connected to TeamSpeak server '{0}'".format(server_name))
-	update_wot_nickname_to_ts()
 
 def on_ts3_user_in_my_channel_added(client_id):
 	'''This function populates user cache with TeamSpeak users whenever they
@@ -156,9 +149,6 @@ def load_settings():
 def sync_configs():
 	g_user_cache.sync()
 	settings().sync()
-
-def update_wot_nickname_to_ts():
-	g_ts.set_wot_nickname(utils.get_my_name())
 
 def VOIPManager_isParticipantTalking(orig_method):
 	def wrapper(self, dbid):

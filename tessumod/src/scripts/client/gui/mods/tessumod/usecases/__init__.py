@@ -60,3 +60,9 @@ def usecase_ignore_chat_client_plugin_install_message(ignored):
 
 def usecase_show_chat_client_plugin_info_url(url):
 	_execute(interactors.ShowChatClientPluginInfoUrl(), url)
+
+def usecase_notify_connected_to_chat_server(server_name):
+	_execute(interactors.NotifyConnectedToChatServer(), server_name)
+
+def usecase_publish_game_nick_to_chat_server():
+	_execute(interactors.PublishGameNickToChatServer())
