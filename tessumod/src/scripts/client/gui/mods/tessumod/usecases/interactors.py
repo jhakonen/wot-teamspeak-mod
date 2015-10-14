@@ -15,9 +15,13 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
+import sys
+import os
+
+import BigWorld
+
 from ..infrastructure import utils
 import entities
-import BigWorld
 
 class InsertChatUser(object):
 
@@ -195,4 +199,65 @@ class NotifyChatClientDisconnected(object):
 	notifications_api = None
 
 	def execute(self):
-		self.notifications_api.notify_warning("Disconnected from TeamSpeak client")
+		self.notifications_api.show_warning_message("Disconnected from TeamSpeak client")
+
+class ShowChatClientPluginInstallMessage(object):
+
+	AVAILABLE_PLUGIN_VERSION = 1
+
+	notifications_api = None
+	chat_client_api = None
+	key_value_repository = None
+
+	def execute(self):
+		installer_path = utils.get_plugin_installer_path()
+		# plugin doesn't work in WinXP so check that we are running on
+		# sufficiently recent Windows OS
+		if not self.__is_vista_or_newer():
+			return
+		if not os.path.isfile(installer_path):
+			return
+		if self.__is_newest_plugin_version(self.chat_client_api.get_installed_plugin_version()):
+			return
+		if self.__is_newest_plugin_version(self.__get_ignored_plugin_version()):
+			return
+		self.notifications_api.show_plugin_install_message()
+
+	def __is_vista_or_newer(self):
+		'''Returns True if the game is running on Windows Vista or newer OS.'''
+		try:
+			return sys.getwindowsversion()[0] >= 6
+		except:
+			LOG_ERROR("Failed to get current Windows OS version")
+			return True
+
+	def __is_newest_plugin_version(self, plugin_version):
+		return plugin_version >= self.AVAILABLE_PLUGIN_VERSION
+
+	def __get_ignored_plugin_version(self):
+		version = self.key_value_repository.get("ignored_plugin_version")
+		if version is not None:
+			return int(version)
+		return 0
+
+class InstallChatClientPlugin(object):
+
+	chat_client_api = None
+
+	def execute(self):
+		self.chat_client_api.install_plugin()
+
+class IgnoreChatClientPluginInstallMessage(object):
+
+	AVAILABLE_PLUGIN_VERSION = ShowChatClientPluginInstallMessage.AVAILABLE_PLUGIN_VERSION
+	key_value_repository = None
+
+	def execute(self, ignored):
+		self.key_value_repository.set("ignored_plugin_version", self.AVAILABLE_PLUGIN_VERSION if ignored else 0)
+
+class ShowChatClientPluginInfoUrl(object):
+
+	chat_client_api = None
+
+	def execute(self, url):
+		self.chat_client_api.show_plugin_info_url(url)

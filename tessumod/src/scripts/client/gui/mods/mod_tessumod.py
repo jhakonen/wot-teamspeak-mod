@@ -80,7 +80,7 @@ def init():
 		chat_indicator_adapter = adapters.ChatIndicatorAdapter(VOIP.getVOIPManager())
 		user_cache_adapter = adapters.UserCacheAdapter(g_user_cache)
 		chat_client_adapter = adapters.TeamSpeakChatClientAdapter(g_ts, usecases)
-		notifications_adapter = adapters.NotificationsAdapter(notifications)
+		notifications_adapter = adapters.NotificationsAdapter(notifications, usecases)
 
 		chat_user_repository = repositories.ChatUserRepository()
 		player_repository = repositories.GamePlayerRepository()
@@ -100,7 +100,6 @@ def init():
 		load_settings()
 
 		g_ts.connect()
-		g_ts.on_connected += on_connected_to_ts3
 		g_ts.on_connected_to_server += on_connected_to_ts3_server
 		g_ts.users_in_my_channel.on_added += on_ts3_user_in_my_channel_added
 		utils.call_in_loop(settings_adapter.get_client_query_interval(), g_ts.check_events)
@@ -122,10 +121,6 @@ def init():
 
 		g_messengerEvents.users.onUsersListReceived += on_users_list_received
 
-		notifications.add_event_handler(notifications.TSPLUGIN_INSTALL, on_tsplugin_install)
-		notifications.add_event_handler(notifications.TSPLUGIN_IGNORED, on_tsplugin_ignore_toggled)
-		notifications.add_event_handler(notifications.TSPLUGIN_MOREINFO, on_tsplugin_moreinfo_clicked)
-
 		utils.call_in_loop(settings_adapter.get_ini_check_interval, sync_configs)
 
 		usecases.speak_states = g_talk_states
@@ -134,53 +129,6 @@ def init():
 
 	except:
 		LOG_CURRENT_EXCEPTION()
-
-def on_connected_to_ts3():
-	'''Called when TessuMod manages to connect TeamSpeak client. However, this
-	doesn't mean that the client is connected to any TeamSpeak server.
-	'''
-	LOG_NOTE("Connected to TeamSpeak client")
-	installer_path = utils.get_plugin_installer_path()
-
-	# plugin doesn't work in WinXP so check that we are running on
-	# sufficiently recent Windows OS
-	if not is_vista_or_newer():
-		return
-	if not os.path.isfile(installer_path):
-		return
-	if is_newest_plugin_version(get_installed_plugin_version()):
-		return
-	if is_newest_plugin_version(get_ignored_plugin_version()):
-		return
-
-	notifications.push_ts_plugin_install_message(
-		moreinfo_url   = "https://github.com/jhakonen/wot-teamspeak-mod/wiki/TeamSpeak-Plugins#tessumod-plugin",
-		ignore_state   = "off"
-	)
-
-def is_vista_or_newer():
-	'''Returns True if the game is running on Windows Vista or newer OS.'''
-	try:
-		import sys
-		return sys.getwindowsversion()[0] >= 6
-	except:
-		LOG_ERROR("Failed to get current Windows OS version")
-		return True
-
-def get_installed_plugin_version():
-	with mytsplugin.InfoAPI() as api:
-		return api.get_api_version()
-
-def is_newest_plugin_version(plugin_version):
-	return plugin_version >= AVAILABLE_PLUGIN_VERSION
-
-def get_ignored_plugin_version():
-	if "ignored_plugin_version" in g_keyvaluestorage:
-		return int(g_keyvaluestorage["ignored_plugin_version"])
-	return 0
-
-def set_plugin_install_ignored(ignored):
-	g_keyvaluestorage["ignored_plugin_version"] = AVAILABLE_PLUGIN_VERSION if ignored else 0
 
 def on_connected_to_ts3_server(server_name):
 	LOG_NOTE("Connected to TeamSpeak server '{0}'".format(server_name))
@@ -241,20 +189,3 @@ def on_users_list_received(tags):
 	'''
 	for player in utils.get_players(clanmembers=True, friends=True):
 		g_user_cache.add_player(player.name, player.id)
-
-def on_tsplugin_install(type_id, msg_id, data):
-	threading.Thread(
-		target = partial(
-			subprocess.call,
-			args  = [os.path.normpath(utils.get_plugin_installer_path())],
-			shell = True
-		)
-	).start()
-
-def on_tsplugin_ignore_toggled(type_id, msg_id, data):
-	data["ignore_state"] = "on" if data["ignore_state"] == "off" else "off"
-	set_plugin_install_ignored(True if data["ignore_state"] == "on" else False)
-	notifications.update_message(type_id, msg_id, data)
-
-def on_tsplugin_moreinfo_clicked(type_id, msg_id, data):
-	subprocess.call(["start", data["moreinfo_url"]], shell=True)

@@ -16,13 +16,20 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 import re
+import os
+import threading
+import subprocess
+from functools import partial
+
 from infrastructure.utils import LOG_NOTE
+from infrastructure import mytsplugin, utils
 
 class TeamSpeakChatClientAdapter(object):
 
 	def __init__(self, ts, usecases):
 		self.__ts = ts
 		self.__usecases = usecases
+		self.__ts.on_connected += self.__on_connected_to_ts
 		self.__ts.on_disconnected += self.__on_disconnected_from_ts
 		self.__ts.on_disconnected_from_server += self.__on_disconnected_from_ts_server
 		self.__ts.users.on_added += self.__on_user_added
@@ -32,6 +39,29 @@ class TeamSpeakChatClientAdapter(object):
 
 	def get_current_channel_id(self):
 		return self.__ts.get_current_channel_id()
+
+	def get_installed_plugin_version(self):
+		with mytsplugin.InfoAPI() as api:
+			return api.get_api_version()
+
+	def install_plugin(self):
+		threading.Thread(
+			target = partial(
+				subprocess.call,
+				args  = [os.path.normpath(utils.get_plugin_installer_path())],
+				shell = True
+			)
+		).start()
+
+	def show_plugin_info_url(self, url):
+		subprocess.call(["start", url], shell=True)
+
+	def __on_connected_to_ts(self):
+		'''Called when TessuMod manages to connect TeamSpeak client. However, this
+		doesn't mean that the client is connected to any TeamSpeak server.
+		'''
+		LOG_NOTE("Connected to TeamSpeak client")
+		self.__usecases.usecase_show_chat_client_plugin_install_message()
 
 	def __on_disconnected_from_ts(self):
 		'''Called when TessuMod loses connection to TeamSpeak client.'''
@@ -180,8 +210,30 @@ class UserCacheAdapter(object):
 
 class NotificationsAdapter(object):
 
-	def __init__(self, notifications):
+	def __init__(self, notifications, usecases):
 		self.__notifications = notifications
+		self.__usecases = usecases
+		self.__notifications.add_event_handler(notifications.TSPLUGIN_INSTALL, self.__on_plugin_install)
+		self.__notifications.add_event_handler(notifications.TSPLUGIN_IGNORED, self.__on_plugin_ignore_toggled)
+		self.__notifications.add_event_handler(notifications.TSPLUGIN_MOREINFO, self.__on_plugin_moreinfo_clicked)
 
-	def notify_warning(self, message):
+	def show_warning_message(self, message):
 		self.__notifications.push_warning_message(message)
+
+	def show_plugin_install_message(self, **data):
+		self.__notifications.push_ts_plugin_install_message(
+			moreinfo_url = "https://github.com/jhakonen/wot-teamspeak-mod/wiki/TeamSpeak-Plugins#tessumod-plugin",
+			ignore_state = "off"
+		)
+
+	def __on_plugin_install(self, type_id, msg_id, data):
+		self.__usecases.usecase_install_chat_client_plugin()
+
+	def __on_plugin_ignore_toggled(self, type_id, msg_id, data):
+		new_state = False if data["ignore_state"] == "on" else True
+		data["ignore_state"] = "on" if new_state else "off"
+		self.__usecases.usecase_ignore_chat_client_plugin_install_message(new_state)
+		self.__notifications.update_message(type_id, msg_id, data)
+
+	def __on_plugin_moreinfo_clicked(self, type_id, msg_id, data):
+		self.__usecases.usecase_show_chat_client_plugin_info_url(data["moreinfo_url"])

@@ -48,3 +48,15 @@ def usecase_clear_speak_statuses():
 
 def usecase_notify_chat_client_disconnected():
 	_execute(interactors.NotifyChatClientDisconnected())
+
+def usecase_show_chat_client_plugin_install_message():
+	_execute(interactors.ShowChatClientPluginInstallMessage())
+
+def usecase_install_chat_client_plugin():
+	_execute(interactors.InstallChatClientPlugin())
+
+def usecase_ignore_chat_client_plugin_install_message(ignored):
+	_execute(interactors.IgnoreChatClientPluginInstallMessage(), ignored)
+
+def usecase_show_chat_client_plugin_info_url(url):
+	_execute(interactors.ShowChatClientPluginInfoUrl(), url)

@@ -72,5 +72,5 @@ class TSPluginAdvertisement(TestCaseBase):
 		def on_notification(msg):
 			notification.NotificationMVC.g_instance.handleAction(typeID=msg.getType(), entityID=msg.getID(), action="TessuModTSPluginIgnore")
 		notification.NotificationMVC.g_instance.futes_on_add_notification += on_notification
-		assert self.get_mod_state_variable("ignored_plugin_version") != "1"
-		self.assert_finally_equal("1", lambda: self.get_mod_state_variable("ignored_plugin_version"))
+		assert self.get_mod_state_variable("ignored_plugin_version") != 1
+		self.assert_finally_equal(1, lambda: self.get_mod_state_variable("ignored_plugin_version"))

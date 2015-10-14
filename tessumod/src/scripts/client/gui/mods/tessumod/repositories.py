@@ -57,5 +57,5 @@ class KeyValueRepository(object):
 		return copy.copy(self.__entities.get(name))
 
 	def set(self, name, value):
-		self.__entities[name] = str(value)
+		self.__entities[name] = value
 		return value
