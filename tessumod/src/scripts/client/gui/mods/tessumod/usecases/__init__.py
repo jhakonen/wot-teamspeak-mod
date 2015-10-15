@@ -66,3 +66,6 @@ def usecase_notify_connected_to_chat_server(server_name):
 
 def usecase_publish_game_nick_to_chat_server():
 	_execute(interactors.PublishGameNickToChatServer())
+
+def usecase_show_cache_error_message(error_message):
+	_execute(interactors.ShowCacheErrorMessage(), error_message)

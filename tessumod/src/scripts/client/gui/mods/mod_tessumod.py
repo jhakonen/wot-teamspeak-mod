@@ -61,8 +61,6 @@ def init():
 		# do all intializations here
 		settings(settings_ini_path).on_reloaded += load_settings
 		g_user_cache = UserCache(cache_ini_path)
-		g_user_cache.on_read_error += on_user_cache_read_error
-		g_user_cache.init()
 
 		g_talk_states = {}
 		g_minimap_ctrl = utils.MinimapMarkersController()
@@ -78,7 +76,7 @@ def init():
 		settings_adapter = adapters.SettingsAdapter(settings())
 		minimap_adapter = adapters.MinimapAdapter(g_minimap_ctrl, settings_adapter)
 		chat_indicator_adapter = adapters.ChatIndicatorAdapter(VOIP.getVOIPManager())
-		user_cache_adapter = adapters.UserCacheAdapter(g_user_cache)
+		user_cache_adapter = adapters.UserCacheAdapter(g_user_cache, usecases)
 		chat_client_adapter = adapters.TeamSpeakChatClientAdapter(g_ts, usecases)
 		notifications_adapter = adapters.NotificationsAdapter(notifications, usecases)
 		game_adapter = adapters.GameAdapter(g_playerEvents, usecases)
@@ -99,10 +97,10 @@ def init():
 		usecases.provide_dependency("key_value_repository",   key_value_repository)
 		usecases.provide_dependency("speak_state_repository", g_talk_states)
 
+		g_user_cache.init()
 		load_settings()
 
 		g_ts.connect()
-		g_ts.users_in_my_channel.on_added += on_ts3_user_in_my_channel_added
 		utils.call_in_loop(settings_adapter.get_client_query_interval(), g_ts.check_events)
 
 		g_playerEvents.onAvatarReady           += g_positional_audio.enable
@@ -127,18 +125,6 @@ def init():
 
 	except:
 		LOG_CURRENT_EXCEPTION()
-
-def on_ts3_user_in_my_channel_added(client_id):
-	'''This function populates user cache with TeamSpeak users whenever they
-	enter our TeamSpeak channel.
-	'''
-	user = g_ts.users[client_id]
-	g_user_cache.add_ts_user(user["nick"], user["unique_id"])
-
-def on_user_cache_read_error(message):
-	'''This function is called if user cache's reading fails.'''
-	notifications.push_error_message("Failed to read file '{0}':\n   {1}"
-		.format(g_user_cache.ini_path, message))
 
 def load_settings():
 	LOG_NOTE("Settings loaded from ini file")

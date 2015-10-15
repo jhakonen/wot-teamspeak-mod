@@ -275,3 +275,12 @@ class PublishGameNickToChatServer(object):
 
 	def execute(self):
 		self.chat_client_api.set_game_nickname(utils.get_my_name())
+
+class ShowCacheErrorMessage(object):
+
+	notifications_api = None
+	user_cache_api = None
+
+	def execute(self, error_message):
+		self.notifications_api.show_error_message("Failed to read file '{0}':\n   {1}"
+			.format(self.user_cache_api.get_config_filepath(), error_message))

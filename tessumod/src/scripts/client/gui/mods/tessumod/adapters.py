@@ -212,8 +212,10 @@ class MinimapAdapter(object):
 
 class UserCacheAdapter(object):
 
-	def __init__(self, user_cache):
+	def __init__(self, user_cache, usecases):
 		self.__user_cache = user_cache
+		self.__user_cache.on_read_error += self.__on_read_error
+		self.__usecases = usecases
 
 	def add_chat_user(self, nick, unique_id):
 		self.__user_cache.add_ts_user(nick, unique_id)
@@ -226,6 +228,13 @@ class UserCacheAdapter(object):
 
 	def get_paired_player_ids(self, user_unique_id):
 		return self.__user_cache.get_paired_player_ids(user_unique_id)
+
+	def get_config_filepath(self):
+		return self.__user_cache.ini_path
+
+	def __on_read_error(self, error_message):
+		'''This function is called if user cache's reading fails.'''
+		self.__usecases.usecase_show_cache_error_message(error_message)
 
 class NotificationsAdapter(object):
 
@@ -241,6 +250,9 @@ class NotificationsAdapter(object):
 
 	def show_warning_message(self, message):
 		self.__notifications.push_warning_message(message)
+
+	def show_error_message(self, message):
+		self.__notifications.push_error_message(message)
 
 	def show_plugin_install_message(self, **data):
 		self.__notifications.push_ts_plugin_install_message(
