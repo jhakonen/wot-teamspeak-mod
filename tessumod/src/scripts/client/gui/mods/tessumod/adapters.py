@@ -20,9 +20,10 @@ import os
 import threading
 import subprocess
 from functools import partial
+import xml.etree.ElementTree as ET
 
 from infrastructure.utils import LOG_NOTE
-from infrastructure import mytsplugin, utils
+from infrastructure import mytsplugin, utils, gameapi
 
 class TeamSpeakChatClientAdapter(object):
 
@@ -238,27 +239,70 @@ class UserCacheAdapter(object):
 
 class NotificationsAdapter(object):
 
-	def __init__(self, notifications, usecases):
-		self.__notifications = notifications
+	TSPLUGIN_INSTALL  = "TessuModTSPluginInstall"
+	TSPLUGIN_MOREINFO = "TessuModTSPluginMoreInfo"
+	TSPLUGIN_IGNORED  = "TessuModTSPluginIgnore"
+
+	def __init__(self, usecases):
 		self.__usecases = usecases
-		self.__notifications.add_event_handler(notifications.TSPLUGIN_INSTALL, self.__on_plugin_install)
-		self.__notifications.add_event_handler(notifications.TSPLUGIN_IGNORED, self.__on_plugin_ignore_toggled)
-		self.__notifications.add_event_handler(notifications.TSPLUGIN_MOREINFO, self.__on_plugin_moreinfo_clicked)
+		gameapi.Notifications.add_event_handler(self.TSPLUGIN_INSTALL, self.__on_plugin_install)
+		gameapi.Notifications.add_event_handler(self.TSPLUGIN_IGNORED, self.__on_plugin_ignore_toggled)
+		gameapi.Notifications.add_event_handler(self.TSPLUGIN_MOREINFO, self.__on_plugin_moreinfo_clicked)
+		self.__plugin_install_shown = False
 
 	def show_info_message(self, message):
-		self.__notifications.push_info_message(message)
+		gameapi.Notifications.show_info_message(message)
 
 	def show_warning_message(self, message):
-		self.__notifications.push_warning_message(message)
+		gameapi.Notifications.show_warning_message(message)
 
 	def show_error_message(self, message):
-		self.__notifications.push_error_message(message)
+		gameapi.Notifications.show_error_message(message)
 
 	def show_plugin_install_message(self, **data):
-		self.__notifications.push_ts_plugin_install_message(
-			moreinfo_url = "https://github.com/jhakonen/wot-teamspeak-mod/wiki/TeamSpeak-Plugins#tessumod-plugin",
-			ignore_state = "off"
-		)
+		if not self.__plugin_install_shown:
+			tmpl_filepath = os.path.join(utils.find_res_mods_version_path(), "gui", "tessu_mod", "tsplugin_install_notification.xml")
+			with open(tmpl_filepath, "r") as tmpl_file:
+				params = self.__parse_xml(tmpl_file.read())
+
+			gameapi.Notifications.show_custom_message(
+				icon = params["icon"],
+				message = params["message"],
+				buttons_layout = params["buttons_layout"],
+				item = {
+					"moreinfo_url": "https://github.com/jhakonen/wot-teamspeak-mod/wiki/TeamSpeak-Plugins#tessumod-plugin",
+					"ignore_state": "off",
+					"install_action": self.TSPLUGIN_INSTALL,
+					"ignore_action": self.TSPLUGIN_IGNORED,
+					"moreinfo_action": self.TSPLUGIN_MOREINFO
+				}
+			)
+			self.__plugin_install_shown = True
+
+	def __parse_xml(self, xml_data):
+		root = ET.fromstring(xml_data)
+		params = {
+			"icon": root.findtext("./icon", default=""),
+			"message": self.__xml_element_contents_to_text(root.find("./message")),
+			"buttons_layout": []
+		}
+		for button in root.findall("./buttonsLayout/button"):
+			params["buttons_layout"].append({
+				"label":  button.get("label", default=""),
+				"action": button.get("action", default=""),
+				"type":   button.get("type", default="submit")
+			})
+		return params
+
+	def __xml_element_contents_to_text(self, element):
+		if element is None:
+			return ""
+		contents = []
+		contents.append(element.text or "")
+		for sub_element in element:
+			contents.append(ET.tostring(sub_element))
+		contents.append(element.tail or "")
+		return "".join(contents).strip()
 
 	def __on_plugin_install(self, type_id, msg_id, data):
 		self.__usecases.usecase_install_chat_client_plugin()
@@ -267,7 +311,7 @@ class NotificationsAdapter(object):
 		new_state = False if data["ignore_state"] == "on" else True
 		data["ignore_state"] = "on" if new_state else "off"
 		self.__usecases.usecase_ignore_chat_client_plugin_install_message(new_state)
-		self.__notifications.update_message(type_id, msg_id, data)
+		gameapi.Notifications.update_custom_message(type_id, msg_id, data)
 
 	def __on_plugin_moreinfo_clicked(self, type_id, msg_id, data):
 		self.__usecases.usecase_show_chat_client_plugin_info_url(data["moreinfo_url"])

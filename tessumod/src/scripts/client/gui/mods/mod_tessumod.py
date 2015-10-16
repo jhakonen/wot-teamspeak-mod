@@ -21,7 +21,7 @@ try:
 	import game
 	from tessumod.infrastructure.utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
 	from tessumod.infrastructure.ts3 import TS3Client
-	from tessumod.infrastructure import utils, mytsplugin, notifications, positional_audio
+	from tessumod.infrastructure import utils, mytsplugin, positional_audio, gameapi
 	from tessumod.infrastructure.settings import settings
 	from tessumod.infrastructure.user_cache import UserCache
 	from tessumod.infrastructure.keyvaluestorage import KeyValueStorage
@@ -78,7 +78,7 @@ def init():
 		chat_indicator_adapter = adapters.ChatIndicatorAdapter(VOIP.getVOIPManager())
 		user_cache_adapter = adapters.UserCacheAdapter(g_user_cache, usecases)
 		chat_client_adapter = adapters.TeamSpeakChatClientAdapter(g_ts, usecases)
-		notifications_adapter = adapters.NotificationsAdapter(notifications, usecases)
+		notifications_adapter = adapters.NotificationsAdapter(usecases)
 		game_adapter = adapters.GameAdapter(g_playerEvents, usecases)
 
 		chat_user_repository = repositories.ChatUserRepository()
@@ -97,6 +97,7 @@ def init():
 		usecases.provide_dependency("key_value_repository",   key_value_repository)
 		usecases.provide_dependency("speak_state_repository", g_talk_states)
 
+		gameapi.Notifications.init()
 		g_user_cache.init()
 		load_settings()
 
@@ -107,8 +108,8 @@ def init():
 		g_playerEvents.onAvatarBecomeNonPlayer += g_positional_audio.disable
 
 		# don't show system center notifications in battle
-		g_playerEvents.onAvatarBecomePlayer    += partial(notifications.set_notifications_enabled, False)
-		g_playerEvents.onAvatarBecomeNonPlayer += partial(notifications.set_notifications_enabled, True)
+		g_playerEvents.onAvatarBecomePlayer    += partial(gameapi.Notifications.set_enabled, False)
+		g_playerEvents.onAvatarBecomeNonPlayer += partial(gameapi.Notifications.set_enabled, True)
 
 		# if nothing broke so far then it should be safe to patch the needed
 		# functions (modified functions have dependencies to g_* global variables)

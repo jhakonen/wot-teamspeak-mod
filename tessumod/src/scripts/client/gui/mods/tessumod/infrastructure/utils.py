@@ -119,10 +119,10 @@ def get_player_by_dbid(dbid):
 	vehicle_id = find_vehicle_id(lambda v: v["accountDBID"] == dbid)
 	if vehicle_id is not None:
 		vehicle = get_vehicle(vehicle_id)
-		return entities.GamePlayer(id=dbid, name=vehicle["name"], vehicle_id=vehicle_id, is_alive=vehicle["isAlive"])
+		return dict(id=dbid, name=vehicle["name"], vehicle_id=vehicle_id, is_alive=vehicle["isAlive"])
 	info = find_prebattle_account_info(lambda i: i["dbID"] == dbid)
 	if info:
-		return entities.GamePlayer(id=dbid, name=info["name"])
+		return dict(id=dbid, name=info["name"])
 	return None
 
 def get_resource_paths():
@@ -167,13 +167,13 @@ def get_support_url():
 	except ImportError:
 		return "undefined"
 
-def ts_user_to_player(ts_user, extract_patterns=[], mappings={}, players=[], use_metadata=False, use_ts_nick_search=False):
+def ts_user_to_player(user_nick, user_game_nick, extract_patterns=[], mappings={}, players=[], use_metadata=False, use_ts_nick_search=False):
 	players = list(players)
 
 	def find_player(nick, comparator=lambda a, b: a == b):
 		if hasattr(nick, "lower"):
 			for player in players:
-				if comparator(player.name.lower(), nick.lower()):
+				if comparator(player["name"].lower(), nick.lower()):
 					return player
 
 	def map_nick(nick):
@@ -185,48 +185,48 @@ def ts_user_to_player(ts_user, extract_patterns=[], mappings={}, players=[], use
 
 	# find player using TS user's WOT nickname in metadata (available if user
 	# has TessuMod installed)
-	if use_metadata and ts_user.wot_nick:
-		player = find_player(ts_user.wot_nick)
+	if use_metadata and user_game_nick:
+		player = find_player(user_game_nick)
 		if player:
-			LOG_DEBUG("Matched TS user to player with TS metadata", ts_user, player)
+			LOG_DEBUG("Matched TS user to player with TS metadata", user_nick, user_game_nick, player)
 		return player
 	# no metadata, try find player by using WOT nickname extracted from TS
 	# user's nickname using nick_extract_patterns
 	for pattern in extract_patterns:
-		matches = pattern.match(ts_user.nick)
+		matches = pattern.match(user_nick)
 		if matches is not None and matches.groups():
 			extracted_nick = matches.group(1).strip()
 			player = find_player(extracted_nick)
 			if player:
-				LOG_DEBUG("Matched TS user to player with pattern", ts_user, player, pattern.pattern)
+				LOG_DEBUG("Matched TS user to player with pattern", user_nick, player, pattern.pattern)
 				return player
 			# extracted nickname didn't match any player, try find player by
 			# mapping the extracted nickname to WOT nickname (if available)
 			player = find_player(map_nick(extracted_nick))
 			if player:
-				LOG_DEBUG("Matched TS user to player with pattern and mapping", ts_user, player, pattern.pattern)
+				LOG_DEBUG("Matched TS user to player with pattern and mapping", user_nick, player, pattern.pattern)
 				return player
 	# extract patterns didn't help, try find player by mapping TS nickname to
 	# WOT nickname (if available)
-	player = find_player(map_nick(ts_user.nick))
+	player = find_player(map_nick(user_nick))
 	if player:
-		LOG_DEBUG("Matched TS user to player via mapping", ts_user, player)
+		LOG_DEBUG("Matched TS user to player via mapping", user_nick, player)
 		return player
 	# still no match, as a last straw, try find player by searching each known
 	# WOT nickname from the TS nickname
 	if use_ts_nick_search:
-		player = find_player(ts_user.nick, comparator=lambda a, b: a in b)
+		player = find_player(user_nick, comparator=lambda a, b: a in b)
 		if player:
-			LOG_DEBUG("Matched TS user to player with TS nick search", ts_user, player)
+			LOG_DEBUG("Matched TS user to player with TS nick search", user_nick, player)
 			return player
 	# or alternatively, try find player by just comparing that TS nickname and
 	# WOT nicknames are same
 	else:
-		player = find_player(ts_user.nick)
+		player = find_player(user_nick)
 		if player:
-			LOG_DEBUG("Matched TS user to player by comparing names", ts_user, player)
+			LOG_DEBUG("Matched TS user to player by comparing names", user_nick, player)
 			return player
-	LOG_DEBUG("Failed to match TS user", ts_user)
+	LOG_DEBUG("Failed to match TS user", user_nick)
 
 def get_players(in_battle=False, in_prebattle=False, clanmembers=False, friends=False):
 	if in_battle:
@@ -235,7 +235,7 @@ def get_players(in_battle=False, in_prebattle=False, clanmembers=False, friends=
 			for id in vehicles:
 				vehicle = vehicles[id]
 				LOG_DEBUG("Found player from battle", vehicle["name"])
-				yield entities.GamePlayer(vehicle["name"], vehicle["accountDBID"])
+				yield dict(name=vehicle["name"], id=vehicle["accountDBID"])
 		except AttributeError:
 			pass
 	if in_prebattle:
@@ -244,7 +244,7 @@ def get_players(in_battle=False, in_prebattle=False, clanmembers=False, friends=
 			for unit in BigWorld.player().unitMgr.units.itervalues():
 				for id, player in unit.getPlayers().iteritems():
 					LOG_DEBUG("Found player from unit", player["nickName"])
-					yield entities.GamePlayer(player["nickName"], id)
+					yield dict(name=player["nickName"], id=id)
 		except AttributeError:
 			pass
 		try:
@@ -252,18 +252,18 @@ def get_players(in_battle=False, in_prebattle=False, clanmembers=False, friends=
 			for roster in BigWorld.player().prebattle.rosters.itervalues():
 				for info in roster.itervalues():
 					LOG_DEBUG("Found player from rosters", info["name"])
-					yield entities.GamePlayer(info["name"], info["dbID"])
+					yield dict(name=info["name"], id=info["dbID"])
 		except AttributeError:
 			pass
 	users_storage = storage_getter('users')()
 	if clanmembers:
 		for member in users_storage.getClanMembersIterator(False):
 			LOG_DEBUG("Found clan member", member.getName())
-			yield entities.GamePlayer(member.getName(), member.getID())
+			yield dict(name=member.getName(), id=member.getID())
 	if friends:
 		for friend in users_storage.getList(FriendsFindCriteria()):
 			LOG_DEBUG("Found friend", friend.getName())
-			yield entities.GamePlayer(friend.getName(), friend.getID())
+			yield dict(name=friend.getName(), id=friend.getID())
 
 class MinimapMarkersController(object):
 	'''MinimapMarkersController class repeatably starts given marker 'action' every
@@ -398,3 +398,8 @@ def LOG_CALL(msg=""):
 		functools.update_wrapper(wrapper, func)
 		return wrapper
 	return wrap
+
+def patch_instance_method(instance, method_name, new_function):
+	original_method = getattr(instance, method_name)
+	new_method = types.MethodType(functools.partial(new_function, original_method), instance)
+	setattr(instance, method_name, new_method)
