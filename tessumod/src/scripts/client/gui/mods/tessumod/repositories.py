@@ -17,6 +17,8 @@
 
 import copy
 import collections
+from usecases import entities
+from infrastructure import gameapi, utils
 
 class ChatUserRepository(collections.Iterable):
 
@@ -36,17 +38,19 @@ class ChatUserRepository(collections.Iterable):
 	def __iter__(self):
 		return self.__entities.itervalues()
 
-class GamePlayerRepository(object):
+class VehicleRepository(object):
 
-	def __init__(self):
-		self.__entities = {}
+	def get(self, player_id):
+		vehicle_id = utils.find_vehicle_id(lambda v: v["accountDBID"] == player_id)
+		if vehicle_id is None:
+			return None
+		vehicle = utils.get_vehicle(vehicle_id)
+		return entities.Vehicle(repository=self, vehicle_id=vehicle_id, is_alive=vehicle["isAlive"])
 
-	def get(self, id):
-		return copy.copy(self.__entities.get(id))
-
-	def set(self, player):
-		self.__entities[player.id] = player
-		return player
+	def get_vehicle_position(self, vehicle_id):
+		entity = gameapi.Battle.get_entity(vehicle_id)
+		if entity:
+			return (entity.position.x, entity.position.y, entity.position.z)
 
 class KeyValueRepository(object):
 

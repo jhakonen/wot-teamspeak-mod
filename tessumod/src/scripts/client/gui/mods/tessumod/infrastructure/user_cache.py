@@ -22,7 +22,7 @@ import re
 import io
 import cStringIO
 from utils import LOG_ERROR, LOG_NOTE
-import Event
+import gameapi
 
 _GENERAL_HELP = """
 ; This file stores paired TeamSpeak users and WOT players. When TessuMod
@@ -78,8 +78,8 @@ _PAIRINGS_HELP = """
 class UserCache(object):
 
 	def __init__(self, ini_path):
-		self.on_updated = Event.Event()
-		self.on_read_error = Event.Event()
+		self.on_updated = gameapi.Event()
+		self.on_read_error = gameapi.Event()
 		self._ts_users = {}
 		self._players = {}
 		self._pairings = {}
@@ -221,10 +221,10 @@ class INICache(object):
 		self._parser = None
 		self._write_needed = False
 		self.ini_path = ini_path
-		self.on_init_cleanup = Event.Event()
-		self.on_read = Event.Event()
-		self.on_write = Event.Event()
-		self.on_write_io = Event.Event()
+		self.on_init_cleanup = gameapi.Event()
+		self.on_read = gameapi.Event()
+		self.on_write = gameapi.Event()
+		self.on_write_io = gameapi.Event()
 		self.is_write_allowed = True
 		self._initialized = False
 

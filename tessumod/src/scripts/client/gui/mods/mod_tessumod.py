@@ -21,12 +21,11 @@ try:
 	import game
 	from tessumod.infrastructure.utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
 	from tessumod.infrastructure.ts3 import TS3Client
-	from tessumod.infrastructure import utils, mytsplugin, positional_audio, gameapi
+	from tessumod.infrastructure import utils, mytsplugin, gameapi
 	from tessumod.infrastructure.settings import settings
 	from tessumod.infrastructure.user_cache import UserCache
 	from tessumod.infrastructure.keyvaluestorage import KeyValueStorage
 	from tessumod import usecases, adapters, repositories
-	import BigWorld
 	import VOIP
 	import BattleReplay
 	from messenger.proto.events import g_messengerEvents
@@ -42,7 +41,7 @@ except:
 def init():
 	'''Mod's main entry point. Called by WoT's built-in mod loader.'''
 	try:
-		global g_ts, g_talk_states, g_minimap_ctrl, g_user_cache, g_positional_audio, g_keyvaluestorage
+		global g_ts, g_talk_states, g_minimap_ctrl, g_user_cache, g_keyvaluestorage
 		global settings_adapter
 
 		# make sure that ini-folder exists
@@ -66,11 +65,6 @@ def init():
 		g_minimap_ctrl = utils.MinimapMarkersController()
 		g_ts = TS3Client()
 
-		g_positional_audio = positional_audio.PositionalAudio(
-			ts_users      = g_ts.users_in_my_channel,
-			user_cache    = g_user_cache
-		)
-
 		g_keyvaluestorage = KeyValueStorage(utils.get_states_dir_path())
 
 		settings_adapter = adapters.SettingsAdapter(settings())
@@ -82,7 +76,7 @@ def init():
 		game_adapter = adapters.GameAdapter(g_playerEvents, usecases)
 
 		chat_user_repository = repositories.ChatUserRepository()
-		player_repository = repositories.GamePlayerRepository()
+		vehicle_repository = repositories.VehicleRepository()
 		key_value_repository = repositories.KeyValueRepository(g_keyvaluestorage)
 
 		usecases.provide_dependency("settings_api",           settings_adapter)
@@ -93,7 +87,7 @@ def init():
 		usecases.provide_dependency("notifications_api",      notifications_adapter)
 		usecases.provide_dependency("game_api",               game_adapter)
 		usecases.provide_dependency("chat_user_repository",   chat_user_repository)
-		usecases.provide_dependency("player_repository",      player_repository)
+		usecases.provide_dependency("vehicle_repository",     vehicle_repository)
 		usecases.provide_dependency("key_value_repository",   key_value_repository)
 		usecases.provide_dependency("speak_state_repository", g_talk_states)
 
@@ -102,10 +96,7 @@ def init():
 		load_settings()
 
 		g_ts.connect()
-		utils.call_in_loop(settings_adapter.get_client_query_interval(), g_ts.check_events)
-
-		g_playerEvents.onAvatarReady           += g_positional_audio.enable
-		g_playerEvents.onAvatarBecomeNonPlayer += g_positional_audio.disable
+		gameapi.EventLoop.call_in_loop(settings_adapter.get_client_query_interval(), g_ts.check_events)
 
 		# don't show system center notifications in battle
 		g_playerEvents.onAvatarBecomePlayer    += partial(gameapi.Notifications.set_enabled, False)
@@ -118,7 +109,7 @@ def init():
 
 		g_messengerEvents.users.onUsersListReceived += on_users_list_received
 
-		utils.call_in_loop(settings_adapter.get_ini_check_interval, sync_configs)
+		gameapi.EventLoop.call_in_loop(settings_adapter.get_ini_check_interval, sync_configs)
 
 		usecases.speak_states = g_talk_states
 

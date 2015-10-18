@@ -20,8 +20,7 @@ import os
 import csv
 import re
 from utils import LOG_ERROR
-import BigWorld
-import Event
+import gameapi
 
 DEFAULT_INI = """
 ; Defines configuration options for TessuMod.
@@ -172,7 +171,7 @@ def settings(ini_file_path=None):
 class Settings(object):
 
 	def __init__(self, ini_path):
-		self.on_reloaded = Event.Event()
+		self.on_reloaded = gameapi.Event()
 
 		self._load_time = 0
 		self._parser = None

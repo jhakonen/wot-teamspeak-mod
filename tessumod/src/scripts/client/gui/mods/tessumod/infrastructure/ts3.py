@@ -26,7 +26,7 @@ connect to the TeamSpeak client. The TS3Client will continue to connect until
 connection to the client is succesfully made.
 The TS3Client has check_events() method which implements event handling
 mechanism and it needs to be called periodically, e.g. with
-BigWorld.callback().
+gameapi.EventLoop.callback().
 
 The class provides several functions for querying information from TS client in
 a non-blocking asyncronous manner.
@@ -41,8 +41,6 @@ import asyncore
 import asynchat
 import functools
 import copy
-import Event
-import BigWorld
 from utils import (
 	noop,
 	with_args,
@@ -55,6 +53,7 @@ from utils import (
 )
 from statemachine import StateMachine
 import async
+import gameapi
 
 _RETRY_TIMEOUT = 10
 _COMMAND_WAIT_TIMEOUT = 30
@@ -71,11 +70,11 @@ class TS3Client(object):
 
 	def __init__(self):
 		# public events
-		self.on_connected = Event.Event()
-		self.on_disconnected = Event.Event()
-		self.on_connected_to_server = Event.Event()
-		self.on_disconnected_from_server = Event.Event()
-		self.on_channel_changed = Event.Event()
+		self.on_connected = gameapi.Event()
+		self.on_disconnected = gameapi.Event()
+		self.on_connected_to_server = gameapi.Event()
+		self.on_disconnected_from_server = gameapi.Event()
+		self.on_channel_changed = gameapi.Event()
 
 		# public models
 		self.users = UserModel()
@@ -139,7 +138,7 @@ class TS3Client(object):
 		self._protocol.connect((self.HOST, self.PORT))
 
 	def _on_connect_failed_state(self):
-		BigWorld.callback(_RETRY_TIMEOUT, functools.partial(self._send_sm_event, "connect_retry"))
+		gameapi.EventLoop.callback(_RETRY_TIMEOUT, self._send_sm_event, "connect_retry")
 
 	def _send_command(self, command, callback=noop, timeout=_COMMAND_WAIT_TIMEOUT):
 		def on_command_finish(err, lines):
@@ -248,7 +247,7 @@ class TS3Client(object):
 			def loop():
 				if self._is_pinging:
 					self._ping()
-					BigWorld.callback(_RETRY_TIMEOUT, loop)
+					gameapi.EventLoop.callback(_RETRY_TIMEOUT, loop)
 			loop()
 
 	def _ping(self):
@@ -428,9 +427,9 @@ class _ClientQueryProtocol(asynchat.async_chat):
 		asynchat.async_chat.__init__(self, map=map)
 
 		# public events
-		self.on_connected = Event.Event()
-		self.on_closed = Event.Event()
-		self.on_ready = Event.Event()
+		self.on_connected = gameapi.Event()
+		self.on_closed = gameapi.Event()
+		self.on_ready = gameapi.Event()
 
 		self._data_in_handler = noop
 		self._event_handlers = {}
@@ -610,9 +609,9 @@ class UserModel(object):
 
 	def __init__(self):
 		self._users = {}
-		self.on_added = Event.Event()
-		self.on_removed = Event.Event()
-		self.on_modified = Event.Event()
+		self.on_added = gameapi.Event()
+		self.on_removed = gameapi.Event()
+		self.on_modified = gameapi.Event()
 
 	def add(self, client_id, **kwargs):
 		if client_id is None:
@@ -634,7 +633,6 @@ class UserModel(object):
 			is_new = True
 		is_modified = not is_new and self._users[client_id] != new_user
 		self._users[client_id] = new_user
-		print "add", is_new, is_modified, new_user
 
 		if is_new:
 			self.on_added(client_id)
@@ -664,9 +662,9 @@ class UserModel(object):
 class UserFilterProxy(object):
 
 	def __init__(self, source, filter_func):
-		self.on_added = Event.Event()
-		self.on_removed = Event.Event()
-		self.on_modified = Event.Event()
+		self.on_added = gameapi.Event()
+		self.on_removed = gameapi.Event()
+		self.on_modified = gameapi.Event()
 
 		self._source = source
 		self._filter_func = filter_func

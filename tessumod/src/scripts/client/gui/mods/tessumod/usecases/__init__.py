@@ -69,3 +69,9 @@ def usecase_publish_game_nick_to_chat_server():
 
 def usecase_show_cache_error_message(error_message):
 	_execute(interactors.ShowCacheErrorMessage(), error_message)
+
+def usecase_enable_positional_data_to_chat_client(enabled):
+	_execute(interactors.EnablePositionalDataToChatClient(), enabled)
+
+def usecase_provide_positional_data_to_chat_client():
+	_execute(interactors.ProvidePositionalDataToChatClient())

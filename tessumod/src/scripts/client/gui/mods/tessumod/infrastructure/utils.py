@@ -25,21 +25,13 @@ import os
 import functools
 import inspect
 import time
+import types
 
 def noop(*args, **kwargs):
 	'''Function that does nothing. A safe default value for callback
 	parameters.
 	'''
 	pass
-
-def call_in_loop(secs, func):
-	if not callable(secs):
-		secs_value = secs
-		secs = lambda: secs_value
-	def wrapper(*args, **kwargs):
-		func(*args, **kwargs)
-		BigWorld.callback(secs(), wrapper)
-	BigWorld.callback(secs(), wrapper)
 
 def with_args(func, *args, **kwargs):
 	def wrapper():

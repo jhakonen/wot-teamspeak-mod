@@ -22,7 +22,7 @@ import subprocess
 from functools import partial
 import xml.etree.ElementTree as ET
 
-from infrastructure.utils import LOG_NOTE
+from infrastructure.utils import LOG_NOTE, RepeatTimer
 from infrastructure import mytsplugin, utils, gameapi
 
 class TeamSpeakChatClientAdapter(object):
@@ -38,6 +38,7 @@ class TeamSpeakChatClientAdapter(object):
 		self.__ts.users.on_removed += self.__on_user_removed
 		self.__ts.users.on_modified += self.__on_user_modified
 		self.__ts.on_channel_changed += self.__current_chat_channel_changed
+		self.__positional_data_api = mytsplugin.PositionalDataAPI()
 
 	def get_current_channel_id(self):
 		return self.__ts.get_current_channel_id()
@@ -60,6 +61,16 @@ class TeamSpeakChatClientAdapter(object):
 
 	def set_game_nickname(self, nick):
 		self.__ts.set_wot_nickname(nick)
+
+	def enable_positional_data(self, enabled):
+		if enabled:
+			self.__positional_data_api.open()
+		else:
+			self.__positional_data_api.close()
+
+	def update_positional_data(self, camera_position, camera_direction, positions):
+		if self.__positional_data_api.is_open():
+			self.__positional_data_api.set_data(camera_position, camera_direction, positions)
 
 	def __on_connected_to_ts(self):
 		'''Called when TessuMod manages to connect TeamSpeak client. However, this
@@ -169,13 +180,39 @@ class SettingsAdapter(object):
 
 class GameAdapter(object):
 
+	POSITIONAL_DATA_PROVIDE_TIMEOUT = 0.1
+
 	def __init__(self, player_events, usecases):
 		self.__usecases = usecases
-		player_events.onAvatarBecomePlayer  += self.__on_become_player
-		player_events.onAccountBecomePlayer += self.__on_become_player
+		player_events.onAvatarBecomePlayer    += self.__on_avatar_become_player
+		player_events.onAccountBecomePlayer   += self.__on_account_become_player
+		player_events.onAvatarReady           += self.__on_avatar_ready
+		player_events.onAvatarBecomeNonPlayer += self.__on_avatar_become_non_player
+		self.__positional_data_provide_timer = RepeatTimer(self.POSITIONAL_DATA_PROVIDE_TIMEOUT)
+		self.__positional_data_provide_timer.on_timeout += self.__on_provide_positional_data
 
-	def __on_become_player(self):
+	def get_camera_position(self):
+		return gameapi.Battle.get_camera_position()
+
+	def get_camera_direction(self):
+		return gameapi.Battle.get_camera_direction()
+
+	def __on_avatar_become_player(self):
 		self.__usecases.usecase_publish_game_nick_to_chat_server()
+
+	def __on_account_become_player(self):
+		self.__usecases.usecase_publish_game_nick_to_chat_server()
+
+	def __on_avatar_ready(self):
+		self.__usecases.usecase_enable_positional_data_to_chat_client(True)
+		self.__positional_data_provide_timer.start()
+
+	def __on_avatar_become_non_player(self):
+		self.__usecases.usecase_enable_positional_data_to_chat_client(False)
+		self.__positional_data_provide_timer.stop()
+
+	def __on_provide_positional_data(self):
+		self.__usecases.usecase_provide_positional_data_to_chat_client()
 
 class ChatIndicatorAdapter(object):
 
@@ -218,7 +255,7 @@ class UserCacheAdapter(object):
 		self.__user_cache.on_read_error += self.__on_read_error
 		self.__usecases = usecases
 
-	def add_chat_user(self, nick, unique_id):
+	def add_chat_user(self, unique_id, nick):
 		self.__user_cache.add_ts_user(nick, unique_id)
 
 	def add_player(self, id, name):

@@ -18,9 +18,7 @@
 import sys
 import os
 
-import BigWorld
-
-from ..infrastructure import utils
+from ..infrastructure import utils, gameapi
 import entities
 
 class InsertChatUser(object):
@@ -47,14 +45,11 @@ class InsertChatUser(object):
 			channel_id = channel_id,
 			speaking = speaking
 		))
-		self.__add_to_cache(new_user, self.chat_client_api.get_current_channel_id())
-		if speak_update:
-			self.__find_and_pair_chat_user_to_player(new_user.client_id)
-			self.__set_chat_user_speaking(new_user.client_id)
-
-	def __add_to_cache(self, user, current_channel_id):
-		if user.channel_id == current_channel_id:
-			self.user_cache_api.add_chat_user(user.unique_id, user.nick)
+		if new_user.channel_id == self.chat_client_api.get_current_channel_id():
+			self.user_cache_api.add_chat_user(new_user.unique_id, new_user.nick)
+			if speak_update:
+				self.__find_and_pair_chat_user_to_player(new_user.client_id)
+				self.__set_chat_user_speaking(new_user.client_id)
 
 	def __find_and_pair_chat_user_to_player(self, user_id):
 		user = self.chat_user_repository.get(user_id)
@@ -84,7 +79,7 @@ class InsertChatUser(object):
 				self.__update_player_speak_status(player)
 			else:
 				# keep speaking state for a little longer
-				BigWorld.callback(self.settings_api.get_speak_stop_delay(), utils.with_args(self.__update_player_speak_status, player))
+				gameapi.EventLoop.callback(self.settings_api.get_speak_stop_delay(), self.__update_player_speak_status, player)
 
 	def __update_player_speak_status(self, player):
 		try:
@@ -284,3 +279,30 @@ class ShowCacheErrorMessage(object):
 	def execute(self, error_message):
 		self.notifications_api.show_error_message("Failed to read file '{0}':\n   {1}"
 			.format(self.user_cache_api.get_config_filepath(), error_message))
+
+class EnablePositionalDataToChatClient(object):
+
+	chat_client_api = None
+
+	def execute(self, enabled):
+		self.chat_client_api.enable_positional_data(enabled)
+
+class ProvidePositionalDataToChatClient(object):
+
+	game_api = None
+	chat_client_api = None
+	user_cache_api = None
+	chat_user_repository = None
+	vehicle_repository = None
+
+	def execute(self):
+		camera_position = self.game_api.get_camera_position()
+		camera_direction = self.game_api.get_camera_direction()
+		positions = {}
+		for user in self.chat_user_repository:
+			for player_id in self.user_cache_api.get_paired_player_ids(user.unique_id):
+				vehicle = self.vehicle_repository.get(player_id=player_id)
+				if vehicle.is_alive:
+					positions[user.client_id] = vehicle.position
+		if camera_position and camera_direction and positions:
+			self.chat_client_api.update_positional_data(camera_position, camera_direction, positions)
