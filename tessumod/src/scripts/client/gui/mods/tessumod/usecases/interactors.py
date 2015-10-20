@@ -19,15 +19,57 @@ import sys
 import os
 
 from ..infrastructure import utils, gameapi
+from ..constants import SettingConstants
 import entities
+
+class LoadSettings(object):
+
+	chat_client_api = None
+	minimap_api = None
+	settings_api = None
+	user_cache_api = None
+	settings_repository = None
+
+	def execute(self, variables):
+		def take_and_store(key):
+			value = variables[key]
+			del variables[key]
+			self.settings_repository.set(key, value)
+			return value
+		value = take_and_store(SettingConstants.LOG_LEVEL)
+		utils.CURRENT_LOG_LEVEL = value
+		value = take_and_store(SettingConstants.FILE_CHECK_INTERVAL)
+		self.settings_api.set_file_check_interval(value)
+		self.user_cache_api.set_file_check_interval(value)
+		value = take_and_store(SettingConstants.SPEAK_STOP_DELAY)
+		value = take_and_store(SettingConstants.GET_GAME_NICK_FROM_CHAT_CLIENT)
+		value = take_and_store(SettingConstants.UPDATE_CACHE_IN_REPLAYS)
+		value = take_and_store(SettingConstants.CHAT_NICK_SEARCH_ENABLED)
+		value = take_and_store(SettingConstants.NICK_EXTRACT_PATTERNS)
+		value = take_and_store(SettingConstants.NICK_MAPPINGS)
+		value = take_and_store(SettingConstants.CHAT_CLIENT_HOST)
+		self.chat_client_api.set_host(value)
+		value = take_and_store(SettingConstants.CHAT_CLIENT_PORT)
+		self.chat_client_api.set_port(value)
+		value = take_and_store(SettingConstants.CHAT_CLIENT_POLLING_INTERVAL)
+		self.chat_client_api.set_polling_interval(value)
+		value = take_and_store(SettingConstants.VOICE_CHAT_NOTIFY_ENABLED)
+		value = take_and_store(SettingConstants.VOICE_CHAT_NOTIFY_SELF_ENABLED)
+		value = take_and_store(SettingConstants.MINIMAP_NOTIFY_ENABLED)
+		value = take_and_store(SettingConstants.MINIMAP_NOTIFY_SELF_ENABLED)
+		value = take_and_store(SettingConstants.MINIMAP_NOTIFY_ACTION)
+		self.minimap_api.set_action(value)
+		value = take_and_store(SettingConstants.MINIMAP_NOTIFY_REPEAT_INTERVAL)
+		self.minimap_api.set_action_interval(value)
+		assert not variables, "Not all variables have been handled"
 
 class InsertChatUser(object):
 
 	user_cache_api = None
 	chat_client_api = None
-	settings_api = None
 	minimap_api = None
 	chat_indicator_api = None
+	settings_repository = None
 	chat_user_repository = None
 	speak_state_repository = None
 
@@ -56,10 +98,10 @@ class InsertChatUser(object):
 		player = utils.ts_user_to_player(
 			user_nick = user.nick,
 			user_game_nick = user.game_nick,
-			use_metadata = self.settings_api.get_game_nick_from_chat_metadata(),
-			use_ts_nick_search = self.settings_api.is_chat_nick_search_enabled(),
-			extract_patterns = self.settings_api.get_nick_extract_patterns(),
-			mappings = self.settings_api.get_name_mappings(),
+			use_metadata = self.settings_repository.get(SettingConstants.GET_GAME_NICK_FROM_CHAT_CLIENT),
+			use_ts_nick_search = self.settings_repository.get(SettingConstants.CHAT_NICK_SEARCH_ENABLED),
+			extract_patterns = self.settings_repository.get(SettingConstants.NICK_EXTRACT_PATTERNS),
+			mappings = self.settings_repository.get(SettingConstants.NICK_MAPPINGS),
 			# TODO: should we use clanmembers=True, friends=True here too??
 			players = utils.get_players(in_battle=True, in_prebattle=True)
 		)
@@ -79,7 +121,7 @@ class InsertChatUser(object):
 				self.__update_player_speak_status(player)
 			else:
 				# keep speaking state for a little longer
-				gameapi.EventLoop.callback(self.settings_api.get_speak_stop_delay(), self.__update_player_speak_status, player)
+				gameapi.EventLoop.callback(self.settings_repository.get(SettingConstants.SPEAK_STOP_DELAY), self.__update_player_speak_status, player)
 
 	def __update_player_speak_status(self, player):
 		try:
@@ -106,16 +148,16 @@ class InsertChatUser(object):
 			utils.LOG_CURRENT_EXCEPTION()
 
 	def __is_minimap_speak_allowed(self, player_id):
-		if not self.settings_api.is_minimap_notifications_enabled():
+		if not self.settings_repository.get(SettingConstants.MINIMAP_NOTIFY_ENABLED):
 			return False
-		if not self.settings_api.is_self_minimap_notifications_enabled() and utils.get_my_dbid() == player_id:
+		if not self.settings_repository.get(SettingConstants.MINIMAP_NOTIFY_SELF_ENABLED) and utils.get_my_dbid() == player_id:
 			return False
 		return True
 
 	def __is_voice_chat_speak_allowed(self, player_id):
-		if not self.settings_api.is_voice_chat_notifications_enabled():
+		if not self.settings_repository.get(SettingConstants.VOICE_CHAT_NOTIFY_ENABLED):
 			return False
-		if not self.settings_api.is_self_voice_chat_notifications_enabled() and utils.get_my_dbid() == player_id:
+		if not self.settings_repository.get(SettingConstants.VOICE_CHAT_NOTIFY_SELF_ENABLED) and utils.get_my_dbid() == player_id:
 			return False
 		return True
 
@@ -162,20 +204,6 @@ class ChangeChatChannel(object):
 	def __add_to_cache(self, user, current_channel_id):
 		if user.channel_id == current_channel_id:
 			self.user_cache_api.add_chat_user(user.unique_id, user.nick)
-
-class CheckIsVoiceChatAllowed(object):
-
-	settings_api = None
-
-	def execute(self, player_id):
-		return self.__is_voice_chat_speak_allowed(player_id)
-
-	def __is_voice_chat_speak_allowed(self, player_id):
-		if not self.settings_api.is_voice_chat_notifications_enabled():
-			return False
-		if not self.settings_api.is_self_voice_chat_notifications_enabled() and utils.get_my_dbid() == player_id:
-			return False
-		return True
 
 class ClearSpeakStatuses(object):
 
@@ -306,3 +334,11 @@ class ProvidePositionalDataToChatClient(object):
 					positions[user.client_id] = vehicle.position
 		if camera_position and camera_direction and positions:
 			self.chat_client_api.update_positional_data(camera_position, camera_direction, positions)
+
+class BattleReplayStart(object):
+
+	user_cache_api = None
+	settings_repository = None
+
+	def execute(self):
+		self.user_cache_api.set_write_enabled(self.settings_repository.get(SettingConstants.UPDATE_CACHE_IN_REPLAYS))

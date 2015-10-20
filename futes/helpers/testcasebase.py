@@ -121,16 +121,19 @@ class TestCaseBase(unittest.TestCase):
 
 	def __install_event_handler(self, name, callback):
 		if self.mod_tessumod is not None:
-			if name == "on_connected_to_ts_server":
-				self.mod_tessumod.g_ts.on_connected_to_server += callback
-			elif name == "on_connected_to_ts_client":
-				self.mod_tessumod.g_ts.on_connected += callback
-			elif name == "on_disconnected_from_ts_client":
-				self.mod_tessumod.g_ts.on_disconnected += callback
-			else:
-				raise RuntimeError("No such event: {0}".format(name))
-		else:
-			return False
+			dependencies = sys.modules["tessumod.usecases"]._provided_dependencies
+			if "chat_client_api" in dependencies:
+				ts = dependencies["chat_client_api"]._TeamSpeakChatClientAdapter__ts
+				if name == "on_connected_to_ts_server":
+					ts.on_connected_to_server += callback
+				elif name == "on_connected_to_ts_client":
+					ts.on_connected += callback
+				elif name == "on_disconnected_from_ts_client":
+					ts.on_disconnected += callback
+				else:
+					raise RuntimeError("No such event: {0}".format(name))
+				return True
+		return False
 
 	def start_game(self, **game_state):
 		import mod_tessumod

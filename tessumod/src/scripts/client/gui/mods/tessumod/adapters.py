@@ -24,6 +24,7 @@ import xml.etree.ElementTree as ET
 
 from infrastructure.utils import LOG_NOTE, RepeatTimer
 from infrastructure import mytsplugin, utils, gameapi
+from constants import SettingConstants
 
 class TeamSpeakChatClientAdapter(object):
 
@@ -39,6 +40,16 @@ class TeamSpeakChatClientAdapter(object):
 		self.__ts.users.on_modified += self.__on_user_modified
 		self.__ts.on_channel_changed += self.__current_chat_channel_changed
 		self.__positional_data_api = mytsplugin.PositionalDataAPI()
+		self.__check_repeater = gameapi.EventLoop.create_callback_repeater(self.__ts.check_events)
+
+	def set_host(self, host):
+		self.__ts.HOST = host
+
+	def set_port(self, port):
+		self.__ts.PORT = port
+
+	def set_polling_interval(self, interval):
+		self.__check_repeater.start(interval)
 
 	def get_current_channel_id(self):
 		return self.__ts.get_current_channel_id()
@@ -124,59 +135,35 @@ class TeamSpeakChatClientAdapter(object):
 
 class SettingsAdapter(object):
 
-	def __init__(self, settings):
+	def __init__(self, settings, usecases):
 		self.__settings = settings
+		self.__usecases = usecases
+		self.__settings.on_reloaded += self.__on_settings_reloaded
+		self.__sync_repeater = gameapi.EventLoop.create_callback_repeater(self.__settings.sync)
 
-	def get_log_level(self):
-		return self.__settings.get_int("General", "log_level")
+	def set_file_check_interval(self, interval):
+		self.__sync_repeater.start(interval)
 
-	def get_ini_check_interval(self):
-		return self.__settings.get_float("General", "ini_check_interval")
-
-	def get_speak_stop_delay(self):
-		return self.__settings.get_float("General", "speak_stop_delay")
-
-	def get_game_nick_from_chat_metadata(self):
-		return self.__settings.get_boolean("General", "get_wot_nick_from_ts_metadata")
-
-	def should_update_cache_in_replays(self):
-		return self.__settings.get_boolean("General", "update_cache_in_replays")
-
-	def is_chat_nick_search_enabled(self):
-		return self.__settings.get_boolean("General", "ts_nick_search_enabled")
-
-	def get_nick_extract_patterns(self):
-		return [re.compile(pattern, re.IGNORECASE) for pattern in self.__settings.get_list("General", "nick_extract_patterns")]
-
-	def get_name_mappings(self):
-		return {k.lower(): v.lower() for k, v in self.__settings.get_dict("NameMappings").iteritems()}
-
-	def get_client_query_host(self):
-		return self.__settings.get_str("TSClientQueryService", "host")
-
-	def get_client_query_port(self):
-		return self.__settings.get_int("TSClientQueryService", "port")
-
-	def get_client_query_interval(self):
-		return self.__settings.get_float("TSClientQueryService", "polling_interval")
-
-	def is_voice_chat_notifications_enabled(self):
-		return self.__settings.get_boolean("VoiceChatNotifications", "enabled")
-
-	def is_self_voice_chat_notifications_enabled(self):
-		return self.__settings.get_boolean("VoiceChatNotifications", "self_enabled")
-
-	def is_minimap_notifications_enabled(self):
-		return self.__settings.get_boolean("MinimapNotifications", "enabled")
-
-	def is_self_minimap_notifications_enabled(self):
-		return self.__settings.get_boolean("MinimapNotifications", "self_enabled")
-
-	def get_minimap_action(self):
-		return self.__settings.get_str("MinimapNotifications", "action")
-
-	def get_minimap_action_interval(self):
-		return self.__settings.get_float("MinimapNotifications", "repeat_interval")
+	def __on_settings_reloaded(self):
+		self.__usecases.usecase_load_settings({
+			SettingConstants.LOG_LEVEL                      : self.__settings.get_int("General", "log_level"),
+			SettingConstants.FILE_CHECK_INTERVAL            : self.__settings.get_float("General", "ini_check_interval"),
+			SettingConstants.SPEAK_STOP_DELAY               : self.__settings.get_float("General", "speak_stop_delay"),
+			SettingConstants.GET_GAME_NICK_FROM_CHAT_CLIENT : self.__settings.get_boolean("General", "get_wot_nick_from_ts_metadata"),
+			SettingConstants.UPDATE_CACHE_IN_REPLAYS        : self.__settings.get_boolean("General", "update_cache_in_replays"),
+			SettingConstants.CHAT_NICK_SEARCH_ENABLED       : self.__settings.get_boolean("General", "ts_nick_search_enabled"),
+			SettingConstants.NICK_EXTRACT_PATTERNS          : [re.compile(pattern, re.IGNORECASE) for pattern in self.__settings.get_list("General", "nick_extract_patterns")],
+			SettingConstants.NICK_MAPPINGS                  : {k.lower(): v.lower() for k, v in self.__settings.get_dict("NameMappings").iteritems()},
+			SettingConstants.CHAT_CLIENT_HOST               : self.__settings.get_str("TSClientQueryService", "host"),
+			SettingConstants.CHAT_CLIENT_PORT               : self.__settings.get_int("TSClientQueryService", "port"),
+			SettingConstants.CHAT_CLIENT_POLLING_INTERVAL   : self.__settings.get_float("TSClientQueryService", "polling_interval"),
+			SettingConstants.VOICE_CHAT_NOTIFY_ENABLED      : self.__settings.get_boolean("VoiceChatNotifications", "enabled"),
+			SettingConstants.VOICE_CHAT_NOTIFY_SELF_ENABLED : self.__settings.get_boolean("VoiceChatNotifications", "self_enabled"),
+			SettingConstants.MINIMAP_NOTIFY_ENABLED         : self.__settings.get_boolean("MinimapNotifications", "enabled"),
+			SettingConstants.MINIMAP_NOTIFY_SELF_ENABLED    : self.__settings.get_boolean("MinimapNotifications", "self_enabled"),
+			SettingConstants.MINIMAP_NOTIFY_ACTION          : self.__settings.get_str("MinimapNotifications", "action"),
+			SettingConstants.MINIMAP_NOTIFY_REPEAT_INTERVAL : self.__settings.get_float("MinimapNotifications", "repeat_interval")
+		})
 
 class GameAdapter(object):
 
@@ -190,6 +177,7 @@ class GameAdapter(object):
 		player_events.onAvatarBecomeNonPlayer += self.__on_avatar_become_non_player
 		self.__positional_data_provide_timer = RepeatTimer(self.POSITIONAL_DATA_PROVIDE_TIMEOUT)
 		self.__positional_data_provide_timer.on_timeout += self.__on_provide_positional_data
+		gameapi.Battle.patch_battle_replay_play(self.__on_battle_replay_play)
 
 	def get_camera_position(self):
 		return gameapi.Battle.get_camera_position()
@@ -214,34 +202,49 @@ class GameAdapter(object):
 	def __on_provide_positional_data(self):
 		self.__usecases.usecase_provide_positional_data_to_chat_client()
 
+	def __on_battle_replay_play(self, original_method, *args, **kwargs):
+		self.__usecases.usecase_battle_replay_start()
+		return original_method(*args, **kwargs)
+
 class ChatIndicatorAdapter(object):
 
-	def __init__(self, voip_manager):
-		self.__voip_manager = voip_manager
+	def __init__(self):
 		self.__speakers = set()
+		gameapi.VoiceChat.patch_is_participant_speaking(self.__on_is_participant_speaking)
 
 	def set_player_speaking(self, player, speaking):
 		if speaking and player["id"] not in self.__speakers:
 			self.__speakers.add(player["id"])
-			self.__voip_manager.onPlayerSpeaking(player["id"], True)
+			gameapi.VoiceChat.set_player_speaking(player["id"], True)
 		elif not speaking and player["id"] in self.__speakers:
 			self.__speakers.remove(player["id"])
-			self.__voip_manager.onPlayerSpeaking(player["id"], False)
+			gameapi.VoiceChat.set_player_speaking(player["id"], False)
 
 	def clear_all_players_speaking(self):
 		for speaker in self.__speakers:
-			self.__voip_manager.onPlayerSpeaking(speaker, False)
+			gameapi.VoiceChat.set_player_speaking(speaker, False)
 		self.__speakers.clear()
+
+	def __on_is_participant_speaking(self, original_method, dbid):
+		'''Called by other game modules to determine current speaking status.'''
+		return True if dbid in self.__speakers else original_method(self, dbid)
 
 class MinimapAdapter(object):
 
-	def __init__(self, minimap_ctrl, settings_api):
+	def __init__(self, minimap_ctrl):
 		self.__minimap_ctrl = minimap_ctrl
-		self.__settings_api = settings_api
+		self.__action = None
+		self.__interval = None
+
+	def set_action(self, action):
+		self.__action = action
+
+	def set_action_interval(self, interval):
+		self.__interval = interval
 
 	def set_player_speaking(self, player, speaking):
 		if speaking:
-			self.__minimap_ctrl.start(player["vehicle_id"], self.__settings_api.get_minimap_action(), self.__settings_api.get_minimap_action_interval())
+			self.__minimap_ctrl.start(player["vehicle_id"], self.__action, self.__interval)
 		else:
 			self.__minimap_ctrl.stop(player["vehicle_id"])
 
@@ -254,6 +257,13 @@ class UserCacheAdapter(object):
 		self.__user_cache = user_cache
 		self.__user_cache.on_read_error += self.__on_read_error
 		self.__usecases = usecases
+		self.__sync_repeater = gameapi.EventLoop.create_callback_repeater(self.__user_cache.sync)
+
+	def set_file_check_interval(self, interval):
+		self.__sync_repeater.start(interval)
+
+	def set_write_enabled(self, enabled):
+		self.__user_cache.is_write_enabled = enabled
 
 	def add_chat_user(self, unique_id, nick):
 		self.__user_cache.add_ts_user(nick, unique_id)

@@ -23,6 +23,9 @@ from notification.settings import NOTIFICATION_TYPE
 from notification.decorators import _NotificationDecorator
 from debug_utils import LOG_CURRENT_EXCEPTION
 import Event as _Event
+import VOIP
+from VOIP.VOIPManager import VOIPManager
+import BattleReplay
 
 from functools import partial
 
@@ -39,14 +42,38 @@ class EventLoop(object):
 		return BigWorld.callback(timeout, function)
 
 	@classmethod
-	def call_in_loop(cls, secs, function):
-		if not callable(secs):
-			secs_value = secs
-			secs = lambda: secs_value
-		def wrapper(*args, **kwargs):
-			function(*args, **kwargs)
-			cls.callback(secs(), wrapper)
-		cls.callback(secs(), wrapper)
+	def cancel_callback(cls, id):
+		BigWorld.cancelCallback(id)
+
+	@classmethod
+	def create_callback_repeater(cls, function):
+		return _EventRepeater(function)
+
+class _EventRepeater(object):
+
+	def __init__(self, function):
+		self.__id       = None
+		self.__timeout  = None
+		self.__function = function
+
+	def start(self, timeout):
+		self.__timeout = timeout
+		self.stop()
+		self.__start_callback()
+
+	def __start_callback(self):
+		if self.__id is None:
+			self.__id = EventLoop.callback(self.__timeout, self.__on_timeout)
+
+	def stop(self):
+		if self.__id is not None:
+			EventLoop.cancel_callback(self.__id)
+			self.__id = None
+
+	def __on_timeout(self):
+		self.__id = None
+		self.__function()
+		self.__start_callback()
 
 class Battle(object):
 
@@ -68,6 +95,13 @@ class Battle(object):
 		if entity:
 			assert hasattr(entity, "position")
 			return entity
+
+	@classmethod
+	def patch_battle_replay_play(self, patch_function):
+		original_method = BattleReplay.BattleReplay.play
+		def wrapper_play(self, fileName=None):
+			return patch_function(original_method, fileName)
+		BattleReplay.BattleReplay.play = wrapper_play
 
 class Notifications(object):
 
@@ -199,3 +233,16 @@ class Notifications(object):
 				"notify": self.isNotify(),
 				"auxData": ["GameGreeting"]
 			}
+
+class VoiceChat(object):
+
+	@classmethod
+	def set_player_speaking(cls, player_id, speaking):
+		VOIP.getVOIPManager().onPlayerSpeaking(player_id, speaking)
+
+	@classmethod
+	def patch_is_participant_speaking(cls, patch_function):
+		original_method = VOIPManager.isParticipantTalking
+		def wrapper_isParticipantTalking(self, dbid):
+			return patch_function(original_method, dbid)
+		VOIPManager.isParticipantTalking = wrapper_isParticipantTalking

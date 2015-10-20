@@ -31,6 +31,9 @@ def _inject_dependencies(target):
 			setattr(target, attr, _provided_dependencies[attr])
 	return target
 
+def usecase_load_settings(setting_vars):
+	_execute(interactors.LoadSettings(), setting_vars)
+
 def usecase_insert_chat_user(client_id, nick, game_nick, unique_id, channel_id, speaking):
 	_execute(interactors.InsertChatUser(), client_id, nick, game_nick, unique_id, channel_id, speaking)
 
@@ -39,9 +42,6 @@ def usecase_remove_chat_user(client_id):
 
 def usecase_change_chat_channel(channel_id):
 	_execute(interactors.ChangeChatChannel(), channel_id)
-
-def usecase_is_voice_chat_speak_allowed():
-	return _execute(interactors.CheckIsVoiceChatAllowed())
 
 def usecase_clear_speak_statuses():
 	_execute(interactors.ClearSpeakStatuses())
@@ -75,3 +75,6 @@ def usecase_enable_positional_data_to_chat_client(enabled):
 
 def usecase_provide_positional_data_to_chat_client():
 	_execute(interactors.ProvidePositionalDataToChatClient())
+
+def usecase_battle_replay_start():
+	_execute(interactors.BattleReplayStart())

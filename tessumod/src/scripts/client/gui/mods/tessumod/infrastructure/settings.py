@@ -158,27 +158,14 @@ action: attackSender
 repeat_interval: 3.5
 """
 
-_g_settings = None
-
-def settings(ini_file_path=None):
-	global _g_settings
-	if _g_settings is None and ini_file_path is not None:
-		_g_settings = Settings(ini_file_path)
-	if _g_settings is None:
-		raise RuntimeError("Settings not initialized")
-	return _g_settings
-
 class Settings(object):
 
 	def __init__(self, ini_path):
 		self.on_reloaded = gameapi.Event()
-
 		self._load_time = 0
 		self._parser = None
 		self._ini_path = ini_path
-
 		self._write_default_file()
-		self._load_parser()
 
 	def _write_default_file(self):
 		if not os.path.isfile(self._ini_path):

@@ -22,12 +22,10 @@ try:
 	from tessumod.infrastructure.utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
 	from tessumod.infrastructure.ts3 import TS3Client
 	from tessumod.infrastructure import utils, mytsplugin, gameapi
-	from tessumod.infrastructure.settings import settings
+	from tessumod.infrastructure.settings import Settings
 	from tessumod.infrastructure.user_cache import UserCache
 	from tessumod.infrastructure.keyvaluestorage import KeyValueStorage
 	from tessumod import usecases, adapters, repositories
-	import VOIP
-	import BattleReplay
 	from messenger.proto.events import g_messengerEvents
 	from PlayerEvents import g_playerEvents
 	import os
@@ -41,8 +39,7 @@ except:
 def init():
 	'''Mod's main entry point. Called by WoT's built-in mod loader.'''
 	try:
-		global g_ts, g_talk_states, g_minimap_ctrl, g_user_cache, g_keyvaluestorage
-		global settings_adapter
+		global g_user_cache
 
 		# make sure that ini-folder exists
 		try:
@@ -58,23 +55,22 @@ def init():
 			os.rename(old_settings_ini_path, settings_ini_path)
 
 		# do all intializations here
-		settings(settings_ini_path).on_reloaded += load_settings
 		g_user_cache = UserCache(cache_ini_path)
-
 		g_talk_states = {}
 		g_minimap_ctrl = utils.MinimapMarkersController()
 		g_ts = TS3Client()
-
 		g_keyvaluestorage = KeyValueStorage(utils.get_states_dir_path())
+		settings = Settings(settings_ini_path)
 
-		settings_adapter = adapters.SettingsAdapter(settings())
-		minimap_adapter = adapters.MinimapAdapter(g_minimap_ctrl, settings_adapter)
-		chat_indicator_adapter = adapters.ChatIndicatorAdapter(VOIP.getVOIPManager())
+		settings_adapter = adapters.SettingsAdapter(settings, usecases)
+		minimap_adapter = adapters.MinimapAdapter(g_minimap_ctrl)
+		chat_indicator_adapter = adapters.ChatIndicatorAdapter()
 		user_cache_adapter = adapters.UserCacheAdapter(g_user_cache, usecases)
 		chat_client_adapter = adapters.TeamSpeakChatClientAdapter(g_ts, usecases)
 		notifications_adapter = adapters.NotificationsAdapter(usecases)
 		game_adapter = adapters.GameAdapter(g_playerEvents, usecases)
 
+		settings_repository = repositories.KeyValueRepository({})
 		chat_user_repository = repositories.ChatUserRepository()
 		vehicle_repository = repositories.VehicleRepository()
 		key_value_repository = repositories.KeyValueRepository(g_keyvaluestorage)
@@ -86,68 +82,28 @@ def init():
 		usecases.provide_dependency("chat_client_api",        chat_client_adapter)
 		usecases.provide_dependency("notifications_api",      notifications_adapter)
 		usecases.provide_dependency("game_api",               game_adapter)
+		usecases.provide_dependency("settings_repository",    settings_repository)
 		usecases.provide_dependency("chat_user_repository",   chat_user_repository)
 		usecases.provide_dependency("vehicle_repository",     vehicle_repository)
 		usecases.provide_dependency("key_value_repository",   key_value_repository)
 		usecases.provide_dependency("speak_state_repository", g_talk_states)
 
+		settings.sync()
 		gameapi.Notifications.init()
 		g_user_cache.init()
-		load_settings()
 
 		g_ts.connect()
-		gameapi.EventLoop.call_in_loop(settings_adapter.get_client_query_interval(), g_ts.check_events)
 
 		# don't show system center notifications in battle
 		g_playerEvents.onAvatarBecomePlayer    += partial(gameapi.Notifications.set_enabled, False)
 		g_playerEvents.onAvatarBecomeNonPlayer += partial(gameapi.Notifications.set_enabled, True)
 
-		# if nothing broke so far then it should be safe to patch the needed
-		# functions (modified functions have dependencies to g_* global variables)
-		VOIP.VOIPManager.isParticipantTalking = VOIPManager_isParticipantTalking(VOIP.VOIPManager.isParticipantTalking)
-		BattleReplay.BattleReplay.play = BattleReplay_play(BattleReplay.BattleReplay.play)
-
 		g_messengerEvents.users.onUsersListReceived += on_users_list_received
-
-		gameapi.EventLoop.call_in_loop(settings_adapter.get_ini_check_interval, sync_configs)
-
-		usecases.speak_states = g_talk_states
 
 		print "TessuMod version {0} ({1})".format(utils.get_mod_version(), utils.get_support_url())
 
 	except:
 		LOG_CURRENT_EXCEPTION()
-
-def load_settings():
-	LOG_NOTE("Settings loaded from ini file")
-	utils.CURRENT_LOG_LEVEL = settings_adapter.get_log_level()
-	g_ts.HOST = settings_adapter.get_client_query_host()
-	g_ts.PORT = settings_adapter.get_client_query_port()
-
-def sync_configs():
-	g_user_cache.sync()
-	settings().sync()
-
-def VOIPManager_isParticipantTalking(orig_method):
-	def wrapper(self, dbid):
-		'''Called by other game modules (but not by minimap) to determine
-		current speaking status.
-		'''
-		if dbid in g_talk_states:
-			return g_talk_states[dbid] and usecases.is_voice_chat_speak_allowed(dbid)
-		return orig_method(self, dbid)
-	return wrapper
-
-def BattleReplay_play(orig_method):
-	def wrapper(*args, **kwargs):
-		'''Called when replay is starting.
-		Prevents user cache from getting polluted by incorrect pairings; If user
-		plays someone else's replay and user's TS ID would get matched with the
-		replay's player name.
-		'''
-		g_user_cache.is_write_enabled = settings_adapter.should_update_cache_in_replays()
-		return orig_method(*args, **kwargs)
-	return wrapper
 
 def on_users_list_received(tags):
 	'''This function populates user cache with friends and clan members from
