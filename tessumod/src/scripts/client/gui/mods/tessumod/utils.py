@@ -345,10 +345,11 @@ class MinimapMarkerAnimation(object):
 	def _updateMinimap(self):
 		try:
 			from gui.app_loader import g_appLoader
-			app = g_appLoader.getApp()
-			app.minimap.showActionMarker(self._vehicle_id, self._action)
+			app = g_appLoader.getDefBattleApp()
+			if app:
+				app.minimap.showActionMarker(self._vehicle_id, self._action)
 		except AttributeError:
-			pass
+			LOG_CURRENT_EXCEPTION()
 
 
 class RepeatTimer(object):

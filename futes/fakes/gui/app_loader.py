@@ -1,7 +1,7 @@
 
 class AppLoader(object):
 
-	def getApp(self):
+	def getDefBattleApp(self):
 		return g_battleWindow
 
 class BattleWindow(object):

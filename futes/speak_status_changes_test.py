@@ -17,7 +17,7 @@ class SpeakStatusChanges(TestCaseBase):
 		import VOIP
 		from gui.app_loader import g_appLoader
 		self.VOIP_onPlayerSpeaking = VOIP.getVOIPManager().onPlayerSpeaking = mock.Mock()
-		self.Minimap_showActionMarker = g_appLoader.getApp().minimap.showActionMarker = mock.Mock()
+		self.Minimap_showActionMarker = g_appLoader.getDefBattleApp().minimap.showActionMarker = mock.Mock()
 
 	def __has_speaking_state_changed(self, name, speaking):
 		return mock_was_called_with(self.VOIP_onPlayerSpeaking, self.get_player_id(name), speaking)
