@@ -39,8 +39,6 @@ except:
 def init():
 	'''Mod's main entry point. Called by WoT's built-in mod loader.'''
 	try:
-		global g_user_cache
-
 		# make sure that ini-folder exists
 		try:
 			os.makedirs(utils.get_ini_dir_path())
@@ -50,25 +48,24 @@ def init():
 		cache_ini_path        = os.path.join(utils.get_ini_dir_path(), "tessu_mod_cache.ini")
 
 		# do all intializations here
-		g_user_cache = UserCache(cache_ini_path)
-		g_talk_states = {}
-		g_minimap_ctrl = utils.MinimapMarkersController()
-		g_ts = TS3Client()
-		g_keyvaluestorage = KeyValueStorage(utils.get_states_dir_path())
+		usercache = UserCache(cache_ini_path)
+		minimap_ctrl = utils.MinimapMarkersController()
+		ts_client = TS3Client()
+		storage = KeyValueStorage(utils.get_states_dir_path())
 		settings = Settings(settings_ini_path)
 
 		settings_adapter = adapters.SettingsAdapter(settings, usecases)
-		minimap_adapter = adapters.MinimapAdapter(g_minimap_ctrl)
+		minimap_adapter = adapters.MinimapAdapter(minimap_ctrl)
 		chat_indicator_adapter = adapters.ChatIndicatorAdapter()
-		user_cache_adapter = adapters.UserCacheAdapter(g_user_cache, usecases)
-		chat_client_adapter = adapters.TeamSpeakChatClientAdapter(g_ts, usecases)
+		user_cache_adapter = adapters.UserCacheAdapter(usercache, usecases)
+		chat_client_adapter = adapters.TeamSpeakChatClientAdapter(ts_client, usecases)
 		notifications_adapter = adapters.NotificationsAdapter(usecases)
 		game_adapter = adapters.GameAdapter(g_playerEvents, g_messengerEvents, usecases)
 
 		settings_repository = repositories.KeyValueRepository({})
 		chat_user_repository = repositories.ChatUserRepository()
 		vehicle_repository = repositories.VehicleRepository()
-		key_value_repository = repositories.KeyValueRepository(g_keyvaluestorage)
+		key_value_repository = repositories.KeyValueRepository(storage)
 
 		usecases.provide_dependency("settings_api",           settings_adapter)
 		usecases.provide_dependency("minimap_api",            minimap_adapter)
@@ -81,13 +78,13 @@ def init():
 		usecases.provide_dependency("chat_user_repository",   chat_user_repository)
 		usecases.provide_dependency("vehicle_repository",     vehicle_repository)
 		usecases.provide_dependency("key_value_repository",   key_value_repository)
-		usecases.provide_dependency("speak_state_repository", g_talk_states)
+		usecases.provide_dependency("speak_state_repository", {})
 
 		settings.sync()
 		gameapi.Notifications.init()
-		g_user_cache.init()
+		usercache.init()
 
-		g_ts.connect()
+		ts_client.connect()
 
 		# don't show system center notifications in battle
 		g_playerEvents.onAvatarBecomePlayer    += partial(gameapi.Notifications.set_enabled, False)
