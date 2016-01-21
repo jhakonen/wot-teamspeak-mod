@@ -63,7 +63,7 @@ def init():
 		user_cache_adapter = adapters.UserCacheAdapter(g_user_cache, usecases)
 		chat_client_adapter = adapters.TeamSpeakChatClientAdapter(g_ts, usecases)
 		notifications_adapter = adapters.NotificationsAdapter(usecases)
-		game_adapter = adapters.GameAdapter(g_playerEvents, usecases)
+		game_adapter = adapters.GameAdapter(g_playerEvents, g_messengerEvents, usecases)
 
 		settings_repository = repositories.KeyValueRepository({})
 		chat_user_repository = repositories.ChatUserRepository()
@@ -93,18 +93,7 @@ def init():
 		g_playerEvents.onAvatarBecomePlayer    += partial(gameapi.Notifications.set_enabled, False)
 		g_playerEvents.onAvatarBecomeNonPlayer += partial(gameapi.Notifications.set_enabled, True)
 
-		g_messengerEvents.users.onUsersListReceived += on_users_list_received
-
 		print "TessuMod version {0} ({1})".format(utils.get_mod_version(), utils.get_support_url())
 
 	except:
 		LOG_CURRENT_EXCEPTION()
-
-def on_users_list_received(tags):
-	'''This function populates user cache with friends and clan members from
-	user storage when user list is received at start when player logs in to
-	the game.
-	Users storage should be available and populated by now.
-	'''
-	for player in utils.get_players(clanmembers=True, friends=True):
-		g_user_cache.add_player(player.name, player.id)

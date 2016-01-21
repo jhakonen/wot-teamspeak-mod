@@ -78,3 +78,6 @@ def usecase_provide_positional_data_to_chat_client():
 
 def usecase_battle_replay_start():
 	_execute(interactors.BattleReplayStart())
+
+def usecase_populate_user_cache_with_players():
+	_execute(interactors.PopulateUserCacheWithPlayers())

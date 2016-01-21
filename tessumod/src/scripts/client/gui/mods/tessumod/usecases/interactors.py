@@ -342,3 +342,11 @@ class BattleReplayStart(object):
 
 	def execute(self):
 		self.user_cache_api.set_write_enabled(self.settings_repository.get(SettingConstants.UPDATE_CACHE_IN_REPLAYS))
+
+class PopulateUserCacheWithPlayers(object):
+
+	user_cache_api = None
+
+	def execute(self):
+		for player in utils.get_players(clanmembers=True, friends=True):
+			self.user_cache_api.add_player(id=player["id"], name=player["name"])

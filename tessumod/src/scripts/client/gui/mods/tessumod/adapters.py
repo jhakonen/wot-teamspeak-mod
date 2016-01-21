@@ -169,12 +169,13 @@ class GameAdapter(object):
 
 	POSITIONAL_DATA_PROVIDE_TIMEOUT = 0.1
 
-	def __init__(self, player_events, usecases):
+	def __init__(self, player_events, messenger_events, usecases):
 		self.__usecases = usecases
 		player_events.onAvatarBecomePlayer    += self.__on_avatar_become_player
 		player_events.onAccountBecomePlayer   += self.__on_account_become_player
 		player_events.onAvatarReady           += self.__on_avatar_ready
 		player_events.onAvatarBecomeNonPlayer += self.__on_avatar_become_non_player
+		messenger_events.users.onUsersListReceived += self.__on_users_list_received
 		self.__positional_data_provide_timer = RepeatTimer(self.POSITIONAL_DATA_PROVIDE_TIMEOUT)
 		self.__positional_data_provide_timer.on_timeout += self.__on_provide_positional_data
 		gameapi.Battle.patch_battle_replay_play(self.__on_battle_replay_play)
@@ -198,6 +199,9 @@ class GameAdapter(object):
 	def __on_avatar_become_non_player(self):
 		self.__usecases.usecase_enable_positional_data_to_chat_client(False)
 		self.__positional_data_provide_timer.stop()
+
+	def __on_users_list_received(self, tags):
+		self.__usecases.usecase_populate_user_cache_with_players()
 
 	def __on_provide_positional_data(self):
 		self.__usecases.usecase_provide_positional_data_to_chat_client()
