@@ -86,10 +86,6 @@ def init():
 
 		ts_client.connect()
 
-		# don't show system center notifications in battle
-		g_playerEvents.onAvatarBecomePlayer    += partial(gameapi.Notifications.set_enabled, False)
-		g_playerEvents.onAvatarBecomeNonPlayer += partial(gameapi.Notifications.set_enabled, True)
-
 		print "TessuMod version {0} ({1})".format(utils.get_mod_version(), utils.get_support_url())
 
 	except:

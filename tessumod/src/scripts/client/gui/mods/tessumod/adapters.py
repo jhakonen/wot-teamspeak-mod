@@ -188,6 +188,7 @@ class GameAdapter(object):
 
 	def __on_avatar_become_player(self):
 		self.__usecases.usecase_publish_game_nick_to_chat_server()
+		gameapi.Notifications.set_enabled(False)
 
 	def __on_account_become_player(self):
 		self.__usecases.usecase_publish_game_nick_to_chat_server()
@@ -199,6 +200,7 @@ class GameAdapter(object):
 	def __on_avatar_become_non_player(self):
 		self.__usecases.usecase_enable_positional_data_to_chat_client(False)
 		self.__positional_data_provide_timer.stop()
+		gameapi.Notifications.set_enabled(True)
 
 	def __on_users_list_received(self, tags):
 		self.__usecases.usecase_populate_user_cache_with_players()
