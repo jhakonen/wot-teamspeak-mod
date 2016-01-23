@@ -317,15 +317,15 @@ class EnablePositionalDataToChatClient(object):
 
 class ProvidePositionalDataToChatClient(object):
 
-	game_api = None
+	battle_api = None
 	chat_client_api = None
 	user_cache_api = None
 	chat_user_repository = None
 	vehicle_repository = None
 
 	def execute(self):
-		camera_position = self.game_api.get_camera_position()
-		camera_direction = self.game_api.get_camera_direction()
+		camera_position = self.battle_api.get_camera_position()
+		camera_direction = self.battle_api.get_camera_direction()
 		positions = {}
 		for user in self.chat_user_repository:
 			for player_id in self.user_cache_api.get_paired_player_ids(user.unique_id):

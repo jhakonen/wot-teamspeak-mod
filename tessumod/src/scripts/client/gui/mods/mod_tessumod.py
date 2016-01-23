@@ -18,7 +18,6 @@
 AVAILABLE_PLUGIN_VERSION = 1
 
 try:
-	import game
 	from tessumod.infrastructure.utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
 	from tessumod.infrastructure.ts3 import TS3Client
 	from tessumod.infrastructure import utils, mytsplugin, gameapi
@@ -26,8 +25,6 @@ try:
 	from tessumod.infrastructure.user_cache import UserCache
 	from tessumod.infrastructure.keyvaluestorage import KeyValueStorage
 	from tessumod import usecases, adapters, repositories
-	from messenger.proto.events import g_messengerEvents
-	from PlayerEvents import g_playerEvents
 	import os
 	import subprocess
 	import threading
@@ -44,27 +41,27 @@ def init():
 			os.makedirs(utils.get_ini_dir_path())
 		except os.error:
 			pass
-		settings_ini_path     = os.path.join(utils.get_ini_dir_path(), "tessu_mod.ini")
-		cache_ini_path        = os.path.join(utils.get_ini_dir_path(), "tessu_mod_cache.ini")
+		settings_ini_path = os.path.join(utils.get_ini_dir_path(), "tessu_mod.ini")
+		cache_ini_path    = os.path.join(utils.get_ini_dir_path(), "tessu_mod_cache.ini")
 
 		# do all intializations here
-		usercache = UserCache(cache_ini_path)
+		usercache    = UserCache(cache_ini_path)
 		minimap_ctrl = utils.MinimapMarkersController()
-		ts_client = TS3Client()
-		storage = KeyValueStorage(utils.get_states_dir_path())
-		settings = Settings(settings_ini_path)
+		ts_client    = TS3Client()
+		storage      = KeyValueStorage(utils.get_states_dir_path())
+		settings     = Settings(settings_ini_path)
 
-		settings_adapter = adapters.SettingsAdapter(settings, usecases)
-		minimap_adapter = adapters.MinimapAdapter(minimap_ctrl)
-		chat_indicator_adapter = adapters.ChatIndicatorAdapter()
-		user_cache_adapter = adapters.UserCacheAdapter(usercache, usecases)
-		chat_client_adapter = adapters.TeamSpeakChatClientAdapter(ts_client, usecases)
-		notifications_adapter = adapters.NotificationsAdapter(usecases)
-		game_adapter = adapters.GameAdapter(g_playerEvents, g_messengerEvents, usecases)
+		settings_adapter       = adapters.settings.SettingsAdapter(gameapi.EventLoop, settings, usecases)
+		minimap_adapter        = adapters.wotgame.MinimapAdapter(minimap_ctrl)
+		chat_indicator_adapter = adapters.wotgame.ChatIndicatorAdapter()
+		notifications_adapter  = adapters.wotgame.NotificationsAdapter(usecases)
+		battle_adapter         = adapters.wotgame.BattleAdapter(usecases)
+		user_cache_adapter     = adapters.usercache.UserCacheAdapter(usercache, gameapi.EventLoop, usecases)
+		chat_client_adapter    = adapters.teamspeak.TeamSpeakChatClientAdapter(gameapi.EventLoop, ts_client, usecases)
 
-		settings_repository = repositories.KeyValueRepository({})
+		settings_repository  = repositories.KeyValueRepository({})
 		chat_user_repository = repositories.ChatUserRepository()
-		vehicle_repository = repositories.VehicleRepository()
+		vehicle_repository   = repositories.VehicleRepository()
 		key_value_repository = repositories.KeyValueRepository(storage)
 
 		usecases.provide_dependency("settings_api",           settings_adapter)
@@ -73,7 +70,7 @@ def init():
 		usecases.provide_dependency("user_cache_api",         user_cache_adapter)
 		usecases.provide_dependency("chat_client_api",        chat_client_adapter)
 		usecases.provide_dependency("notifications_api",      notifications_adapter)
-		usecases.provide_dependency("game_api",               game_adapter)
+		usecases.provide_dependency("battle_api",               battle_adapter)
 		usecases.provide_dependency("settings_repository",    settings_repository)
 		usecases.provide_dependency("chat_user_repository",   chat_user_repository)
 		usecases.provide_dependency("vehicle_repository",     vehicle_repository)
