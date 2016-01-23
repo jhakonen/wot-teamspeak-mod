@@ -18,7 +18,6 @@
 import os
 import xml.etree.ElementTree as ET
 
-from ..infrastructure.utils import RepeatTimer
 from ..infrastructure import utils, gameapi
 
 from messenger.proto.events import g_messengerEvents
@@ -35,8 +34,7 @@ class BattleAdapter(object):
 		g_playerEvents.onAvatarReady           += self.__on_avatar_ready
 		g_playerEvents.onAvatarBecomeNonPlayer += self.__on_avatar_become_non_player
 		g_messengerEvents.users.onUsersListReceived += self.__on_users_list_received
-		self.__positional_data_provide_timer = RepeatTimer(self.POSITIONAL_DATA_PROVIDE_TIMEOUT)
-		self.__positional_data_provide_timer.on_timeout += self.__on_provide_positional_data
+		self.__positional_data_provide_repeater = gameapi.EventLoop.create_callback_repeater(self.__on_provide_positional_data)
 		gameapi.Battle.patch_battle_replay_play(self.__on_battle_replay_play)
 
 	def get_camera_position(self):
@@ -54,11 +52,11 @@ class BattleAdapter(object):
 
 	def __on_avatar_ready(self):
 		self.__usecases.usecase_enable_positional_data_to_chat_client(True)
-		self.__positional_data_provide_timer.start()
+		self.__positional_data_provide_repeater.start(self.POSITIONAL_DATA_PROVIDE_TIMEOUT)
 
 	def __on_avatar_become_non_player(self):
 		self.__usecases.usecase_enable_positional_data_to_chat_client(False)
-		self.__positional_data_provide_timer.stop()
+		self.__positional_data_provide_repeater.stop()
 		gameapi.Notifications.set_enabled(True)
 
 	def __on_users_list_received(self, tags):
