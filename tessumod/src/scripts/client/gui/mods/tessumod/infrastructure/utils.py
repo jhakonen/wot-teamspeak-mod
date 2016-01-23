@@ -17,10 +17,7 @@
 
 import BigWorld
 import debug_utils
-from messenger.storage import storage_getter
-from messenger.proto.shared_find_criteria import FriendsFindCriteria
 import ResMgr
-import Event
 import os
 import functools
 import inspect
@@ -48,74 +45,6 @@ def benchmark(func):
 			LOG_DEBUG("Function function {0}() END: {1} s".format(func.__name__, time.time() - start_t))
 	functools.update_wrapper(wrapper, func)
 	return wrapper
-
-def find_vehicle_id(matcher):
-	'''Finds 'vehicle_id' using given 'matcher' function.'''
-	try:
-		vehicles = BigWorld.player().arena.vehicles
-		for id in vehicles:
-			vehicle = vehicles[id]
-			if matcher(vehicle):
-				return id
-	except AttributeError:
-		pass
-	return None
-
-def get_vehicle(vehicle_id):
-	'''Returns vehicle info with matching 'vehicle_id' if available.
-	Returns None if not.
-	'''
-	if vehicle_id is None:
-		return None
-	try:
-		return BigWorld.player().arena.vehicles[vehicle_id]
-	except AttributeError:
-		pass
-
-def get_my_name():
-	'''Returns current player's nickname. None if not available.'''
-	try:
-		return BigWorld.player().name
-	except AttributeError:
-		pass
-
-def get_my_dbid():
-	'''Returns current player's account dbid. None if not available.'''
-	try:
-		return BigWorld.player().databaseID
-	except AttributeError:
-		try:
-			return get_vehicle(BigWorld.player().playerVehicleID)["accountDBID"]
-		except AttributeError:
-			pass
-
-def find_prebattle_account_info(matcher):
-	'''Finds player information from prebattle rosters (e.g. in practise room
-	when you assign players to teams). Given 'matcher' function is used pick
-	desired info. Returns None if nothing found.
-	'''
-	try:
-		rosters = BigWorld.player().prebattle.rosters
-		for roster in rosters:
-			for id in rosters[roster]:
-				info = rosters[roster][id]
-				if matcher(info):
-					return info
-	except AttributeError:
-		pass
-
-def get_player_by_dbid(dbid):
-	'''Extracts player information with matching account 'dbid' from
-	various locations.
-	''' 
-	vehicle_id = find_vehicle_id(lambda v: v["accountDBID"] == dbid)
-	if vehicle_id is not None:
-		vehicle = get_vehicle(vehicle_id)
-		return dict(id=dbid, name=vehicle["name"], vehicle_id=vehicle_id, is_alive=vehicle["isAlive"])
-	info = find_prebattle_account_info(lambda i: i["dbID"] == dbid)
-	if info:
-		return dict(id=dbid, name=info["name"])
-	return None
 
 def get_resource_paths():
 	res = ResMgr.openSection('../paths.xml')
@@ -213,43 +142,6 @@ def ts_user_to_player(user_nick, user_game_nick, extract_patterns=[], mappings={
 			LOG_DEBUG("Matched TS user to player by comparing names", user_nick, player)
 			return player
 	LOG_DEBUG("Failed to match TS user", user_nick)
-
-def get_players(in_battle=False, in_prebattle=False, clanmembers=False, friends=False):
-	if in_battle:
-		try:
-			vehicles = BigWorld.player().arena.vehicles
-			for id in vehicles:
-				vehicle = vehicles[id]
-				LOG_DEBUG("Found player from battle", vehicle["name"])
-				yield dict(name=vehicle["name"], id=vehicle["accountDBID"])
-		except AttributeError:
-			pass
-	if in_prebattle:
-		try:
-			# get players from Team Battle room
-			for unit in BigWorld.player().unitMgr.units.itervalues():
-				for id, player in unit.getPlayers().iteritems():
-					LOG_DEBUG("Found player from unit", player["nickName"])
-					yield dict(name=player["nickName"], id=id)
-		except AttributeError:
-			pass
-		try:
-			# get players from Training Room and the like
-			for roster in BigWorld.player().prebattle.rosters.itervalues():
-				for info in roster.itervalues():
-					LOG_DEBUG("Found player from rosters", info["name"])
-					yield dict(name=info["name"], id=info["dbID"])
-		except AttributeError:
-			pass
-	users_storage = storage_getter('users')()
-	if clanmembers:
-		for member in users_storage.getClanMembersIterator(False):
-			LOG_DEBUG("Found clan member", member.getName())
-			yield dict(name=member.getName(), id=member.getID())
-	if friends:
-		for friend in users_storage.getList(FriendsFindCriteria()):
-			LOG_DEBUG("Found friend", friend.getName())
-			yield dict(name=friend.getName(), id=friend.getID())
 
 class MinimapMarkersController(object):
 	'''MinimapMarkersController class repeatably starts given marker 'action' every

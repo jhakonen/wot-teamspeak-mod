@@ -18,6 +18,8 @@
 import BigWorld
 from gui import SystemMessages
 from gui.shared.notifications import NotificationGuiSettings
+from messenger.proto.shared_find_criteria import FriendsFindCriteria
+from messenger.storage import storage_getter
 from notification import NotificationMVC
 from notification.settings import NOTIFICATION_TYPE
 from notification.decorators import _NotificationDecorator
@@ -29,7 +31,7 @@ import BattleReplay
 
 from functools import partial
 
-from utils import patch_instance_method
+from utils import patch_instance_method, LOG_DEBUG
 
 Event = _Event.Event
 
@@ -102,6 +104,120 @@ class Battle(object):
 		def wrapper_play(self, fileName=None):
 			return patch_function(original_method, fileName)
 		BattleReplay.BattleReplay.play = wrapper_play
+
+	@classmethod
+	def find_vehicle_id(cls, matcher):
+		'''Finds 'vehicle_id' using given 'matcher' function.'''
+		try:
+			vehicles = BigWorld.player().arena.vehicles
+			for id in vehicles:
+				vehicle = vehicles[id]
+				if matcher(vehicle):
+					return id
+		except AttributeError:
+			pass
+		return None
+
+	@classmethod
+	def get_vehicle(cls, vehicle_id):
+		'''Returns vehicle info with matching 'vehicle_id' if available.
+		Returns None if not.
+		'''
+		if vehicle_id is None:
+			return None
+		try:
+			return BigWorld.player().arena.vehicles[vehicle_id]
+		except AttributeError:
+			pass
+
+class Player(object):
+
+	@classmethod
+	def get_player_by_dbid(cls, dbid):
+		'''Extracts player information with matching account 'dbid' from
+		various locations.
+		''' 
+		vehicle_id = Battle.find_vehicle_id(lambda v: v["accountDBID"] == dbid)
+		if vehicle_id is not None:
+			vehicle = Battle.get_vehicle(vehicle_id)
+			return dict(id=dbid, name=vehicle["name"], vehicle_id=vehicle_id, is_alive=vehicle["isAlive"])
+		info = cls.find_prebattle_account_info(lambda i: i["dbID"] == dbid)
+		if info:
+			return dict(id=dbid, name=info["name"])
+		return None
+
+	@classmethod
+	def get_my_name(cls):
+		'''Returns current player's nickname. None if not available.'''
+		try:
+			return BigWorld.player().name
+		except AttributeError:
+			pass
+
+	@classmethod
+	def get_my_dbid(cls):
+		'''Returns current player's account dbid. None if not available.'''
+		try:
+			return BigWorld.player().databaseID
+		except AttributeError:
+			try:
+				return Battle.get_vehicle(BigWorld.player().playerVehicleID)["accountDBID"]
+			except AttributeError:
+				pass
+
+	@classmethod
+	def find_prebattle_account_info(cls, matcher):
+		'''Finds player information from prebattle rosters (e.g. in practise room
+		when you assign players to teams). Given 'matcher' function is used pick
+		desired info. Returns None if nothing found.
+		'''
+		try:
+			rosters = BigWorld.player().prebattle.rosters
+			for roster in rosters:
+				for id in rosters[roster]:
+					info = rosters[roster][id]
+					if matcher(info):
+						return info
+		except AttributeError:
+			pass
+
+	@classmethod
+	def get_players(cls, in_battle=False, in_prebattle=False, clanmembers=False, friends=False):
+		if in_battle:
+			try:
+				vehicles = BigWorld.player().arena.vehicles
+				for id in vehicles:
+					vehicle = vehicles[id]
+					LOG_DEBUG("Found player from battle", vehicle["name"])
+					yield dict(name=vehicle["name"], id=vehicle["accountDBID"])
+			except AttributeError:
+				pass
+		if in_prebattle:
+			try:
+				# get players from Team Battle room
+				for unit in BigWorld.player().unitMgr.units.itervalues():
+					for id, player in unit.getPlayers().iteritems():
+						LOG_DEBUG("Found player from unit", player["nickName"])
+						yield dict(name=player["nickName"], id=id)
+			except AttributeError:
+				pass
+			try:
+				# get players from Training Room and the like
+				for roster in BigWorld.player().prebattle.rosters.itervalues():
+					for info in roster.itervalues():
+						LOG_DEBUG("Found player from rosters", info["name"])
+						yield dict(name=info["name"], id=info["dbID"])
+			except AttributeError:
+				pass
+		users_storage = storage_getter('users')()
+		if clanmembers:
+			for member in users_storage.getClanMembersIterator(False):
+				LOG_DEBUG("Found clan member", member.getName())
+				yield dict(name=member.getName(), id=member.getID())
+		if friends:
+			for friend in users_storage.getList(FriendsFindCriteria()):
+				LOG_DEBUG("Found friend", friend.getName())
+				yield dict(name=friend.getName(), id=friend.getID())
 
 class Notifications(object):
 

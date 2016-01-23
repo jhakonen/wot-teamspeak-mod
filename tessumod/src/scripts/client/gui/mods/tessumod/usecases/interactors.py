@@ -69,6 +69,7 @@ class InsertChatUser(object):
 	chat_client_api = None
 	minimap_api = None
 	chat_indicator_api = None
+	player_api = None
 	settings_repository = None
 	chat_user_repository = None
 	speak_state_repository = None
@@ -103,7 +104,7 @@ class InsertChatUser(object):
 			extract_patterns = self.settings_repository.get(SettingConstants.NICK_EXTRACT_PATTERNS),
 			mappings = self.settings_repository.get(SettingConstants.NICK_MAPPINGS),
 			# TODO: should we use clanmembers=True, friends=True here too??
-			players = utils.get_players(in_battle=True, in_prebattle=True)
+			players = self.player_api.get_players(in_battle=True, in_prebattle=True)
 		)
 		if player:
 			self.user_cache_api.add_player(id=player["id"], name=player["name"])
@@ -114,7 +115,7 @@ class InsertChatUser(object):
 		if not user:
 			return
 		for player_id in self.user_cache_api.get_paired_player_ids(user.unique_id):
-			player = utils.get_player_by_dbid(player_id)
+			player = self.player_api.get_player_by_dbid(player_id)
 			self.speak_state_repository[player["id"]] = user.speaking
 			if user.speaking:
 				# set speaking state immediately
@@ -150,14 +151,14 @@ class InsertChatUser(object):
 	def __is_minimap_speak_allowed(self, player_id):
 		if not self.settings_repository.get(SettingConstants.MINIMAP_NOTIFY_ENABLED):
 			return False
-		if not self.settings_repository.get(SettingConstants.MINIMAP_NOTIFY_SELF_ENABLED) and utils.get_my_dbid() == player_id:
+		if not self.settings_repository.get(SettingConstants.MINIMAP_NOTIFY_SELF_ENABLED) and self.player_api.get_my_dbid() == player_id:
 			return False
 		return True
 
 	def __is_voice_chat_speak_allowed(self, player_id):
 		if not self.settings_repository.get(SettingConstants.VOICE_CHAT_NOTIFY_ENABLED):
 			return False
-		if not self.settings_repository.get(SettingConstants.VOICE_CHAT_NOTIFY_SELF_ENABLED) and utils.get_my_dbid() == player_id:
+		if not self.settings_repository.get(SettingConstants.VOICE_CHAT_NOTIFY_SELF_ENABLED) and self.player_api.get_my_dbid() == player_id:
 			return False
 		return True
 
@@ -166,6 +167,7 @@ class RemoveChatUser(object):
 	chat_indicator_api = None
 	minimap_api = None
 	user_cache_api = None
+	player_api = None
 	chat_user_repository = None
 	speak_state_repository = None
 
@@ -177,7 +179,7 @@ class RemoveChatUser(object):
 
 	def __stop_user_feedback(self, user):
 		for player_id in self.user_cache_api.get_paired_player_ids(user.unique_id):
-			player = utils.get_player_by_dbid(player_id)
+			player = self.player_api.get_player_by_dbid(player_id)
 			self.speak_state_repository[player["id"]] = False
 			self.__update_player_speak_status(player)
 
@@ -295,9 +297,10 @@ class NotifyConnectedToChatServer(object):
 class PublishGameNickToChatServer(object):
 
 	chat_client_api = None
+	player_api = None
 
 	def execute(self):
-		self.chat_client_api.set_game_nickname(utils.get_my_name())
+		self.chat_client_api.set_game_nickname(self.player_api.get_my_name())
 
 class ShowCacheErrorMessage(object):
 
@@ -346,7 +349,8 @@ class BattleReplayStart(object):
 class PopulateUserCacheWithPlayers(object):
 
 	user_cache_api = None
+	player_api = None
 
 	def execute(self):
-		for player in utils.get_players(clanmembers=True, friends=True):
+		for player in self.player_api.get_players(clanmembers=True, friends=True):
 			self.user_cache_api.add_player(id=player["id"], name=player["name"])

@@ -69,6 +69,20 @@ class BattleAdapter(object):
 		self.__usecases.usecase_battle_replay_start()
 		return original_method(*args, **kwargs)
 
+class PlayerAdapter(object):
+
+	def get_player_by_dbid(self, dbid):
+		return gameapi.Player.get_player_by_dbid(dbid)
+
+	def get_my_name(self):
+		return gameapi.Player.get_my_name()
+
+	def get_my_dbid(self):
+		return gameapi.Player.get_my_dbid()
+
+	def get_players(self, in_battle=False, in_prebattle=False, clanmembers=False, friends=False):
+		return gameapi.Player.get_players(in_battle, in_prebattle, clanmembers, friends)
+
 class ChatIndicatorAdapter(object):
 
 	def __init__(self):
