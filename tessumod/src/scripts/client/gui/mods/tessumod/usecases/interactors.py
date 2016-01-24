@@ -116,13 +116,14 @@ class InsertChatUser(object):
 			return
 		for player_id in self.user_cache_api.get_paired_player_ids(user.unique_id):
 			player = self.player_api.get_player_by_dbid(player_id)
-			self.speak_state_repository[player["id"]] = user.speaking
-			if user.speaking:
-				# set speaking state immediately
-				self.__update_player_speak_status(player)
-			else:
-				# keep speaking state for a little longer
-				gameapi.EventLoop.callback(self.settings_repository.get(SettingConstants.SPEAK_STOP_DELAY), self.__update_player_speak_status, player)
+			if player:
+				self.speak_state_repository[player["id"]] = user.speaking
+				if user.speaking:
+					# set speaking state immediately
+					self.__update_player_speak_status(player)
+				else:
+					# keep speaking state for a little longer
+					gameapi.EventLoop.callback(self.settings_repository.get(SettingConstants.SPEAK_STOP_DELAY), self.__update_player_speak_status, player)
 
 	def __update_player_speak_status(self, player):
 		try:
@@ -180,8 +181,9 @@ class RemoveChatUser(object):
 	def __stop_user_feedback(self, user):
 		for player_id in self.user_cache_api.get_paired_player_ids(user.unique_id):
 			player = self.player_api.get_player_by_dbid(player_id)
-			self.speak_state_repository[player["id"]] = False
-			self.__update_player_speak_status(player)
+			if player:
+				self.speak_state_repository[player["id"]] = False
+				self.__update_player_speak_status(player)
 
 	def __update_player_speak_status(self, player):
 		try:
@@ -333,7 +335,7 @@ class ProvidePositionalDataToChatClient(object):
 		for user in self.chat_user_repository:
 			for player_id in self.user_cache_api.get_paired_player_ids(user.unique_id):
 				vehicle = self.vehicle_repository.get(player_id=player_id)
-				if vehicle.is_alive:
+				if vehicle and vehicle.is_alive:
 					positions[user.client_id] = vehicle.position
 		if camera_position and camera_direction and positions:
 			self.chat_client_api.update_positional_data(camera_position, camera_direction, positions)
