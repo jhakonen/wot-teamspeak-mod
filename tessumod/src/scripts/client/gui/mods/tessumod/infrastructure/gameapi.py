@@ -99,10 +99,10 @@ class Battle(object):
 			return entity
 
 	@classmethod
-	def patch_battle_replay_play(self, patch_function):
+	def patch_battle_replay_play(cls, patch_function):
 		original_method = BattleReplay.BattleReplay.play
 		def wrapper_play(self, fileName=None):
-			return patch_function(original_method, fileName)
+			return patch_function(self, original_method, fileName)
 		BattleReplay.BattleReplay.play = wrapper_play
 
 	@classmethod
@@ -360,5 +360,5 @@ class VoiceChat(object):
 	def patch_is_participant_speaking(cls, patch_function):
 		original_method = VOIPManager.isParticipantTalking
 		def wrapper_isParticipantTalking(self, dbid):
-			return patch_function(original_method, dbid)
+			return patch_function(self, original_method, dbid)
 		VOIPManager.isParticipantTalking = wrapper_isParticipantTalking

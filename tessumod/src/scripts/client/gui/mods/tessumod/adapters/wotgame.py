@@ -65,9 +65,9 @@ class BattleAdapter(object):
 	def __on_provide_positional_data(self):
 		self.__usecases.usecase_provide_positional_data_to_chat_client()
 
-	def __on_battle_replay_play(self, original_method, *args, **kwargs):
+	def __on_battle_replay_play(self, original_self, original_method, *args, **kwargs):
 		self.__usecases.usecase_battle_replay_start()
-		return original_method(*args, **kwargs)
+		return original_method(original_self, *args, **kwargs)
 
 class PlayerAdapter(object):
 
@@ -102,9 +102,9 @@ class ChatIndicatorAdapter(object):
 			gameapi.VoiceChat.set_player_speaking(speaker, False)
 		self.__speakers.clear()
 
-	def __on_is_participant_speaking(self, original_method, dbid):
+	def __on_is_participant_speaking(self, original_self, original_method, dbid):
 		'''Called by other game modules to determine current speaking status.'''
-		return True if dbid in self.__speakers else original_method(self, dbid)
+		return True if dbid in self.__speakers else original_method(original_self, dbid)
 
 class MinimapAdapter(object):
 
