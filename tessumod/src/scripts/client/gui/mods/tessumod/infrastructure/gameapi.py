@@ -23,17 +23,49 @@ from messenger.storage import storage_getter
 from notification import NotificationMVC
 from notification.settings import NOTIFICATION_TYPE
 from notification.decorators import _NotificationDecorator
-from debug_utils import LOG_CURRENT_EXCEPTION
+from debug_utils import _doLog, _makeMsgHeader
 import Event as _Event
 import VOIP
 from VOIP.VOIPManager import VOIPManager
 import BattleReplay
 
 from functools import partial
+from traceback import format_exception
+import sys
 
-from utils import patch_instance_method, LOG_DEBUG
+from utils import patch_instance_method
+import log
 
 Event = _Event.Event
+
+class Logger(object):
+
+	@staticmethod
+	def debug(msg, *args):
+		if log.CURRENT_LOG_LEVEL <= log.LOG_LEVEL.DEBUG:
+			_doLog('DEBUG', log.prefix_with_timestamp(msg), args)
+
+	@staticmethod
+	def note(msg, *args):
+		if log.CURRENT_LOG_LEVEL <= log.LOG_LEVEL.NOTE:
+			_doLog('NOTE', log.prefix_with_timestamp(msg), args)
+
+	@staticmethod
+	def warning(msg, *args):
+		if log.CURRENT_LOG_LEVEL <= log.LOG_LEVEL.WARNING:
+			_doLog('WARNING', log.prefix_with_timestamp(msg), args)
+
+	@staticmethod
+	def error(msg, *args):
+		if log.CURRENT_LOG_LEVEL <= log.LOG_LEVEL.ERROR:
+			_doLog('ERROR', log.prefix_with_timestamp(msg), args)
+
+	@staticmethod
+	def exception():
+		msg = _makeMsgHeader(sys._getframe(1)) + "\n"
+		etype, value, tb = sys.exc_info()
+		msg += "".join(format_exception(etype, value, tb, None))
+		BigWorld.logError('EXCEPTION', log.prefix_with_timestamp(msg), None)
 
 class EventLoop(object):
 
@@ -188,7 +220,7 @@ class Player(object):
 				vehicles = BigWorld.player().arena.vehicles
 				for id in vehicles:
 					vehicle = vehicles[id]
-					LOG_DEBUG("Found player from battle", vehicle["name"])
+					log.LOG_DEBUG("Found player from battle", vehicle["name"])
 					yield dict(name=vehicle["name"], id=vehicle["accountDBID"])
 			except AttributeError:
 				pass
@@ -197,7 +229,7 @@ class Player(object):
 				# get players from Team Battle room
 				for unit in BigWorld.player().unitMgr.units.itervalues():
 					for id, player in unit.getPlayers().iteritems():
-						LOG_DEBUG("Found player from unit", player["nickName"])
+						log.LOG_DEBUG("Found player from unit", player["nickName"])
 						yield dict(name=player["nickName"], id=id)
 			except AttributeError:
 				pass
@@ -205,18 +237,18 @@ class Player(object):
 				# get players from Training Room and the like
 				for roster in BigWorld.player().prebattle.rosters.itervalues():
 					for info in roster.itervalues():
-						LOG_DEBUG("Found player from rosters", info["name"])
+						log.LOG_DEBUG("Found player from rosters", info["name"])
 						yield dict(name=info["name"], id=info["dbID"])
 			except AttributeError:
 				pass
 		users_storage = storage_getter('users')()
 		if clanmembers:
 			for member in users_storage.getClanMembersIterator(False):
-				LOG_DEBUG("Found clan member", member.getName())
+				log.LOG_DEBUG("Found clan member", member.getName())
 				yield dict(name=member.getName(), id=member.getID())
 		if friends:
 			for friend in users_storage.getList(FriendsFindCriteria()):
-				LOG_DEBUG("Found friend", friend.getName())
+				log.LOG_DEBUG("Found friend", friend.getName())
 				yield dict(name=friend.getName(), id=friend.getID())
 
 class Notifications(object):
@@ -301,7 +333,7 @@ class Notifications(object):
 			elif cls.__enabled:
 				SystemMessages.pushMessage(message, type)
 		except:
-			LOG_CURRENT_EXCEPTION()
+			log.LOG_CURRENT_EXCEPTION()
 
 	class __MessageDecorator(_NotificationDecorator):
 

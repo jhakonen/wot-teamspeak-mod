@@ -41,19 +41,12 @@ import asyncore
 import asynchat
 import functools
 import copy
-from utils import (
-	noop,
-	with_args,
-	LOG_CALL,
-	LOG_DEBUG,
-	LOG_NOTE,
-	LOG_WARNING,
-	LOG_ERROR,
-	LOG_CURRENT_EXCEPTION
-)
+
+from utils import noop,	with_args
 from statemachine import StateMachine
 import async
 import gameapi
+import log
 
 _RETRY_TIMEOUT = 10
 _COMMAND_WAIT_TIMEOUT = 30
@@ -143,7 +136,7 @@ class TS3Client(object):
 	def _send_command(self, command, callback=noop, timeout=_COMMAND_WAIT_TIMEOUT):
 		def on_command_finish(err, lines):
 			if err:
-				LOG_DEBUG(type(err).__name__ + ": " + str(err))
+				log.LOG_DEBUG(type(err).__name__ + ": " + str(err))
 				if isinstance(err, clientquery.APINotConnectedError) or isinstance(err, clientquery.APIInvalidSchandlerIDError):
 					self._send_sm_event("not_connected_error")
 				else:
@@ -279,7 +272,7 @@ class TS3Client(object):
 			else:
 				data = parse_client_query_parameter(lines[0], "client_meta_data")
 				if data is None:
-					LOG_WARNING("get_client_meta_data failed, value:", data)
+					log.LOG_WARNING("get_client_meta_data failed, value:", data)
 					callback(None, "")
 				else:
 					callback(None, data)
@@ -477,11 +470,11 @@ class _ClientQueryProtocol(asynchat.async_chat):
 		'''
 		self.close()
 
-	@LOG_CALL(msg="<< {data}")
 	def collect_incoming_data(self, data):
 		'''Hook method which is called by async_chat to provide incoming data.
 		Data is provided just enough until terminator is found.
 		'''
+		log.LOG_DEBUG("<< " + data)
 		self._in_line += data
 
 	def found_terminator(self):
@@ -491,12 +484,12 @@ class _ClientQueryProtocol(asynchat.async_chat):
 		try:
 			self._data_in_handler(self._in_line)
 		except:
-			LOG_CURRENT_EXCEPTION()
+			log.LOG_CURRENT_EXCEPTION()
 			self.close()
 		self._in_line = ""
 
-	@LOG_CALL(msg=">> {data}")
 	def push(self, data):
+		log.LOG_DEBUG(">> " + data)
 		asynchat.async_chat.push(self, data)
 
 	def _handle_in_data_proto_test(self, line):
@@ -504,10 +497,10 @@ class _ClientQueryProtocol(asynchat.async_chat):
 		nothing something totally else.
 		'''
 		if "ts3 client" in line.lower():
-			LOG_NOTE("TS client query protocol detected")
+			log.LOG_NOTE("TS client query protocol detected")
 			self._data_in_handler = self._handle_in_data_welcome_message
 		else:
-			LOG_ERROR("Not TS client query protocol")
+			log.LOG_ERROR("Not TS client query protocol")
 			self.close()
 
 	def log_info(self, message, type="info"):
@@ -515,11 +508,11 @@ class _ClientQueryProtocol(asynchat.async_chat):
 		messages. Converts the log message to WOT logging.
 		'''
 		if type == "info":
-			LOG_NOTE(message)
+			log.LOG_NOTE(message)
 		elif type == "error":
-			LOG_ERROR(message)
+			log.LOG_ERROR(message)
 		elif type == "warning":
-			LOG_WARNING(message)
+			log.LOG_WARNING(message)
 
 	def _handle_in_data_welcome_message(self, line):
 		'''Consumes welcome message.'''

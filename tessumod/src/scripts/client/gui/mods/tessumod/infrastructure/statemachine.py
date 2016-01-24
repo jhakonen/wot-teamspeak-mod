@@ -19,7 +19,7 @@
 The StateMachine class allows you define states and transitions between them.
 '''
 
-from utils import LOG_DEBUG
+import log
 
 def noop(*args, **kwargs):
 	pass
@@ -33,7 +33,7 @@ class State(object):
 		return self._name
 
 	def enter(self):
-		LOG_DEBUG("Entering state '{0}'".format(self._name))
+		log.LOG_DEBUG("Entering state '{0}'".format(self._name))
 		return self._on_enter()
 
 class Transition(object):
@@ -45,7 +45,7 @@ class Transition(object):
 		return self._event_name == event_name
 
 	def transit(self):
-		LOG_DEBUG("Transition by event '{0}'".format(self._event_name))
+		log.LOG_DEBUG("Transition by event '{0}'".format(self._event_name))
 		self._on_transit()
 
 class StateMachine(object):
@@ -74,7 +74,7 @@ class StateMachine(object):
 
 		if self._events and self._is_state_done:
 			event_name = self._events.pop(0)
-			LOG_DEBUG("Handling event '{0}'".format(event_name))
+			log.LOG_DEBUG("Handling event '{0}'".format(event_name))
 			try:
 				for transition, next_state_id in self._transitions[self._state_id]:
 					if transition.check_event(event_name):
@@ -82,7 +82,7 @@ class StateMachine(object):
 						new_state_id = next_state_id
 						break
 			except IndexError:
-				LOG_DEBUG("No transitions for event '{0}'".format(event_name))
+				log.LOG_DEBUG("No transitions for event '{0}'".format(event_name))
 
 		if self._state_id is None:
 			new_state_id = 0

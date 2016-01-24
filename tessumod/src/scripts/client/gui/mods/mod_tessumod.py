@@ -18,9 +18,8 @@
 AVAILABLE_PLUGIN_VERSION = 1
 
 try:
-	from tessumod.infrastructure.utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
 	from tessumod.infrastructure.ts3 import TS3Client
-	from tessumod.infrastructure import utils, mytsplugin, gameapi
+	from tessumod.infrastructure import utils, mytsplugin, gameapi, log
 	from tessumod.infrastructure.settings import Settings
 	from tessumod.infrastructure.user_cache import UserCache
 	from tessumod.infrastructure.keyvaluestorage import KeyValueStorage
@@ -35,7 +34,10 @@ except:
 
 def init():
 	'''Mod's main entry point. Called by WoT's built-in mod loader.'''
+
 	try:
+		log.install_logger_impl(gameapi.Logger)
+
 		# make sure that ini-folder exists
 		try:
 			os.makedirs(utils.get_ini_dir_path())
@@ -88,4 +90,4 @@ def init():
 		print "TessuMod version {0} ({1})".format(utils.get_mod_version(), utils.get_support_url())
 
 	except:
-		LOG_CURRENT_EXCEPTION()
+		log.LOG_CURRENT_EXCEPTION()

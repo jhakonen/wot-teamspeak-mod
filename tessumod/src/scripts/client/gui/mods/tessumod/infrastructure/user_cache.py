@@ -21,7 +21,8 @@ import csv
 import re
 import io
 import cStringIO
-from utils import LOG_ERROR, LOG_NOTE
+
+import log
 import gameapi
 
 _GENERAL_HELP = """
@@ -245,7 +246,7 @@ class INICache(object):
 			return
 		parser = ConfigParser.RawConfigParser()
 		if not parser.read(self.ini_path):
-			LOG_ERROR("Failed to parse ini file '{0}'"
+			log.LOG_ERROR("Failed to parse ini file '{0}'"
 				.format(self.ini_path))
 			return
 		self.on_read(parser)

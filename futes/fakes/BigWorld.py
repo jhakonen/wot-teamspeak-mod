@@ -1,11 +1,14 @@
 import time as _time
-from debug_utils import LOG_CURRENT_EXCEPTION
+from debug_utils import LOG_ERROR, LOG_CURRENT_EXCEPTION
 
 g_callback_events = {}
 g_next_handle = 0
 
 class UserDataObject(object):
 	pass
+
+def logError(type, msg, *args):
+	LOG_ERROR(type, msg, *args)
 
 def callback(secs, func):
 	global g_next_handle

@@ -19,7 +19,8 @@ import ConfigParser
 import os
 import csv
 import re
-from utils import LOG_ERROR
+
+import log
 import gameapi
 
 DEFAULT_INI = """
@@ -198,7 +199,7 @@ class Settings(object):
 		if self._parser.read(self._ini_path):
 			self._load_time = self._get_modified_time()
 		else:
-			LOG_ERROR("Failed to parse ini file '{0}'".format(self._ini_path))
+			log.LOG_ERROR("Failed to parse ini file '{0}'".format(self._ini_path))
 
 	def _get_modified_time(self):
 		return os.path.getmtime(self._ini_path)

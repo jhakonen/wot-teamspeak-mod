@@ -20,8 +20,7 @@ import threading
 import subprocess
 from functools import partial
 
-from ..infrastructure.utils import LOG_NOTE
-from ..infrastructure import mytsplugin, utils
+from ..infrastructure import mytsplugin, utils, log
 
 class TeamSpeakChatClientAdapter(object):
 
@@ -84,22 +83,22 @@ class TeamSpeakChatClientAdapter(object):
 		'''Called when TessuMod manages to connect TeamSpeak client. However, this
 		doesn't mean that the client is connected to any TeamSpeak server.
 		'''
-		LOG_NOTE("Connected to TeamSpeak client")
+		log.LOG_NOTE("Connected to TeamSpeak client")
 		self.__usecases.usecase_show_chat_client_plugin_install_message()
 
 	def __on_disconnected_from_ts(self):
 		'''Called when TessuMod loses connection to TeamSpeak client.'''
-		LOG_NOTE("Disconnected from TeamSpeak client")
+		log.LOG_NOTE("Disconnected from TeamSpeak client")
 		self.__usecases.usecase_clear_speak_statuses()
 		self.__usecases.usecase_notify_chat_client_disconnected()
 
 	def __on_connected_to_ts_server(self, server_name):
-		LOG_NOTE("Connected to TeamSpeak server '{0}'".format(server_name))
+		log.LOG_NOTE("Connected to TeamSpeak server '{0}'".format(server_name))
 		self.__usecases.usecase_notify_connected_to_chat_server(server_name)
 		self.__usecases.usecase_publish_game_nick_to_chat_server()
 
 	def __on_disconnected_from_ts_server(self):
-		LOG_NOTE("Disconnected from TeamSpeak server")
+		log.LOG_NOTE("Disconnected from TeamSpeak server")
 		self.__usecases.usecase_clear_speak_statuses()
 
 	def __on_user_added(self, client_id):

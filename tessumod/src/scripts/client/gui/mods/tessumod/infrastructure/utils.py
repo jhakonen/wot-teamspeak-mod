@@ -24,6 +24,8 @@ import inspect
 import time
 import types
 
+import log
+
 def noop(*args, **kwargs):
 	'''Function that does nothing. A safe default value for callback
 	parameters.
@@ -37,12 +39,12 @@ def with_args(func, *args, **kwargs):
 
 def benchmark(func):
 	def wrapper(*args, **kwargs):
-		LOG_DEBUG("Function {0}() START".format(func.__name__))
+		log.LOG_DEBUG("Function {0}() START".format(func.__name__))
 		start_t = time.time()
 		try:
 			return func(*args, **kwargs)
 		finally:
-			LOG_DEBUG("Function function {0}() END: {1} s".format(func.__name__, time.time() - start_t))
+			log.LOG_DEBUG("Function function {0}() END: {1} s".format(func.__name__, time.time() - start_t))
 	functools.update_wrapper(wrapper, func)
 	return wrapper
 
@@ -103,7 +105,7 @@ def ts_user_to_player(user_nick, user_game_nick, extract_patterns=[], mappings={
 	if use_metadata and user_game_nick:
 		player = find_player(user_game_nick)
 		if player:
-			LOG_DEBUG("Matched TS user to player with TS metadata", user_nick, user_game_nick, player)
+			log.LOG_DEBUG("Matched TS user to player with TS metadata", user_nick, user_game_nick, player)
 		return player
 	# no metadata, try find player by using WOT nickname extracted from TS
 	# user's nickname using nick_extract_patterns
@@ -113,35 +115,35 @@ def ts_user_to_player(user_nick, user_game_nick, extract_patterns=[], mappings={
 			extracted_nick = matches.group(1).strip()
 			player = find_player(extracted_nick)
 			if player:
-				LOG_DEBUG("Matched TS user to player with pattern", user_nick, player, pattern.pattern)
+				log.LOG_DEBUG("Matched TS user to player with pattern", user_nick, player, pattern.pattern)
 				return player
 			# extracted nickname didn't match any player, try find player by
 			# mapping the extracted nickname to WOT nickname (if available)
 			player = find_player(map_nick(extracted_nick))
 			if player:
-				LOG_DEBUG("Matched TS user to player with pattern and mapping", user_nick, player, pattern.pattern)
+				log.LOG_DEBUG("Matched TS user to player with pattern and mapping", user_nick, player, pattern.pattern)
 				return player
 	# extract patterns didn't help, try find player by mapping TS nickname to
 	# WOT nickname (if available)
 	player = find_player(map_nick(user_nick))
 	if player:
-		LOG_DEBUG("Matched TS user to player via mapping", user_nick, player)
+		log.LOG_DEBUG("Matched TS user to player via mapping", user_nick, player)
 		return player
 	# still no match, as a last straw, try find player by searching each known
 	# WOT nickname from the TS nickname
 	if use_ts_nick_search:
 		player = find_player(user_nick, comparator=lambda a, b: a in b)
 		if player:
-			LOG_DEBUG("Matched TS user to player with TS nick search", user_nick, player)
+			log.LOG_DEBUG("Matched TS user to player with TS nick search", user_nick, player)
 			return player
 	# or alternatively, try find player by just comparing that TS nickname and
 	# WOT nicknames are same
 	else:
 		player = find_player(user_nick)
 		if player:
-			LOG_DEBUG("Matched TS user to player by comparing names", user_nick, player)
+			log.LOG_DEBUG("Matched TS user to player by comparing names", user_nick, player)
 			return player
-	LOG_DEBUG("Failed to match TS user", user_nick)
+	log.LOG_DEBUG("Failed to match TS user", user_nick)
 
 class MinimapMarkersController(object):
 	'''MinimapMarkersController class repeatably starts given marker 'action' every
@@ -205,53 +207,7 @@ class MinimapMarkerAnimation(object):
 			if app:
 				app.minimap.showActionMarker(self._vehicle_id, self._action)
 		except AttributeError:
-			LOG_CURRENT_EXCEPTION()
-
-class LOG_LEVEL(object):
-	DEBUG = 0
-	NOTE = 1
-	WARNING = 2
-	ERROR = 3
-
-CURRENT_LOG_LEVEL = LOG_LEVEL.NOTE
-
-def LOG_DEBUG(msg, *args):
-	if CURRENT_LOG_LEVEL <= LOG_LEVEL.DEBUG:
-		debug_utils._doLog('DEBUG', _prefix_with_timestamp(msg), args)
-
-def LOG_NOTE(msg, *args):
-	if CURRENT_LOG_LEVEL <= LOG_LEVEL.NOTE:
-		debug_utils._doLog('NOTE', _prefix_with_timestamp(msg), args)
-
-def LOG_WARNING(msg, *args):
-	if CURRENT_LOG_LEVEL <= LOG_LEVEL.WARNING:
-		debug_utils._doLog('WARNING', _prefix_with_timestamp(msg), args)
-
-def LOG_ERROR(msg, *args):
-	if CURRENT_LOG_LEVEL <= LOG_LEVEL.ERROR:
-		debug_utils._doLog('ERROR', _prefix_with_timestamp(msg), args)
-
-def _prefix_with_timestamp(message):
-	if CURRENT_LOG_LEVEL <= LOG_LEVEL.DEBUG:
-		return time.strftime('[%H:%M:%S] ') + str(message)
-	return message
-
-LOG_CURRENT_EXCEPTION = debug_utils.LOG_CURRENT_EXCEPTION
-
-def LOG_CALL(msg=""):
-	def wrap(func):
-		def wrapper(*args, **kwargs):
-			try:
-				if CURRENT_LOG_LEVEL <= LOG_LEVEL.DEBUG:
-					callargs = inspect.getcallargs(func, *args, **kwargs)
-					callargs = { key: repr(callargs[key]) for key in callargs }
-					debug_utils._doLog('DEBUG', _prefix_with_timestamp(func.__name__ + "():"), msg.format(**callargs))
-			except:
-				pass
-			return func(*args, **kwargs)
-		functools.update_wrapper(wrapper, func)
-		return wrapper
-	return wrap
+			log.LOG_CURRENT_EXCEPTION()
 
 def patch_instance_method(instance, method_name, new_function):
 	original_method = getattr(instance, method_name)

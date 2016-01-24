@@ -18,7 +18,7 @@
 import sys
 import os
 
-from ..infrastructure import utils, gameapi
+from ..infrastructure import utils, gameapi, log
 from ..constants import SettingConstants
 import entities
 
@@ -37,7 +37,7 @@ class LoadSettings(object):
 			self.settings_repository.set(key, value)
 			return value
 		value = take_and_store(SettingConstants.LOG_LEVEL)
-		utils.CURRENT_LOG_LEVEL = value
+		log.CURRENT_LOG_LEVEL = value
 		value = take_and_store(SettingConstants.FILE_CHECK_INTERVAL)
 		self.settings_api.set_file_check_interval(value)
 		self.user_cache_api.set_file_check_interval(value)
@@ -135,7 +135,7 @@ class InsertChatUser(object):
 				)
 			)
 		except:
-			utils.LOG_CURRENT_EXCEPTION()
+			log.LOG_CURRENT_EXCEPTION()
 
 		try:
 			self.minimap_api.set_player_speaking(
@@ -147,7 +147,7 @@ class InsertChatUser(object):
 				)
 			)
 		except:
-			utils.LOG_CURRENT_EXCEPTION()
+			log.LOG_CURRENT_EXCEPTION()
 
 	def __is_minimap_speak_allowed(self, player_id):
 		if not self.settings_repository.get(SettingConstants.MINIMAP_NOTIFY_ENABLED):
@@ -189,12 +189,12 @@ class RemoveChatUser(object):
 		try:
 			self.chat_indicator_api.set_player_speaking(player=player, speaking=False)
 		except:
-			utils.LOG_CURRENT_EXCEPTION()
+			log.LOG_CURRENT_EXCEPTION()
 
 		try:
 			self.minimap_api.set_player_speaking(player=player, speaking=False)
 		except:
-			utils.LOG_CURRENT_EXCEPTION()
+			log.LOG_CURRENT_EXCEPTION()
 
 class ChangeChatChannel(object):
 
@@ -255,7 +255,7 @@ class ShowChatClientPluginInstallMessage(object):
 		try:
 			return sys.getwindowsversion()[0] >= 6
 		except:
-			LOG_ERROR("Failed to get current Windows OS version")
+			log.LOG_ERROR("Failed to get current Windows OS version")
 			return True
 
 	def __is_newest_plugin_version(self, plugin_version):

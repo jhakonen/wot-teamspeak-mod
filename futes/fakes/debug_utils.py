@@ -2,6 +2,9 @@ import traceback
 
 logs = []
 
+def _makeMsgHeader(frame):
+    return ""
+
 def _doLog(type, msg, args):
 	logs.append((type, msg, args))
 	print "{type}: {msg} {args}".format(type=type, msg=msg, args=args)
