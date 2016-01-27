@@ -95,20 +95,97 @@ class InsertChatUser(object):
 				self.__set_chat_user_speaking(new_user.client_id)
 
 	def __find_and_pair_chat_user_to_player(self, user_id):
+
 		user = self.chat_user_repository.get(user_id)
-		player = utils.ts_user_to_player(
-			user_nick = user.nick,
-			user_game_nick = user.game_nick,
-			use_metadata = self.settings_repository.get(SettingConstants.GET_GAME_NICK_FROM_CHAT_CLIENT),
-			use_ts_nick_search = self.settings_repository.get(SettingConstants.CHAT_NICK_SEARCH_ENABLED),
-			extract_patterns = self.settings_repository.get(SettingConstants.NICK_EXTRACT_PATTERNS),
-			mappings = self.settings_repository.get(SettingConstants.NICK_MAPPINGS),
-			# TODO: should we use clanmembers=True, friends=True here too??
-			players = self.player_api.get_players(in_battle=True, in_prebattle=True)
-		)
+		players = list(self.player_api.get_players(in_battle=True, in_prebattle=True))
+		mappings = self.settings_repository.get(SettingConstants.NICK_MAPPINGS)
+		extract_patterns = self.settings_repository.get(SettingConstants.NICK_EXTRACT_PATTERNS)
+		use_ts_nick_search = self.settings_repository.get(SettingConstants.CHAT_NICK_SEARCH_ENABLED)
+		use_metadata = self.settings_repository.get(SettingConstants.GET_GAME_NICK_FROM_CHAT_CLIENT)
+
+		def find_player(nick, comparator=lambda a, b: a == b):
+			if hasattr(nick, "lower"):
+				for player in players:
+					if comparator(player["name"].lower(), nick.lower()):
+						return player
+
+		def map_nick(nick):
+			if hasattr(nick, "lower"):
+				try:
+					return mappings[nick.lower()]
+				except:
+					pass
+
+		def match_using_metadata():
+			# find player using TS user's WOT nickname in metadata (available if user
+			# has TessuMod installed)
+			if user.game_nick:
+				player = find_player(user.game_nick)
+				if player:
+					log.LOG_DEBUG("Matched TS user to player with TS metadata", user.nick, user.game_nick, player)
+				return player
+
+		def match_using_extract_patterns():
+			# no metadata, try find player by using WOT nickname extracted from TS
+			# user's nickname using nick_extract_patterns
+			for pattern in extract_patterns:
+				matches = pattern.match(user.nick)
+				if matches is not None and matches.groups():
+					extracted_nick = matches.group(1).strip()
+					player = find_player(extracted_nick)
+					if player:
+						log.LOG_DEBUG("Matched TS user to player with pattern", user.nick, player, pattern.pattern)
+						return player
+					# extracted nickname didn't match any player, try find player by
+					# mapping the extracted nickname to WOT nickname (if available)
+					player = find_player(map_nick(extracted_nick))
+					if player:
+						log.LOG_DEBUG("Matched TS user to player with pattern and mapping", user.nick, player, pattern.pattern)
+						return player
+
+		def match_using_mappings():
+			# extract patterns didn't help, try find player by mapping TS nickname to
+			# WOT nickname (if available)
+			player = find_player(map_nick(user.nick))
+			if player:
+				log.LOG_DEBUG("Matched TS user to player via mapping", user.nick, player)
+				return player
+
+		def match_using_name_comparison():
+			# still no match, as a last straw, try find player by searching each known
+			# WOT nickname from the TS nickname
+			if use_ts_nick_search:
+				player = find_player(user.nick, comparator=lambda a, b: a in b)
+				if player:
+					log.LOG_DEBUG("Matched TS user to player with TS nick search", user.nick, player)
+					return player
+			# or alternatively, try find player by just comparing that TS nickname and
+			# WOT nicknames are same
+			else:
+				player = find_player(user.nick)
+				if player:
+					log.LOG_DEBUG("Matched TS user to player by comparing names", user.nick, player)
+					return player
+
+		matchers = []
+		if use_metadata:
+			matchers.append(match_using_metadata)
+		if extract_patterns:
+			matchers.append(match_using_extract_patterns)
+		if mappings:
+			matchers.append(match_using_mappings)
+		matchers.append(match_using_name_comparison)
+
+		for matcher in matchers:
+			player = matcher()
+			if player is not None:
+				break
+
 		if player:
 			self.user_cache_api.add_player(id=player["id"], name=player["name"])
 			self.user_cache_api.pair(player["id"], user.unique_id)
+		else:
+			log.LOG_DEBUG("Failed to match TS user", user.nick)
 
 	def __set_chat_user_speaking(self, user_id):
 		user = self.chat_user_repository.get(user_id)
