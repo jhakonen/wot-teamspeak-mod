@@ -24,5 +24,5 @@ temp_dirpath = os.path.join(project_rootpath, "tmp")
 
 sys.path.extend([
 	os.path.realpath(os.path.join(project_rootpath, "futes", "fakes")),
-	os.path.realpath(os.path.join(project_rootpath, "tessumod", "src", "scripts", "client", "gui", "mods", "tessumod"))
+	os.path.realpath(os.path.join(project_rootpath, "tessumod", "src", "scripts", "client", "gui", "mods"))
 ])

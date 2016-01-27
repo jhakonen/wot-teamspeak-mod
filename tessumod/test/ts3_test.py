@@ -16,7 +16,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 import helpers
-from infrastructure import ts3
+from tessumod.infrastructure import ts3
 
 class TestTS3(object):
 

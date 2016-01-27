@@ -16,7 +16,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 import helpers
-from infrastructure.statemachine import StateMachine
+from tessumod.infrastructure.statemachine import StateMachine
 
 def call_counter():
 	def func():

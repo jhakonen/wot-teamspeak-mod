@@ -18,7 +18,7 @@
 import os
 import ConfigParser
 import helpers
-from infrastructure.user_cache import UserCache
+from tessumod.infrastructure.user_cache import UserCache
 
 ini_path = os.path.join(helpers.temp_dirpath, "tessu_mod_cache.ini")
 
