@@ -108,8 +108,8 @@ class ChatIndicatorAdapter(object):
 
 class MinimapAdapter(object):
 
-	def __init__(self, minimap_ctrl):
-		self.__minimap_ctrl = minimap_ctrl
+	def __init__(self):
+		self.__running_animations = {}
 		self.__action = None
 		self.__interval = None
 
@@ -120,13 +120,22 @@ class MinimapAdapter(object):
 		self.__interval = interval
 
 	def set_player_speaking(self, player, speaking):
+		vehicle_id = player["vehicle_id"]
 		if speaking:
-			self.__minimap_ctrl.start(player["vehicle_id"], self.__action, self.__interval)
+			if vehicle_id not in self.__running_animations:
+				self.__running_animations[vehicle_id] = gameapi.MinimapMarkerAnimation(
+					vehicle_id, self.__interval, self.__action, self.__on_done)
+			self.__running_animations[vehicle_id].start()
 		else:
-			self.__minimap_ctrl.stop(player["vehicle_id"])
+			if vehicle_id in self.__running_animations:
+				self.__running_animations[vehicle_id].stop()
 
 	def clear_all_players_speaking(self):
-		self.__minimap_ctrl.stop_all()
+		for vehicle_id in self.__running_animations:
+			self.__running_animations[vehicle_id].stop()
+
+	def __on_done(self, vehicle_id):
+		self.__running_animations.pop(vehicle_id, None)
 
 class NotificationsAdapter(object):
 

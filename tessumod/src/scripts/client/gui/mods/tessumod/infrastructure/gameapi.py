@@ -88,12 +88,14 @@ class _EventRepeater(object):
 	def __init__(self, function):
 		self.__id       = None
 		self.__timeout  = None
+		self.__started  = False
 		self.__function = function
 
 	def start(self, timeout):
 		self.__timeout = timeout
 		self.stop()
 		self.__start_callback()
+		self.__started  = True
 
 	def __start_callback(self):
 		if self.__id is None:
@@ -103,11 +105,16 @@ class _EventRepeater(object):
 		if self.__id is not None:
 			EventLoop.cancel_callback(self.__id)
 			self.__id = None
+		self.__started = False
+
+	def is_active(self):
+		return self.__started
 
 	def __on_timeout(self):
 		self.__id = None
 		self.__function()
-		self.__start_callback()
+		if self.__started:
+			self.__start_callback()
 
 class Battle(object):
 
@@ -394,3 +401,32 @@ class VoiceChat(object):
 		def wrapper_isParticipantTalking(self, dbid):
 			return patch_function(self, original_method, dbid)
 		VOIPManager.isParticipantTalking = wrapper_isParticipantTalking
+
+class MinimapMarkerAnimation(object):
+
+	def __init__(self, vehicle_id, interval, action, on_done):
+		self.__interval   = interval
+		self.__action     = action
+		self.__vehicle_id = vehicle_id
+		self.__on_done    = on_done
+		self.__timer      = EventLoop.create_callback_repeater(self.__updateMinimap)
+
+	def start(self):
+		if not self.__timer.is_active():
+			self.__timer.start(self.__interval)
+			self.__updateMinimap()
+
+	def stop(self):
+		self.__timer.stop()
+
+	def __updateMinimap(self):
+		if self.__timer.is_active():
+			try:
+				from gui.app_loader import g_appLoader
+				app = g_appLoader.getDefBattleApp()
+				if app:
+					app.minimap.showActionMarker(self.__vehicle_id, self.__action)
+			except AttributeError:
+				log.LOG_CURRENT_EXCEPTION()
+		else:
+			self.__on_done(self.__vehicle_id)

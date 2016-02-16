@@ -48,13 +48,12 @@ def init():
 
 		# do all intializations here
 		usercache    = UserCache(cache_ini_path)
-		minimap_ctrl = utils.MinimapMarkersController()
 		ts_client    = TS3Client()
 		storage      = KeyValueStorage(utils.get_states_dir_path())
 		settings     = Settings(settings_ini_path)
 
 		settings_adapter       = adapters.settings.SettingsAdapter(gameapi.EventLoop, settings, usecases)
-		minimap_adapter        = adapters.wotgame.MinimapAdapter(minimap_ctrl)
+		minimap_adapter        = adapters.wotgame.MinimapAdapter()
 		chat_indicator_adapter = adapters.wotgame.ChatIndicatorAdapter()
 		notifications_adapter  = adapters.wotgame.NotificationsAdapter(usecases)
 		battle_adapter         = adapters.wotgame.BattleAdapter(usecases)
