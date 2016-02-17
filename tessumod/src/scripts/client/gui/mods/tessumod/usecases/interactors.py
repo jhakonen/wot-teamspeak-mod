@@ -67,19 +67,9 @@ class InsertChatUser(object):
 
 	user_cache_api = None
 	chat_client_api = None
-	minimap_api = None
-	chat_indicator_api = None
-	player_api = None
-	settings_repository = None
 	chat_user_repository = None
-	speak_state_repository = None
 
 	def execute(self, client_id, nick, game_nick, unique_id, channel_id, speaking):
-		old_user = self.chat_user_repository.get(client_id)
-		if old_user:
-			speak_update = old_user.speaking != speaking
-		else:
-			speak_update = speaking
 		new_user = self.chat_user_repository.set(entities.TeamSpeakUser(
 			nick = nick,
 			game_nick = game_nick,
@@ -90,9 +80,19 @@ class InsertChatUser(object):
 		))
 		if new_user.channel_id == self.chat_client_api.get_current_channel_id():
 			self.user_cache_api.add_chat_user(new_user.unique_id, new_user.nick)
-			if speak_update:
-				self.__find_and_pair_chat_user_to_player(new_user.client_id)
-				self.__set_chat_user_speaking(new_user.client_id)
+
+class PairChatUserToPlayer(object):
+
+	user_cache_api = None
+	chat_client_api = None
+	player_api = None
+	settings_repository = None
+	chat_user_repository = None
+
+	def execute(self, client_id):
+		old_user = self.chat_user_repository.get(client_id)
+		if old_user.channel_id == self.chat_client_api.get_current_channel_id():
+			self.__find_and_pair_chat_user_to_player(old_user.client_id)
 
 	def __find_and_pair_chat_user_to_player(self, user_id):
 
@@ -186,6 +186,22 @@ class InsertChatUser(object):
 			self.user_cache_api.pair(player["id"], user.unique_id)
 		else:
 			log.LOG_DEBUG("Failed to match TS user", user.nick)
+
+class UpdateChatUserSpeakState(object):
+
+	user_cache_api = None
+	chat_client_api = None
+	minimap_api = None
+	chat_indicator_api = None
+	player_api = None
+	settings_repository = None
+	chat_user_repository = None
+	speak_state_repository = None
+
+	def execute(self, client_id):
+		user = self.chat_user_repository.get(client_id)
+		if user.channel_id == self.chat_client_api.get_current_channel_id():
+			self.__set_chat_user_speaking(user.client_id)
 
 	def __set_chat_user_speaking(self, user_id):
 		user = self.chat_user_repository.get(user_id)

@@ -22,26 +22,21 @@ import mock
 import helpers
 from tessumod import usecases, repositories
 from tessumod.constants import SettingConstants
+from tessumod.usecases import entities
 
-class TestInteractorsInsertChatUser(object):
+class TestInteractorsPairChatUserToPlayer(object):
 
 	def setUp(self):
-		self.__minimap_api = mock.Mock()
-		self.__chat_indicator_api = mock.Mock()
 		self.__user_cache_api = mock.Mock()
 		self.__chat_client_api = mock.Mock()
 		self.__player_api = mock.Mock()
 		self.__settings_repository = repositories.KeyValueRepository({})
 		self.__chat_user_repository = repositories.ChatUserRepository()
-		self.__speak_state_repository = {}
-		usecases.provide_dependency("minimap_api",            self.__minimap_api)
-		usecases.provide_dependency("chat_indicator_api",     self.__chat_indicator_api)
 		usecases.provide_dependency("user_cache_api",         self.__user_cache_api)
 		usecases.provide_dependency("chat_client_api",        self.__chat_client_api)
 		usecases.provide_dependency("player_api",             self.__player_api)
 		usecases.provide_dependency("settings_repository",    self.__settings_repository)
 		usecases.provide_dependency("chat_user_repository",   self.__chat_user_repository)
-		usecases.provide_dependency("speak_state_repository", self.__speak_state_repository)
 		self.__settings_repository.set(SettingConstants.NICK_MAPPINGS, {})
 		self.__settings_repository.set(SettingConstants.NICK_EXTRACT_PATTERNS, [])
 		self.__settings_repository.set(SettingConstants.CHAT_NICK_SEARCH_ENABLED, False)
@@ -61,55 +56,59 @@ class TestInteractorsInsertChatUser(object):
 	def test_matches_using_metadata(self):
 		self.__settings_repository.set(SettingConstants.GET_GAME_NICK_FROM_CHAT_CLIENT, True)
 		self.__player_api.get_players.return_value = [dict(name="TestTomato", id=1000)]
-		usecases.usecase_insert_chat_user(
-			client_id=0,
+		self.__chat_user_repository.set(entities.TeamSpeakUser(
 			nick="TestDummy",
 			game_nick="TestTomato",
+			client_id=0,
 			unique_id="deadf00d",
 			channel_id=self.__channel_id,
 			speaking=True
-		)
+		))
+		usecases.usecase_pair_chat_user_to_player(client_id=0)
 		self.__user_cache_api.add_player.assert_called_with(id=1000, name="TestTomato")
 		self.__user_cache_api.pair.assert_called_with(1000, "deadf00d")
 
 	def test_matches_same_names_case_insensitive(self):
 		self.__player_api.get_players.return_value = [dict(name="TestDummy", id=1000), dict(name="TESTtomato", id=1001)]
-		usecases.usecase_insert_chat_user(
-			client_id=0,
+		self.__chat_user_repository.set(entities.TeamSpeakUser(
 			nick="TestTomato",
 			game_nick="",
+			client_id=0,
 			unique_id="deadf00d",
 			channel_id=self.__channel_id,
 			speaking=True
-		)
+		))
+		usecases.usecase_pair_chat_user_to_player(client_id=0)
 		self.__user_cache_api.add_player.assert_called_with(id=1001, name="TESTtomato")
 		self.__user_cache_api.pair.assert_called_with(1001, "deadf00d")
 
 	def test_extracts_nick_using_regexp_patterns(self):
 		self.__settings_repository.set(SettingConstants.NICK_EXTRACT_PATTERNS, [re.compile(r"\[[^\]]+\]\s*([a-z0-9_]+)", re.IGNORECASE)])
 		self.__player_api.get_players.return_value = [dict(name="TestDummy", id=1000), dict(name="TESTtomato", id=1001)]
-		usecases.usecase_insert_chat_user(
-			client_id=0,
+		self.__chat_user_repository.set(entities.TeamSpeakUser(
 			nick="[T-BAD] TestTomato",
 			game_nick="",
+			client_id=0,
 			unique_id="deadf00d",
 			channel_id=self.__channel_id,
 			speaking=True
-		)
+		))
+		usecases.usecase_pair_chat_user_to_player(client_id=0)
 		self.__user_cache_api.add_player.assert_called_with(id=1001, name="TESTtomato")
 		self.__user_cache_api.pair.assert_called_with(1001, "deadf00d")
 
 	def test_matches_using_mappings(self):
 		self.__player_api.get_players.return_value = [dict(name="TestDummy", id=1000), dict(name="TESTtomato123", id=1001)]
 		self.__settings_repository.set(SettingConstants.NICK_MAPPINGS, dict(matti="TESTtomato123"))
-		usecases.usecase_insert_chat_user(
-			client_id=0,
+		self.__chat_user_repository.set(entities.TeamSpeakUser(
 			nick="Matti",
 			game_nick="",
+			client_id=0,
 			unique_id="deadf00d",
 			channel_id=self.__channel_id,
 			speaking=True
-		)
+		))
+		usecases.usecase_pair_chat_user_to_player(client_id=0)
 		self.__user_cache_api.add_player.assert_called_with(id=1001, name="TESTtomato123")
 		self.__user_cache_api.pair.assert_called_with(1001, "deadf00d")
 
@@ -117,27 +116,29 @@ class TestInteractorsInsertChatUser(object):
 		self.__player_api.get_players.return_value = [dict(name="TestDummy", id=1000), dict(name="TESTtomato123", id=1001)]
 		self.__settings_repository.set(SettingConstants.NICK_EXTRACT_PATTERNS, [re.compile(r"\[[^\]]+\]\s*([a-z0-9_]+)", re.IGNORECASE)])
 		self.__settings_repository.set(SettingConstants.NICK_MAPPINGS, dict(matti="TESTtomato123"))
-		usecases.usecase_insert_chat_user(
-			client_id=0,
+		self.__chat_user_repository.set(entities.TeamSpeakUser(
 			nick="[T-BAD] Matti",
 			game_nick="",
+			client_id=0,
 			unique_id="deadf00d",
 			channel_id=self.__channel_id,
 			speaking=True
-		)
+		))
+		usecases.usecase_pair_chat_user_to_player(client_id=0)
 		self.__user_cache_api.add_player.assert_called_with(id=1001, name="TESTtomato123")
 		self.__user_cache_api.pair.assert_called_with(1001, "deadf00d")
 
 	def test_searches_players_from_ts_name(self):
 		self.__settings_repository.set(SettingConstants.CHAT_NICK_SEARCH_ENABLED, True)
 		self.__player_api.get_players.return_value = [dict(name="TestDummy", id=1000), dict(name="TESTtomato", id=1001)]
-		usecases.usecase_insert_chat_user(
-			client_id=0,
+		self.__chat_user_repository.set(entities.TeamSpeakUser(
 			nick="[T-BAD] TestTomato",
 			game_nick="",
+			client_id=0,
 			unique_id="deadf00d",
 			channel_id=self.__channel_id,
 			speaking=True
-		)
+		))
+		usecases.usecase_pair_chat_user_to_player(client_id=0)
 		self.__user_cache_api.add_player.assert_called_with(id=1001, name="TESTtomato")
 		self.__user_cache_api.pair.assert_called_with(1001, "deadf00d")

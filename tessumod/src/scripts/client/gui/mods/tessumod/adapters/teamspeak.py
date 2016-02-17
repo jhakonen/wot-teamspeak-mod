@@ -111,6 +111,8 @@ class TeamSpeakChatClientAdapter(object):
 			channel_id = user["channel_id"],
 			speaking = user["speaking"]
 		)
+		self.__usecases.usecase_pair_chat_user_to_player(user["client_id"])
+		self.__usecases.usecase_update_chat_user_speak_state(user["client_id"])
 
 	def __on_user_removed(self, client_id):
 		self.__usecases.usecase_remove_chat_user(client_id=client_id)
@@ -125,6 +127,8 @@ class TeamSpeakChatClientAdapter(object):
 			channel_id = user["channel_id"],
 			speaking = user["speaking"]
 		)
+		self.__usecases.usecase_pair_chat_user_to_player(user["client_id"])
+		self.__usecases.usecase_update_chat_user_speak_state(user["client_id"])
 
 	def __current_chat_channel_changed(self):
 		self.__usecases.usecase_change_chat_channel(self.get_current_channel_id())

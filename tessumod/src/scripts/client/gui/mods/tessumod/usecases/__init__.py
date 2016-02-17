@@ -37,6 +37,12 @@ def usecase_load_settings(setting_vars):
 def usecase_insert_chat_user(client_id, nick, game_nick, unique_id, channel_id, speaking):
 	_execute(interactors.InsertChatUser(), client_id, nick, game_nick, unique_id, channel_id, speaking)
 
+def usecase_pair_chat_user_to_player(client_id):
+	_execute(interactors.PairChatUserToPlayer(), client_id)
+
+def usecase_update_chat_user_speak_state(client_id):
+	_execute(interactors.UpdateChatUserSpeakState(), client_id)
+
 def usecase_remove_chat_user(client_id):
 	_execute(interactors.RemoveChatUser(), client_id)
 
