@@ -17,7 +17,7 @@
 
 import copy
 import collections
-from usecases import entities
+import entities
 
 class ChatUserRepository(collections.Iterable):
 

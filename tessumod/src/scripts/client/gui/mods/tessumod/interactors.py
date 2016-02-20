@@ -18,8 +18,8 @@
 import sys
 import os
 
-from ..infrastructure import utils, gameapi, log
-from ..constants import SettingConstants
+from infrastructure import utils, gameapi, log
+from constants import SettingConstants
 import entities
 
 class LoadSettings(object):

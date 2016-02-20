@@ -21,9 +21,9 @@ from ..constants import SettingConstants
 
 class SettingsAdapter(object):
 
-	def __init__(self, eventloop, settings, usecases):
+	def __init__(self, eventloop, settings, boundaries):
 		self.__settings = settings
-		self.__usecases = usecases
+		self.__boundaries = boundaries
 		self.__settings.on_reloaded += self.__on_settings_reloaded
 		self.__sync_repeater = eventloop.create_callback_repeater(self.__settings.sync)
 
@@ -31,7 +31,7 @@ class SettingsAdapter(object):
 		self.__sync_repeater.start(interval)
 
 	def __on_settings_reloaded(self):
-		self.__usecases.usecase_load_settings({
+		self.__boundaries.usecase_load_settings({
 			SettingConstants.LOG_LEVEL                      : self.__settings.get_int("General", "log_level"),
 			SettingConstants.FILE_CHECK_INTERVAL            : self.__settings.get_float("General", "ini_check_interval"),
 			SettingConstants.SPEAK_STOP_DELAY               : self.__settings.get_float("General", "speak_stop_delay"),

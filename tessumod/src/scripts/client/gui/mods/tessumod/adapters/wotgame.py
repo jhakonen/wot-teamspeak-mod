@@ -27,8 +27,8 @@ class BattleAdapter(object):
 
 	POSITIONAL_DATA_PROVIDE_TIMEOUT = 0.1
 
-	def __init__(self, usecases):
-		self.__usecases = usecases
+	def __init__(self, boundaries):
+		self.__boundaries = boundaries
 		g_playerEvents.onAvatarBecomePlayer    += self.__on_avatar_become_player
 		g_playerEvents.onAccountBecomePlayer   += self.__on_account_become_player
 		g_playerEvents.onAvatarReady           += self.__on_avatar_ready
@@ -44,29 +44,29 @@ class BattleAdapter(object):
 		return gameapi.Battle.get_camera_direction()
 
 	def __on_avatar_become_player(self):
-		self.__usecases.usecase_publish_game_nick_to_chat_server()
+		self.__boundaries.usecase_publish_game_nick_to_chat_server()
 		gameapi.Notifications.set_enabled(False)
 
 	def __on_account_become_player(self):
-		self.__usecases.usecase_publish_game_nick_to_chat_server()
+		self.__boundaries.usecase_publish_game_nick_to_chat_server()
 
 	def __on_avatar_ready(self):
-		self.__usecases.usecase_enable_positional_data_to_chat_client(True)
+		self.__boundaries.usecase_enable_positional_data_to_chat_client(True)
 		self.__positional_data_provide_repeater.start(self.POSITIONAL_DATA_PROVIDE_TIMEOUT)
 
 	def __on_avatar_become_non_player(self):
-		self.__usecases.usecase_enable_positional_data_to_chat_client(False)
+		self.__boundaries.usecase_enable_positional_data_to_chat_client(False)
 		self.__positional_data_provide_repeater.stop()
 		gameapi.Notifications.set_enabled(True)
 
 	def __on_users_list_received(self, tags):
-		self.__usecases.usecase_populate_user_cache_with_players()
+		self.__boundaries.usecase_populate_user_cache_with_players()
 
 	def __on_provide_positional_data(self):
-		self.__usecases.usecase_provide_positional_data_to_chat_client()
+		self.__boundaries.usecase_provide_positional_data_to_chat_client()
 
 	def __on_battle_replay_play(self, original_self, original_method, *args, **kwargs):
-		self.__usecases.usecase_battle_replay_start()
+		self.__boundaries.usecase_battle_replay_start()
 		return original_method(original_self, *args, **kwargs)
 
 class PlayerAdapter(object):
@@ -143,8 +143,8 @@ class NotificationsAdapter(object):
 	TSPLUGIN_MOREINFO = "TessuModTSPluginMoreInfo"
 	TSPLUGIN_IGNORED  = "TessuModTSPluginIgnore"
 
-	def __init__(self, usecases):
-		self.__usecases = usecases
+	def __init__(self, boundaries):
+		self.__boundaries = boundaries
 		gameapi.Notifications.add_event_handler(self.TSPLUGIN_INSTALL, self.__on_plugin_install)
 		gameapi.Notifications.add_event_handler(self.TSPLUGIN_IGNORED, self.__on_plugin_ignore_toggled)
 		gameapi.Notifications.add_event_handler(self.TSPLUGIN_MOREINFO, self.__on_plugin_moreinfo_clicked)
@@ -205,13 +205,13 @@ class NotificationsAdapter(object):
 		return "".join(contents).strip()
 
 	def __on_plugin_install(self, type_id, msg_id, data):
-		self.__usecases.usecase_install_chat_client_plugin()
+		self.__boundaries.usecase_install_chat_client_plugin()
 
 	def __on_plugin_ignore_toggled(self, type_id, msg_id, data):
 		new_state = False if data["ignore_state"] == "on" else True
 		data["ignore_state"] = "on" if new_state else "off"
-		self.__usecases.usecase_ignore_chat_client_plugin_install_message(new_state)
+		self.__boundaries.usecase_ignore_chat_client_plugin_install_message(new_state)
 		gameapi.Notifications.update_custom_message(type_id, msg_id, data)
 
 	def __on_plugin_moreinfo_clicked(self, type_id, msg_id, data):
-		self.__usecases.usecase_show_chat_client_plugin_info_url(data["moreinfo_url"])
+		self.__boundaries.usecase_show_chat_client_plugin_info_url(data["moreinfo_url"])

@@ -17,10 +17,10 @@
 
 class UserCacheAdapter(object):
 
-	def __init__(self, usercache, eventloop, usecases):
+	def __init__(self, usercache, eventloop, boundaries):
 		self.__usercache = usercache
 		self.__usercache.on_read_error += self.__on_read_error
-		self.__usecases = usecases
+		self.__boundaries = boundaries
 		self.__sync_repeater = eventloop.create_callback_repeater(self.__usercache.sync)
 
 	def set_file_check_interval(self, interval):
@@ -46,4 +46,4 @@ class UserCacheAdapter(object):
 
 	def __on_read_error(self, error_message):
 		'''This function is called if user cache's reading fails.'''
-		self.__usecases.usecase_show_cache_error_message(error_message)
+		self.__boundaries.usecase_show_cache_error_message(error_message)

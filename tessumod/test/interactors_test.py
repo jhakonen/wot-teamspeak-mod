@@ -20,9 +20,9 @@ import re
 import mock
 
 import helpers
-from tessumod import usecases, repositories
+from tessumod import boundaries, repositories
 from tessumod.constants import SettingConstants
-from tessumod.usecases import entities
+from tessumod import entities
 
 class TestInteractorsPairChatUserToPlayer(object):
 
@@ -32,11 +32,11 @@ class TestInteractorsPairChatUserToPlayer(object):
 		self.__player_api = mock.Mock()
 		self.__settings_repository = repositories.KeyValueRepository({})
 		self.__chat_user_repository = repositories.ChatUserRepository()
-		usecases.provide_dependency("user_cache_api",         self.__user_cache_api)
-		usecases.provide_dependency("chat_client_api",        self.__chat_client_api)
-		usecases.provide_dependency("player_api",             self.__player_api)
-		usecases.provide_dependency("settings_repository",    self.__settings_repository)
-		usecases.provide_dependency("chat_user_repository",   self.__chat_user_repository)
+		boundaries.provide_dependency("user_cache_api",         self.__user_cache_api)
+		boundaries.provide_dependency("chat_client_api",        self.__chat_client_api)
+		boundaries.provide_dependency("player_api",             self.__player_api)
+		boundaries.provide_dependency("settings_repository",    self.__settings_repository)
+		boundaries.provide_dependency("chat_user_repository",   self.__chat_user_repository)
 		self.__settings_repository.set(SettingConstants.NICK_MAPPINGS, {})
 		self.__settings_repository.set(SettingConstants.NICK_EXTRACT_PATTERNS, [])
 		self.__settings_repository.set(SettingConstants.CHAT_NICK_SEARCH_ENABLED, False)
@@ -66,7 +66,7 @@ class TestInteractorsPairChatUserToPlayer(object):
 			is_me=False,
 			in_my_channel=True
 		))
-		usecases.usecase_pair_chat_user_to_player(client_id=0)
+		boundaries.usecase_pair_chat_user_to_player(client_id=0)
 		self.__user_cache_api.add_player.assert_called_with(id=1000, name="TestTomato")
 		self.__user_cache_api.pair.assert_called_with(1000, "deadf00d")
 
@@ -82,7 +82,7 @@ class TestInteractorsPairChatUserToPlayer(object):
 			is_me=False,
 			in_my_channel=True
 		))
-		usecases.usecase_pair_chat_user_to_player(client_id=0)
+		boundaries.usecase_pair_chat_user_to_player(client_id=0)
 		self.__user_cache_api.add_player.assert_called_with(id=1001, name="TESTtomato")
 		self.__user_cache_api.pair.assert_called_with(1001, "deadf00d")
 
@@ -99,7 +99,7 @@ class TestInteractorsPairChatUserToPlayer(object):
 			is_me=False,
 			in_my_channel=True
 		))
-		usecases.usecase_pair_chat_user_to_player(client_id=0)
+		boundaries.usecase_pair_chat_user_to_player(client_id=0)
 		self.__user_cache_api.add_player.assert_called_with(id=1001, name="TESTtomato")
 		self.__user_cache_api.pair.assert_called_with(1001, "deadf00d")
 
@@ -116,7 +116,7 @@ class TestInteractorsPairChatUserToPlayer(object):
 			is_me=False,
 			in_my_channel=True
 		))
-		usecases.usecase_pair_chat_user_to_player(client_id=0)
+		boundaries.usecase_pair_chat_user_to_player(client_id=0)
 		self.__user_cache_api.add_player.assert_called_with(id=1001, name="TESTtomato123")
 		self.__user_cache_api.pair.assert_called_with(1001, "deadf00d")
 
@@ -134,7 +134,7 @@ class TestInteractorsPairChatUserToPlayer(object):
 			is_me=False,
 			in_my_channel=True
 		))
-		usecases.usecase_pair_chat_user_to_player(client_id=0)
+		boundaries.usecase_pair_chat_user_to_player(client_id=0)
 		self.__user_cache_api.add_player.assert_called_with(id=1001, name="TESTtomato123")
 		self.__user_cache_api.pair.assert_called_with(1001, "deadf00d")
 
@@ -151,6 +151,6 @@ class TestInteractorsPairChatUserToPlayer(object):
 			is_me=False,
 			in_my_channel=True
 		))
-		usecases.usecase_pair_chat_user_to_player(client_id=0)
+		boundaries.usecase_pair_chat_user_to_player(client_id=0)
 		self.__user_cache_api.add_player.assert_called_with(id=1001, name="TESTtomato")
 		self.__user_cache_api.pair.assert_called_with(1001, "deadf00d")

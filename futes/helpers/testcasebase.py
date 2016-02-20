@@ -121,7 +121,7 @@ class TestCaseBase(unittest.TestCase):
 
 	def __install_event_handler(self, name, callback):
 		if self.mod_tessumod is not None:
-			dependencies = sys.modules["tessumod.usecases"]._provided_dependencies
+			dependencies = sys.modules["tessumod.boundaries"]._provided_dependencies
 			if "chat_client_api" in dependencies:
 				ts = dependencies["chat_client_api"]._TeamSpeakChatClientAdapter__ts
 				if name == "on_connected_to_ts_server":

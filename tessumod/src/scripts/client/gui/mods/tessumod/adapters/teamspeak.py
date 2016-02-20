@@ -25,10 +25,10 @@ from ..infrastructure import mytsplugin, clientquery, utils, log
 
 class TeamSpeakChatClientAdapter(object):
 
-	def __init__(self, eventloop, usecases):
+	def __init__(self, eventloop, boundaries):
 		self.__ts = TeamSpeakClient()
 		self.__ts.set_eventloop(eventloop)
-		self.__usecases = usecases
+		self.__boundaries = boundaries
 		self.__ts.on("connected", self.__on_connected_to_ts)
 		self.__ts.on("disconnected", self.__on_disconnected_from_ts)
 		self.__ts.on("connected-server-name", self.__on_connected_to_ts_server)
@@ -98,29 +98,29 @@ class TeamSpeakChatClientAdapter(object):
 		doesn't mean that the client is connected to any TeamSpeak server.
 		'''
 		log.LOG_NOTE("Connected to TeamSpeak client")
-		self.__usecases.usecase_show_chat_client_plugin_install_message()
+		self.__boundaries.usecase_show_chat_client_plugin_install_message()
 
 	def __on_disconnected_from_ts(self):
 		'''Called when TessuMod loses connection to TeamSpeak client.'''
 		log.LOG_NOTE("Disconnected from TeamSpeak client")
-		self.__usecases.usecase_clear_speak_statuses()
-		self.__usecases.usecase_notify_chat_client_disconnected()
+		self.__boundaries.usecase_clear_speak_statuses()
+		self.__boundaries.usecase_notify_chat_client_disconnected()
 
 	def __on_connected_to_ts_server(self, server_name):
 		log.LOG_NOTE("Connected to TeamSpeak server '{0}'".format(server_name))
-		self.__usecases.usecase_notify_connected_to_chat_server(server_name)
-		self.__usecases.usecase_publish_game_nick_to_chat_server()
+		self.__boundaries.usecase_notify_connected_to_chat_server(server_name)
+		self.__boundaries.usecase_publish_game_nick_to_chat_server()
 
 	def __on_disconnected_from_ts_server(self, schandlerid):
 		log.LOG_NOTE("Disconnected from TeamSpeak server")
-		self.__usecases.usecase_clear_speak_statuses()
+		self.__boundaries.usecase_clear_speak_statuses()
 
 	def __on_user_added(self, user_data):
 		client_id = self.__get_user_client_id(user_data)
 		input = self.__get_user_additional_data(user_data)
-		self.__usecases.usecase_insert_chat_user(client_id=client_id, **input)
-		self.__usecases.usecase_pair_chat_user_to_player(client_id=client_id)
-		self.__usecases.usecase_update_chat_user_speak_state(client_id=client_id)
+		self.__boundaries.usecase_insert_chat_user(client_id=client_id, **input)
+		self.__boundaries.usecase_pair_chat_user_to_player(client_id=client_id)
+		self.__boundaries.usecase_update_chat_user_speak_state(client_id=client_id)
 
 	def __get_user_client_id(self, user_data):
 		return (user_data["schandlerid"], user_data["clid"])
@@ -145,14 +145,14 @@ class TeamSpeakChatClientAdapter(object):
 
 	def __on_user_removed(self, user_data):
 		client_id = self.__get_user_client_id(user_data)
-		self.__usecases.usecase_remove_chat_user(client_id=client_id)
+		self.__boundaries.usecase_remove_chat_user(client_id=client_id)
 
 	def __on_user_changed(self, user_data):
 		client_id = self.__get_user_client_id(user_data)
 		input = self.__get_user_additional_data(user_data)
-		self.__usecases.usecase_insert_chat_user(client_id=client_id, **input)
-		self.__usecases.usecase_pair_chat_user_to_player(client_id=client_id)
-		self.__usecases.usecase_update_chat_user_speak_state(client_id=client_id)
+		self.__boundaries.usecase_insert_chat_user(client_id=client_id, **input)
+		self.__boundaries.usecase_pair_chat_user_to_player(client_id=client_id)
+		self.__boundaries.usecase_update_chat_user_speak_state(client_id=client_id)
 
 	def __on_server_tab_changed(self, schandlerid):
 		log.LOG_NOTE("TeamSpeak client server tab was changed to {0}".format(schandlerid))
