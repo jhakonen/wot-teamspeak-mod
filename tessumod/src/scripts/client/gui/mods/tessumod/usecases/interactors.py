@@ -210,7 +210,6 @@ class UpdateChatUserSpeakState(object):
 	player_api = None
 	settings_repository = None
 	chat_user_repository = None
-	speak_state_repository = None
 
 	def execute(self, client_id):
 		user = self.chat_user_repository.get(client_id)
@@ -218,43 +217,36 @@ class UpdateChatUserSpeakState(object):
 			self.__set_chat_user_speaking(client_id)
 
 	def __set_chat_user_speaking(self, client_id):
-		user = self.chat_user_repository.get(client_id)
-		if not user:
-			return
-		for player_id in self.user_cache_api.get_paired_player_ids(user.unique_id):
-			player = self.player_api.get_player_by_dbid(player_id)
-			if player:
-				self.speak_state_repository[player["id"]] = user.speaking
-				if user.speaking:
-					# set speaking state immediately
-					self.__update_player_speak_status(player)
-				else:
-					# keep speaking state for a little longer
-					gameapi.EventLoop.callback(self.settings_repository.get(SettingConstants.SPEAK_STOP_DELAY), self.__update_player_speak_status, player)
+		if self.chat_user_repository.has(client_id):
+			user = self.chat_user_repository.get(client_id)
+			if user.speaking:
+				# set speaking state immediately
+				self.__update_chat_user_speak_status(client_id)
+			else:
+				# keep speaking state for a little longer
+				gameapi.EventLoop.callback(self.settings_repository.get(SettingConstants.SPEAK_STOP_DELAY), self.__update_chat_user_speak_status, client_id)
 
-	def __update_player_speak_status(self, player):
-		try:
-			self.chat_indicator_api.set_player_speaking(
-				player=player,
-				speaking=(
-					self.__is_voice_chat_speak_allowed(player["id"]) and
-					self.speak_state_repository.get(player["id"])
-				)
-			)
-		except:
-			log.LOG_CURRENT_EXCEPTION()
+	def __update_chat_user_speak_status(self, client_id):
+		if self.chat_user_repository.has(client_id):
+			user = self.chat_user_repository.get(client_id)
+			for player_id in self.user_cache_api.get_paired_player_ids(user.unique_id):
+				player = self.player_api.get_player_by_dbid(player_id)
+				if player:
+					try:
+						self.chat_indicator_api.set_player_speaking(
+							player=player,
+							speaking=user.speaking and self.__is_voice_chat_speak_allowed(player["id"])
+						)
+					except:
+						log.LOG_CURRENT_EXCEPTION()
 
-		try:
-			self.minimap_api.set_player_speaking(
-				player=player,
-				speaking=(
-					self.speak_state_repository.get(player["id"]) and
-					self.__is_minimap_speak_allowed(player["id"]) and
-					player["is_alive"]
-				)
-			)
-		except:
-			log.LOG_CURRENT_EXCEPTION()
+					try:
+						self.minimap_api.set_player_speaking(
+							player=player,
+							speaking=user.speaking and player["is_alive"] and self.__is_minimap_speak_allowed(player["id"])
+						)
+					except:
+						log.LOG_CURRENT_EXCEPTION()
 
 	def __is_minimap_speak_allowed(self, player_id):
 		if not self.settings_repository.get(SettingConstants.MINIMAP_NOTIFY_ENABLED):
@@ -277,7 +269,6 @@ class RemoveChatUser(object):
 	user_cache_api = None
 	player_api = None
 	chat_user_repository = None
-	speak_state_repository = None
 
 	def execute(self, client_id):
 		user = self.chat_user_repository.get(client_id)
@@ -289,7 +280,6 @@ class RemoveChatUser(object):
 		for player_id in self.user_cache_api.get_paired_player_ids(user.unique_id):
 			player = self.player_api.get_player_by_dbid(player_id)
 			if player:
-				self.speak_state_repository[player["id"]] = False
 				self.__update_player_speak_status(player)
 
 	def __update_player_speak_status(self, player):
@@ -307,11 +297,9 @@ class ClearSpeakStatuses(object):
 
 	minimap_api = None
 	chat_indicator_api = None
-	speak_state_repository = None
 
 	def execute(self):
 		'''Clears speak status of all players.'''
-		self.speak_state_repository.clear()
 		self.minimap_api.clear_all_players_speaking()
 		self.chat_indicator_api.clear_all_players_speaking()
 

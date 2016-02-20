@@ -76,7 +76,6 @@ def init():
 		usecases.provide_dependency("chat_user_repository",   chat_user_repository)
 		usecases.provide_dependency("vehicle_repository",     vehicle_repository)
 		usecases.provide_dependency("key_value_repository",   key_value_repository)
-		usecases.provide_dependency("speak_state_repository", {})
 
 		settings.sync()
 		gameapi.Notifications.init()
