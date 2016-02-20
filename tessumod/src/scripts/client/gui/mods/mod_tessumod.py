@@ -18,7 +18,6 @@
 AVAILABLE_PLUGIN_VERSION = 1
 
 try:
-	from tessumod.infrastructure.ts3 import TS3Client
 	from tessumod.infrastructure import utils, mytsplugin, gameapi, log
 	from tessumod.infrastructure.settings import Settings
 	from tessumod.infrastructure.user_cache import UserCache
@@ -48,7 +47,6 @@ def init():
 
 		# do all intializations here
 		usercache    = UserCache(cache_ini_path)
-		ts_client    = TS3Client()
 		storage      = KeyValueStorage(utils.get_states_dir_path())
 		settings     = Settings(settings_ini_path)
 
@@ -59,7 +57,7 @@ def init():
 		battle_adapter         = adapters.wotgame.BattleAdapter(usecases)
 		player_adapter         = adapters.wotgame.PlayerAdapter()
 		user_cache_adapter     = adapters.usercache.UserCacheAdapter(usercache, gameapi.EventLoop, usecases)
-		chat_client_adapter    = adapters.teamspeak.TeamSpeakChatClientAdapter(gameapi.EventLoop, ts_client, usecases)
+		chat_client_adapter    = adapters.teamspeak.TeamSpeakChatClientAdapter(gameapi.EventLoop, usecases)
 
 		settings_repository  = repositories.KeyValueRepository({})
 		chat_user_repository = repositories.ChatUserRepository()
@@ -83,8 +81,7 @@ def init():
 		settings.sync()
 		gameapi.Notifications.init()
 		usercache.init()
-
-		ts_client.connect()
+		chat_client_adapter.init()
 
 		print "TessuMod version {0} ({1})".format(utils.get_mod_version(), utils.get_support_url())
 

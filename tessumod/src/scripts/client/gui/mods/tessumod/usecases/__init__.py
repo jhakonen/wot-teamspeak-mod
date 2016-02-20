@@ -34,8 +34,8 @@ def _inject_dependencies(target):
 def usecase_load_settings(setting_vars):
 	_execute(interactors.LoadSettings(), setting_vars)
 
-def usecase_insert_chat_user(client_id, nick, game_nick, unique_id, channel_id, speaking):
-	_execute(interactors.InsertChatUser(), client_id, nick, game_nick, unique_id, channel_id, speaking)
+def usecase_insert_chat_user(client_id, **client_data):
+	_execute(interactors.InsertChatUser(), client_id, **client_data)
 
 def usecase_pair_chat_user_to_player(client_id):
 	_execute(interactors.PairChatUserToPlayer(), client_id)
@@ -45,9 +45,6 @@ def usecase_update_chat_user_speak_state(client_id):
 
 def usecase_remove_chat_user(client_id):
 	_execute(interactors.RemoveChatUser(), client_id)
-
-def usecase_change_chat_channel(channel_id):
-	_execute(interactors.ChangeChatChannel(), channel_id)
 
 def usecase_clear_speak_statuses():
 	_execute(interactors.ClearSpeakStatuses())

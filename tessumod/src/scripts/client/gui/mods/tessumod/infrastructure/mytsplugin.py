@@ -90,8 +90,8 @@ class PositionalDataAPI(_SharedMemory):
 			self.write(self.__pack_float_vector(camera_position))
 			self.write(self.__pack_float_vector(camera_direction))
 			self.write(struct.pack("B", len(positions)))
-			for client_id, position in positions.iteritems():
-				self.write(struct.pack("h", client_id))
+			for clid, position in positions.iteritems():
+				self.write(struct.pack("h", clid))
 				self.write(self.__pack_float_vector(position))
 			self.__previous_timestamp = timestamp
 			self.__previous_camera_position = camera_position

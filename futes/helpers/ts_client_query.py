@@ -11,6 +11,14 @@ from Queue import Queue, Empty
 _SELF_USER_NAME = "Testinukke"
 _NO_RESPONSE = (None, None)
 
+def build_keyvalue(key, value):
+	if value is None or len(str(value)) == 0:
+		return str(key)
+	return "=".join([str(key), escape(str(value))])
+
+def escape(value):
+	return value.replace(" ", "\s")
+
 class TSClientQueryService(object):
 
 	def __init__(self):
@@ -22,7 +30,7 @@ class TSClientQueryService(object):
 		self.insert_connect_message(1, "Welcome to the TeamSpeak 3 "
 			+ "ClientQuery interface, type \"help\" for a list of commands "
 			+ "and \"help <command>\" for information on a specific command.")
-		self.insert_connect_message(2, "selected schandlerid={0}".format(self._data.schandler_id))
+		self.insert_connect_message(2, "selected " + build_keyvalue("schandlerid", self._data.schandler_id))
 		self.set_user(_SELF_USER_NAME)
 
 	def start(self):
@@ -80,19 +88,23 @@ class User(object):
 		self._service = service
 		self._name = name
 		self._clid = str(clid)
-		self._cid = None
-		self._cluid = None
-		self._schandlerid = None
-		self._metadata = None
-		self._speaking = None
-		self.set()
+		self._cid = "1"
+		self._cluid = "BAADF00D" + self._clid
+		self._schandlerid = "1"
+		self._metadata = ""
+		self._speaking = False
 
 	def set(self, **kwargs):
-		self.cid = str(kwargs["cid"] if "cid" in kwargs else 1)
-		self.cluid = str(kwargs["cluid"] if "cluid" in kwargs else "BAADF00D" + self._clid)
-		self.schandlerid = str(kwargs["schandlerid"] if "schandlerid" in kwargs else 1)
-		self.metadata = str(kwargs["metadata"] if "metadata" in kwargs else "")
-		self.speaking = kwargs["speaking"] if "speaking" in kwargs else False
+		if "cid" in kwargs:
+			self.cid = str(kwargs["cid"])
+		if "cluid" in kwargs:
+			self.cluid = str(kwargs["cluid"])
+		if "schandlerid" in kwargs:
+			self.schandlerid = str(kwargs["schandlerid"])
+		if "metadata" in kwargs:
+			self.metadata = str(kwargs["metadata"])
+		if "speaking" in kwargs:
+			self.speaking = kwargs["speaking"]
 
 	@property
 	def name(self):
@@ -129,11 +141,12 @@ class User(object):
 	@metadata.setter
 	def metadata(self, value):
 		if self._metadata is not None and self._metadata != value:
-			self._service.send_event("notifyclientupdated schandlerid={0} clid={1} client_meta_data={2}".format(
-				self._schandlerid,
-				self._clid,
-				value
-			))
+			self._service.send_event(" ".join([
+				"notifyclientupdated",
+				build_keyvalue("schandlerid", self._schandlerid),
+				build_keyvalue("clid", self._clid),
+				build_keyvalue("client_meta_data", value)
+			]))
 		self._metadata = value
 
 	@property
@@ -142,8 +155,24 @@ class User(object):
 	@speaking.setter
 	def speaking(self, value):
 		if self._speaking is not None and self._speaking != value:
-			self._service.send_event("notifytalkstatuschange status={0} clid={1}".format(1 if value else 0, self._clid))
+			self._service.send_event(" ".join([
+				"notifytalkstatuschange",
+				build_keyvalue("schandlerid", self._schandlerid),
+				build_keyvalue("status", 1 if value else 0),
+				build_keyvalue("clid", self._clid)
+			]))
 		self._speaking = value
+
+	def __repr__(self):
+		return "User(name={0}, clid={1}, cid={2}, cluid={3}, schandlerid={4}, metadata={5}, speaking={6})".format(
+			repr(self._name),
+			repr(self._clid),
+			repr(self._cid),
+			repr(self._cluid),
+			repr(self._schandlerid),
+			repr(self._metadata),
+			repr(self._speaking)
+		)
 
 class Data(object):
 	def __init__(self):
@@ -223,7 +252,11 @@ class TSClientQueryHandler(asynchat.async_chat):
 		if code is None or message is None:
 			return
 		message = message.replace(" ", "\\s")
-		self.push("error id={0} msg={1}\n\r".format(code, message))
+		self.push(" ".join([
+			"error",
+			build_keyvalue("id", code),
+			build_keyvalue("msg", message)
+		]) + "\n\r")
 
 	def handle_command_clientnotifyunregister(self):
 		if not self._registered_events:
@@ -235,57 +268,74 @@ class TSClientQueryHandler(asynchat.async_chat):
 			return _NO_RESPONSE
 		self._registered_events.append(event)
 
+	def handle_command_currentschandlerid(self):
+		schandlerid = 1
+		for clid in self._data_source.users:
+			user = self._data_source.users[clid]
+			schandlerid = user.schandlerid
+		self.push(build_keyvalue("schandlerid", schandlerid) + "\n\r")
+
 	def handle_command_whoami(self):
 		if self._data_source.connected_to_server:
-			self.push("clid={0} cid={1}\n\r".format(
-				self.get_my_user().clid, self.get_my_user().cid))
+			self.push(" ".join([
+				build_keyvalue("clid", self.get_my_user().clid),
+				build_keyvalue("cid", self.get_my_user().cid)
+			]) + "\n\r")
 		else:
 			return 1794, "not connected"
 
 	def handle_command_clientgetuidfromclid(self, clid, **ignored):
 		user = self._data_source.users[clid]
-		self._data_source.event_queue.put("notifyclientuidfromclid schandlerid={0} clid={1} cluid={2} nickname={3}"
-			.format(user.schandlerid, user.clid, user.cluid, escape(user.name)))
+		self._data_source.event_queue.put(" ".join([
+			"notifyclientuidfromclid",
+			build_keyvalue("schandlerid", user.schandlerid),
+			build_keyvalue("clid", user.clid),
+			build_keyvalue("cluid", user.cluid),
+			build_keyvalue("nickname", user.name)
+		]))
 
 	def handle_command_clientvariable(self, clid, **requested_vars):
 		user = self._data_source.users[clid]
-		self.push("clid=" + clid)
+		args = [build_keyvalue("clid", clid)]
 		if "client_meta_data" in requested_vars:
-			self.push(" client_meta_data=" + escape(user.metadata))
-		self.push("\n\r")
+			args.append(build_keyvalue("client_meta_data", user.metadata))
+		self.push(" ".join(args) + "\n\r")
 
 	def handle_command_clientlist(self, options=[]):
 		entries = []
 		for clid in self._data_source.users:
 			user = self._data_source.users[clid]
-			params = [
-				"clid=" + str(user.clid),
-				"cid=" + str(user.cid),
-				"client_database_id=DBID" + str(user.clid),
-				"client_nickname=" + user.name,
-				"client_type=0"
+			args = [
+				build_keyvalue("clid", user.clid),
+				build_keyvalue("cid", user.cid),
+				build_keyvalue("client_database_id", "DBID" + str(user.clid)),
+				build_keyvalue("client_nickname", user.name),
+				build_keyvalue("client_type", 0)
 			]
 			if "uid" in options:
-				params.append("client_unique_identifier=" + user.cluid)
-			entries.append(" ".join(escape(param) for param in params))
+				args.append(build_keyvalue("client_unique_identifier", user.cluid))
+			entries.append(" ".join(args))
 		self.push(("|".join(entries) + "\n\r"))
 
 	def handle_command_clientupdate(self, client_meta_data, **ignored):
 		pass
 
 	def handle_command_currentschandlerid(self):
-		self.push("schandlerid={0}\n\r".format(self._data_source.schandler_id))
+		self.push(build_keyvalue("schandlerid", self._data_source.schandler_id) + "\n\r")
 
 	def handle_command_use(self, schandlerid):
 		self._data_source.schandler_id = int(schandlerid)
+		self.push(" ".join(["selected", build_keyvalue("schandlerid", schandlerid)]) + "\n\r")
 
 	def handle_command_servervariable(self, virtualserver_name=None):
 		if virtualserver_name is not None:
-			self.push("virtualserver_name=Dummy\sServer\n\r")
+			self.push(build_keyvalue("virtualserver_name", "Dummy Server") + "\n\r")
 
-	def user_value_changed(self, clid, name, value):
-		if name == "speaking":
-			self._data_source.event_queue.put("notifytalkstatuschange status={0} clid={1}".format(1 if value else 0, clid))
+	def handle_command_serverconnectionhandlerlist(self):
+		schandlerids = set([user.schandlerid for user in self._data_source.users.itervalues()])
+		if len(schandlerids) == 0:
+			schandlerids.append(1)
+		self.push("|".join([build_keyvalue("schandlerid", id) for id in schandlerids]) + "\n\r")
 
 	def get_my_user(self):
 		for clid in self._data_source.users:
@@ -302,6 +352,3 @@ class TSClientQueryHandler(asynchat.async_chat):
 				self._data_source.event_queue.put(event)
 		except Empty:
 			pass
-
-def escape(value):
-	return value.replace(" ", "\s")

@@ -17,7 +17,7 @@ def reset_settings_file():
 	remove_file(path)
 	parser = ConfigParser.SafeConfigParser()
 	parser.add_section("General")
-	parser.set("General", "log_level", "1")
+	parser.set("General", "log_level", "0")
 	parser.set("General", "ini_check_interval", "5")
 	parser.set("General", "speak_stop_delay", "1")
 	parser.set("General", "get_wot_nick_from_ts_metadata", "on")

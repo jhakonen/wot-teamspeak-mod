@@ -10,7 +10,9 @@ class BattleWindow(object):
 		self.minimap = Minimap()
 
 class Minimap(object):
-	pass
+
+	def showActionMarker(self, vehicle_id, action):
+		pass
 
 g_battleWindow = BattleWindow()
 

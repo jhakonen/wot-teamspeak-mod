@@ -69,16 +69,31 @@ class InsertChatUser(object):
 	chat_client_api = None
 	chat_user_repository = None
 
-	def execute(self, client_id, nick, game_nick, unique_id, channel_id, speaking):
-		new_user = self.chat_user_repository.set(entities.TeamSpeakUser(
-			nick = nick,
-			game_nick = game_nick,
-			client_id = client_id,
-			unique_id = unique_id,
-			channel_id = channel_id,
-			speaking = speaking
-		))
-		if new_user.channel_id == self.chat_client_api.get_current_channel_id():
+	def execute(self, client_id, **client_data):
+		if self.chat_user_repository.has(client_id):
+			old_user = self.chat_user_repository.get(client_id)
+			new_user = self.chat_user_repository.set(entities.TeamSpeakUser(
+				client_id = client_id,
+				nick = client_data["nick"] if "nick" in client_data else old_user.nick,
+				game_nick = client_data["game_nick"] if "game_nick" in client_data else old_user.game_nick,
+				unique_id = client_data["unique_id"] if "unique_id" in client_data else old_user.unique_id,
+				channel_id = client_data["channel_id"] if "channel_id" in client_data else old_user.channel_id,
+				speaking = client_data["speaking"] if "speaking" in client_data else old_user.speaking,
+				is_me = client_data["is_me"] if "is_me" in client_data else old_user.is_me,
+				in_my_channel = client_data["in_my_channel"] if "in_my_channel" in client_data else old_user.in_my_channel
+			))
+		else:
+			new_user = self.chat_user_repository.set(entities.TeamSpeakUser(
+				client_id = client_id,
+				nick = client_data.get("nick", None),
+				game_nick = client_data.get("game_nick", None),
+				unique_id = client_data.get("unique_id", None),
+				channel_id = client_data.get("channel_id", None),
+				speaking = client_data.get("speaking", None),
+				is_me = client_data.get("is_me", None),
+				in_my_channel = client_data.get("in_my_channel", None)
+			))
+		if new_user.in_my_channel:
 			self.user_cache_api.add_chat_user(new_user.unique_id, new_user.nick)
 
 class PairChatUserToPlayer(object):
@@ -90,13 +105,12 @@ class PairChatUserToPlayer(object):
 	chat_user_repository = None
 
 	def execute(self, client_id):
-		old_user = self.chat_user_repository.get(client_id)
-		if old_user.channel_id == self.chat_client_api.get_current_channel_id():
-			self.__find_and_pair_chat_user_to_player(old_user.client_id)
+		user = self.chat_user_repository.get(client_id)
+		if user.in_my_channel:
+			self.__find_and_pair_chat_user_to_player(client_id)
 
-	def __find_and_pair_chat_user_to_player(self, user_id):
-
-		user = self.chat_user_repository.get(user_id)
+	def __find_and_pair_chat_user_to_player(self, client_id):
+		user = self.chat_user_repository.get(client_id)
 		players = list(self.player_api.get_players(in_battle=True, in_prebattle=True))
 		mappings = self.settings_repository.get(SettingConstants.NICK_MAPPINGS)
 		extract_patterns = self.settings_repository.get(SettingConstants.NICK_EXTRACT_PATTERNS)
@@ -200,11 +214,11 @@ class UpdateChatUserSpeakState(object):
 
 	def execute(self, client_id):
 		user = self.chat_user_repository.get(client_id)
-		if user.channel_id == self.chat_client_api.get_current_channel_id():
-			self.__set_chat_user_speaking(user.client_id)
+		if user.in_my_channel:
+			self.__set_chat_user_speaking(client_id)
 
-	def __set_chat_user_speaking(self, user_id):
-		user = self.chat_user_repository.get(user_id)
+	def __set_chat_user_speaking(self, client_id):
+		user = self.chat_user_repository.get(client_id)
 		if not user:
 			return
 		for player_id in self.user_cache_api.get_paired_player_ids(user.unique_id):
@@ -288,19 +302,6 @@ class RemoveChatUser(object):
 			self.minimap_api.set_player_speaking(player=player, speaking=False)
 		except:
 			log.LOG_CURRENT_EXCEPTION()
-
-class ChangeChatChannel(object):
-
-	user_cache_api = None
-	chat_user_repository = None
-
-	def execute(self, channel_id):
-		for user in self.chat_user_repository:
-			self.__add_to_cache(user, channel_id)
-
-	def __add_to_cache(self, user, current_channel_id):
-		if user.channel_id == current_channel_id:
-			self.user_cache_api.add_chat_user(user.unique_id, user.nick)
 
 class ClearSpeakStatuses(object):
 

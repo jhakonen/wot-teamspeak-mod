@@ -125,11 +125,11 @@ class TestCaseBase(unittest.TestCase):
 			if "chat_client_api" in dependencies:
 				ts = dependencies["chat_client_api"]._TeamSpeakChatClientAdapter__ts
 				if name == "on_connected_to_ts_server":
-					ts.on_connected_to_server += callback
+					ts.on("connected-server-name", callback)
 				elif name == "on_connected_to_ts_client":
-					ts.on_connected += callback
+					ts.on("connected", callback)
 				elif name == "on_disconnected_from_ts_client":
-					ts.on_disconnected += callback
+					ts.on("disconnected", callback)
 				else:
 					raise RuntimeError("No such event: {0}".format(name))
 				return True
@@ -144,9 +144,6 @@ class TestCaseBase(unittest.TestCase):
 			for callback in callbacks:
 				self.__install_event_handler(name, callback)
 
-		# hack to speed up testing
-		import tessumod.infrastructure.ts3
-		tessumod.infrastructure.ts3._UNREGISTER_WAIT_TIMEOUT = 0.5
 		self.change_game_state(**game_state)
 
 	def run_in_event_loop(self, timeout=20):

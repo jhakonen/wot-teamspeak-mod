@@ -62,7 +62,9 @@ class TestInteractorsPairChatUserToPlayer(object):
 			client_id=0,
 			unique_id="deadf00d",
 			channel_id=self.__channel_id,
-			speaking=True
+			speaking=True,
+			is_me=False,
+			in_my_channel=True
 		))
 		usecases.usecase_pair_chat_user_to_player(client_id=0)
 		self.__user_cache_api.add_player.assert_called_with(id=1000, name="TestTomato")
@@ -76,7 +78,9 @@ class TestInteractorsPairChatUserToPlayer(object):
 			client_id=0,
 			unique_id="deadf00d",
 			channel_id=self.__channel_id,
-			speaking=True
+			speaking=True,
+			is_me=False,
+			in_my_channel=True
 		))
 		usecases.usecase_pair_chat_user_to_player(client_id=0)
 		self.__user_cache_api.add_player.assert_called_with(id=1001, name="TESTtomato")
@@ -91,7 +95,9 @@ class TestInteractorsPairChatUserToPlayer(object):
 			client_id=0,
 			unique_id="deadf00d",
 			channel_id=self.__channel_id,
-			speaking=True
+			speaking=True,
+			is_me=False,
+			in_my_channel=True
 		))
 		usecases.usecase_pair_chat_user_to_player(client_id=0)
 		self.__user_cache_api.add_player.assert_called_with(id=1001, name="TESTtomato")
@@ -106,7 +112,9 @@ class TestInteractorsPairChatUserToPlayer(object):
 			client_id=0,
 			unique_id="deadf00d",
 			channel_id=self.__channel_id,
-			speaking=True
+			speaking=True,
+			is_me=False,
+			in_my_channel=True
 		))
 		usecases.usecase_pair_chat_user_to_player(client_id=0)
 		self.__user_cache_api.add_player.assert_called_with(id=1001, name="TESTtomato123")
@@ -122,7 +130,9 @@ class TestInteractorsPairChatUserToPlayer(object):
 			client_id=0,
 			unique_id="deadf00d",
 			channel_id=self.__channel_id,
-			speaking=True
+			speaking=True,
+			is_me=False,
+			in_my_channel=True
 		))
 		usecases.usecase_pair_chat_user_to_player(client_id=0)
 		self.__user_cache_api.add_player.assert_called_with(id=1001, name="TESTtomato123")
@@ -137,7 +147,9 @@ class TestInteractorsPairChatUserToPlayer(object):
 			client_id=0,
 			unique_id="deadf00d",
 			channel_id=self.__channel_id,
-			speaking=True
+			speaking=True,
+			is_me=False,
+			in_my_channel=True
 		))
 		usecases.usecase_pair_chat_user_to_player(client_id=0)
 		self.__user_cache_api.add_player.assert_called_with(id=1001, name="TESTtomato")

@@ -17,13 +17,15 @@
 
 class TeamSpeakUser(object):
 
-	def __init__(self, nick, game_nick, client_id, unique_id, channel_id, speaking):
+	def __init__(self, nick, game_nick, client_id, unique_id, channel_id, speaking, is_me, in_my_channel):
 		self.__nick = nick
 		self.__game_nick = game_nick
 		self.__client_id = client_id
 		self.__unique_id = unique_id
 		self.__channel_id = channel_id
 		self.__speaking = speaking
+		self.__is_me = is_me
+		self.__in_my_channel = in_my_channel
 
 	@property
 	def nick(self):
@@ -49,6 +51,14 @@ class TeamSpeakUser(object):
 	def speaking(self):
 		return self.__speaking
 
+	@property
+	def is_me(self):
+		return self.__is_me
+
+	@property
+	def in_my_channel(self):
+		return self.__in_my_channel
+
 	def __hash__(self):
 		return (
 			hash(self.__client_id) ^
@@ -62,13 +72,15 @@ class TeamSpeakUser(object):
 		return hash(self) == hash(other)
 
 	def __repr__(self):
-		return "TeamSpeakUser(client_id={0}, nick={1}, wot_nick={2}, unique_id={3}, channel_id={4}, speaking={5})".format(
+		return "TeamSpeakUser(client_id={0}, nick={1}, wot_nick={2}, unique_id={3}, channel_id={4}, speaking={5}, is_me={6}, in_my_channel={7})".format(
 			repr(self.__client_id),
 			repr(self.__nick),
 			repr(self.__game_nick),
 			repr(self.__unique_id),
 			repr(self.__channel_id),
-			repr(self.__speaking)
+			repr(self.__speaking),
+			repr(self.__is_me),
+			repr(self.__in_my_channel)
 		)
 
 class Vehicle(object):

@@ -24,6 +24,9 @@ class ChatUserRepository(collections.Iterable):
 	def __init__(self):
 		self.__entities = {}
 
+	def has(self, client_id):
+		return client_id in self.__entities
+
 	def get(self, client_id):
 		return copy.copy(self.__entities.get(client_id))
 
