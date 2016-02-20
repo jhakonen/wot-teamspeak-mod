@@ -316,7 +316,7 @@ class ShowChatClientPluginInstallMessage(object):
 
 	notifications_api = None
 	chat_client_api = None
-	key_value_repository = None
+	datastorage_api = None
 
 	def execute(self):
 		installer_path = utils.get_plugin_installer_path()
@@ -344,7 +344,7 @@ class ShowChatClientPluginInstallMessage(object):
 		return plugin_version >= self.AVAILABLE_PLUGIN_VERSION
 
 	def __get_ignored_plugin_version(self):
-		version = self.key_value_repository.get("ignored_plugin_version")
+		version = self.datastorage_api.get("ignored_plugin_version")
 		if version is not None:
 			return int(version)
 		return 0
@@ -359,10 +359,10 @@ class InstallChatClientPlugin(object):
 class IgnoreChatClientPluginInstallMessage(object):
 
 	AVAILABLE_PLUGIN_VERSION = ShowChatClientPluginInstallMessage.AVAILABLE_PLUGIN_VERSION
-	key_value_repository = None
+	datastorage_api = None
 
 	def execute(self, ignored):
-		self.key_value_repository.set("ignored_plugin_version", self.AVAILABLE_PLUGIN_VERSION if ignored else 0)
+		self.datastorage_api.set("ignored_plugin_version", self.AVAILABLE_PLUGIN_VERSION if ignored else 0)
 
 class ShowChatClientPluginInfoUrl(object):
 
