@@ -56,7 +56,7 @@ class TestInteractorsPairChatUserToPlayer(object):
 	def test_matches_using_metadata(self):
 		self.__settings_repository.set(SettingConstants.GET_GAME_NICK_FROM_CHAT_CLIENT, True)
 		self.__player_api.get_players.return_value = [dict(name="TestTomato", id=1000)]
-		self.__chat_user_repository.set(entities.TeamSpeakUser(
+		self.__chat_user_repository.set(entities.ChatClientUser(
 			nick="TestDummy",
 			game_nick="TestTomato",
 			client_id=0,
@@ -72,7 +72,7 @@ class TestInteractorsPairChatUserToPlayer(object):
 
 	def test_matches_same_names_case_insensitive(self):
 		self.__player_api.get_players.return_value = [dict(name="TestDummy", id=1000), dict(name="TESTtomato", id=1001)]
-		self.__chat_user_repository.set(entities.TeamSpeakUser(
+		self.__chat_user_repository.set(entities.ChatClientUser(
 			nick="TestTomato",
 			game_nick="",
 			client_id=0,
@@ -89,7 +89,7 @@ class TestInteractorsPairChatUserToPlayer(object):
 	def test_extracts_nick_using_regexp_patterns(self):
 		self.__settings_repository.set(SettingConstants.NICK_EXTRACT_PATTERNS, [re.compile(r"\[[^\]]+\]\s*([a-z0-9_]+)", re.IGNORECASE)])
 		self.__player_api.get_players.return_value = [dict(name="TestDummy", id=1000), dict(name="TESTtomato", id=1001)]
-		self.__chat_user_repository.set(entities.TeamSpeakUser(
+		self.__chat_user_repository.set(entities.ChatClientUser(
 			nick="[T-BAD] TestTomato",
 			game_nick="",
 			client_id=0,
@@ -106,7 +106,7 @@ class TestInteractorsPairChatUserToPlayer(object):
 	def test_matches_using_mappings(self):
 		self.__player_api.get_players.return_value = [dict(name="TestDummy", id=1000), dict(name="TESTtomato123", id=1001)]
 		self.__settings_repository.set(SettingConstants.NICK_MAPPINGS, dict(matti="TESTtomato123"))
-		self.__chat_user_repository.set(entities.TeamSpeakUser(
+		self.__chat_user_repository.set(entities.ChatClientUser(
 			nick="Matti",
 			game_nick="",
 			client_id=0,
@@ -124,7 +124,7 @@ class TestInteractorsPairChatUserToPlayer(object):
 		self.__player_api.get_players.return_value = [dict(name="TestDummy", id=1000), dict(name="TESTtomato123", id=1001)]
 		self.__settings_repository.set(SettingConstants.NICK_EXTRACT_PATTERNS, [re.compile(r"\[[^\]]+\]\s*([a-z0-9_]+)", re.IGNORECASE)])
 		self.__settings_repository.set(SettingConstants.NICK_MAPPINGS, dict(matti="TESTtomato123"))
-		self.__chat_user_repository.set(entities.TeamSpeakUser(
+		self.__chat_user_repository.set(entities.ChatClientUser(
 			nick="[T-BAD] Matti",
 			game_nick="",
 			client_id=0,
@@ -141,7 +141,7 @@ class TestInteractorsPairChatUserToPlayer(object):
 	def test_searches_players_from_ts_name(self):
 		self.__settings_repository.set(SettingConstants.CHAT_NICK_SEARCH_ENABLED, True)
 		self.__player_api.get_players.return_value = [dict(name="TestDummy", id=1000), dict(name="TESTtomato", id=1001)]
-		self.__chat_user_repository.set(entities.TeamSpeakUser(
+		self.__chat_user_repository.set(entities.ChatClientUser(
 			nick="[T-BAD] TestTomato",
 			game_nick="",
 			client_id=0,

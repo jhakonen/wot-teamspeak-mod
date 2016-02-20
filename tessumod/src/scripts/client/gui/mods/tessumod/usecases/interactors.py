@@ -72,7 +72,7 @@ class InsertChatUser(object):
 	def execute(self, client_id, **client_data):
 		if self.chat_user_repository.has(client_id):
 			old_user = self.chat_user_repository.get(client_id)
-			new_user = self.chat_user_repository.set(entities.TeamSpeakUser(
+			new_user = self.chat_user_repository.set(entities.ChatClientUser(
 				client_id = client_id,
 				nick = client_data["nick"] if "nick" in client_data else old_user.nick,
 				game_nick = client_data["game_nick"] if "game_nick" in client_data else old_user.game_nick,
@@ -83,7 +83,7 @@ class InsertChatUser(object):
 				in_my_channel = client_data["in_my_channel"] if "in_my_channel" in client_data else old_user.in_my_channel
 			))
 		else:
-			new_user = self.chat_user_repository.set(entities.TeamSpeakUser(
+			new_user = self.chat_user_repository.set(entities.ChatClientUser(
 				client_id = client_id,
 				nick = client_data.get("nick", None),
 				game_nick = client_data.get("game_nick", None),

@@ -15,7 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-class TeamSpeakUser(object):
+class ChatClientUser(object):
 
 	def __init__(self, nick, game_nick, client_id, unique_id, channel_id, speaking, is_me, in_my_channel):
 		self.__nick = nick
@@ -72,7 +72,7 @@ class TeamSpeakUser(object):
 		return hash(self) == hash(other)
 
 	def __repr__(self):
-		return "TeamSpeakUser(client_id={0}, nick={1}, wot_nick={2}, unique_id={3}, channel_id={4}, speaking={5}, is_me={6}, in_my_channel={7})".format(
+		return "ChatClientUser(client_id={0}, nick={1}, wot_nick={2}, unique_id={3}, channel_id={4}, speaking={5}, is_me={6}, in_my_channel={7})".format(
 			repr(self.__client_id),
 			repr(self.__nick),
 			repr(self.__game_nick),
