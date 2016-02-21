@@ -43,6 +43,19 @@ class BattleAdapter(object):
 	def get_camera_direction(self):
 		return gameapi.Battle.get_camera_direction()
 
+	def get_vehicle(self, player_id):
+		result = {}
+		vehicle_id = gameapi.Battle.find_vehicle_id(lambda vehicle: vehicle["accountDBID"] == player_id)
+		if vehicle_id is None:
+			return result
+		vehicle = gameapi.Battle.get_vehicle(vehicle_id)
+		if vehicle:
+			result["is-alive"] = vehicle.get("isAlive", True)
+			entity = gameapi.Battle.get_entity(vehicle_id)
+			if entity and entity.position:
+				result["position"] = (entity.position.x, entity.position.y, entity.position.z)
+		return result
+
 	def __on_avatar_become_player(self):
 		self.__boundaries.usecase_publish_game_nick_to_chat_server()
 		gameapi.Notifications.set_enabled(False)

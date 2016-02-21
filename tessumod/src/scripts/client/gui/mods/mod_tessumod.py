@@ -62,7 +62,6 @@ def init():
 
 		settings_repository  = repositories.KeyValueRepository({})
 		chat_user_repository = repositories.ChatUserRepository()
-		vehicle_repository   = repositories.VehicleRepository(gameapi.Battle)
 
 		boundaries.provide_dependency("settings_api",           settings_adapter)
 		boundaries.provide_dependency("minimap_api",            minimap_adapter)
@@ -75,7 +74,6 @@ def init():
 		boundaries.provide_dependency("player_api",             player_adapter)
 		boundaries.provide_dependency("settings_repository",    settings_repository)
 		boundaries.provide_dependency("chat_user_repository",   chat_user_repository)
-		boundaries.provide_dependency("vehicle_repository",     vehicle_repository)
 
 		settings.sync()
 		gameapi.Notifications.init()

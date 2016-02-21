@@ -40,24 +40,6 @@ class ChatUserRepository(collections.Iterable):
 	def __iter__(self):
 		return self.__entities.itervalues()
 
-class VehicleRepository(object):
-
-	def __init__(self, battle):
-		self.__battle = battle
-		self.__entities = {}
-
-	def get(self, player_id):
-		vehicle_id = self.__battle.find_vehicle_id(lambda v: v["accountDBID"] == player_id)
-		if vehicle_id is None:
-			return None
-		vehicle = self.__battle.get_vehicle(vehicle_id)
-		return entities.Vehicle(repository=self, vehicle_id=vehicle_id, is_alive=vehicle["isAlive"])
-
-	def get_vehicle_position(self, vehicle_id):
-		entity = self.__battle.get_entity(vehicle_id)
-		if entity:
-			return (entity.position.x, entity.position.y, entity.position.z)
-
 class KeyValueRepository(object):
 
 	def __init__(self, engine):

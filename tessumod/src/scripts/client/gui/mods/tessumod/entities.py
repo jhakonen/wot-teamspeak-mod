@@ -82,29 +82,3 @@ class ChatClientUser(object):
 			repr(self.__is_me),
 			repr(self.__in_my_channel)
 		)
-
-class Vehicle(object):
-
-	def __init__(self, repository, vehicle_id, is_alive):
-		self.__repository = repository
-		self.__id = vehicle_id
-		self.__is_alive = is_alive
-
-	@property
-	def id(self):
-		return self.__id
-
-	@property
-	def is_alive(self):
-		return self.__is_alive
-
-	@property
-	def position(self):
-		return self.__repository.get_vehicle_position(self.__id)
-
-	def __repr__(self):
-		return "Vehicle(id={0}, is_alive={1}, position={2})".format(
-			self.id,
-			self.is_alive,
-			self.position
-		)

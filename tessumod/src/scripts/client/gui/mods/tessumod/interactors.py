@@ -408,7 +408,6 @@ class ProvidePositionalDataToChatClient(object):
 	chat_client_api = None
 	user_cache_api = None
 	chat_user_repository = None
-	vehicle_repository = None
 
 	def execute(self):
 		camera_position = self.battle_api.get_camera_position()
@@ -416,9 +415,9 @@ class ProvidePositionalDataToChatClient(object):
 		positions = {}
 		for user in self.chat_user_repository:
 			for player_id in self.user_cache_api.get_paired_player_ids(user.unique_id):
-				vehicle = self.vehicle_repository.get(player_id=player_id)
-				if vehicle and vehicle.is_alive:
-					positions[user.client_id] = vehicle.position
+				vehicle = self.battle_api.get_vehicle(player_id=player_id)
+				if vehicle and vehicle["is-alive"] and vehicle["position"]:
+					positions[user.client_id] = vehicle["position"]
 		if camera_position and camera_direction and positions:
 			self.chat_client_api.update_positional_data(camera_position, camera_direction, positions)
 
