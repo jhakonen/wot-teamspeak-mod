@@ -16,6 +16,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 import re
+import copy
 
 from ..constants import SettingConstants
 
@@ -26,12 +27,16 @@ class SettingsAdapter(object):
 		self.__boundaries = boundaries
 		self.__settings.on_reloaded += self.__on_settings_reloaded
 		self.__sync_repeater = eventloop.create_callback_repeater(self.__settings.sync)
+		self.__loaded_values = {}
 
 	def set_file_check_interval(self, interval):
 		self.__sync_repeater.start(interval)
 
+	def get(self, key):
+		return copy.copy(self.__loaded_values[key])
+
 	def __on_settings_reloaded(self):
-		self.__boundaries.usecase_load_settings({
+		self.__loaded_values = {
 			SettingConstants.LOG_LEVEL                      : self.__settings.get_int("General", "log_level"),
 			SettingConstants.FILE_CHECK_INTERVAL            : self.__settings.get_float("General", "ini_check_interval"),
 			SettingConstants.SPEAK_STOP_DELAY               : self.__settings.get_float("General", "speak_stop_delay"),
@@ -49,4 +54,5 @@ class SettingsAdapter(object):
 			SettingConstants.MINIMAP_NOTIFY_SELF_ENABLED    : self.__settings.get_boolean("MinimapNotifications", "self_enabled"),
 			SettingConstants.MINIMAP_NOTIFY_ACTION          : self.__settings.get_str("MinimapNotifications", "action"),
 			SettingConstants.MINIMAP_NOTIFY_REPEAT_INTERVAL : self.__settings.get_float("MinimapNotifications", "repeat_interval")
-		})
+		}
+		self.__boundaries.usecase_load_settings(self.__loaded_values)

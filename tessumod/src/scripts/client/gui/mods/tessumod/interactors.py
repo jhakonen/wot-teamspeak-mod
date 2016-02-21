@@ -17,6 +17,7 @@
 
 import sys
 import os
+import copy
 
 from infrastructure import utils, gameapi, log
 from constants import SettingConstants
@@ -28,38 +29,33 @@ class LoadSettings(object):
 	minimap_api = None
 	settings_api = None
 	user_cache_api = None
-	settings_repository = None
 
 	def execute(self, variables):
-		def take_and_store(key):
-			value = variables[key]
-			del variables[key]
-			self.settings_repository.set(key, value)
-			return value
-		value = take_and_store(SettingConstants.LOG_LEVEL)
+		variables = copy.copy(variables)
+		value = variables.pop(SettingConstants.LOG_LEVEL)
 		log.CURRENT_LOG_LEVEL = value
-		value = take_and_store(SettingConstants.FILE_CHECK_INTERVAL)
+		value = variables.pop(SettingConstants.FILE_CHECK_INTERVAL)
 		self.settings_api.set_file_check_interval(value)
 		self.user_cache_api.set_file_check_interval(value)
-		value = take_and_store(SettingConstants.SPEAK_STOP_DELAY)
-		value = take_and_store(SettingConstants.GET_GAME_NICK_FROM_CHAT_CLIENT)
-		value = take_and_store(SettingConstants.UPDATE_CACHE_IN_REPLAYS)
-		value = take_and_store(SettingConstants.CHAT_NICK_SEARCH_ENABLED)
-		value = take_and_store(SettingConstants.NICK_EXTRACT_PATTERNS)
-		value = take_and_store(SettingConstants.NICK_MAPPINGS)
-		value = take_and_store(SettingConstants.CHAT_CLIENT_HOST)
+		value = variables.pop(SettingConstants.SPEAK_STOP_DELAY)
+		value = variables.pop(SettingConstants.GET_GAME_NICK_FROM_CHAT_CLIENT)
+		value = variables.pop(SettingConstants.UPDATE_CACHE_IN_REPLAYS)
+		value = variables.pop(SettingConstants.CHAT_NICK_SEARCH_ENABLED)
+		value = variables.pop(SettingConstants.NICK_EXTRACT_PATTERNS)
+		value = variables.pop(SettingConstants.NICK_MAPPINGS)
+		value = variables.pop(SettingConstants.CHAT_CLIENT_HOST)
 		self.chat_client_api.set_host(value)
-		value = take_and_store(SettingConstants.CHAT_CLIENT_PORT)
+		value = variables.pop(SettingConstants.CHAT_CLIENT_PORT)
 		self.chat_client_api.set_port(value)
-		value = take_and_store(SettingConstants.CHAT_CLIENT_POLLING_INTERVAL)
+		value = variables.pop(SettingConstants.CHAT_CLIENT_POLLING_INTERVAL)
 		self.chat_client_api.set_polling_interval(value)
-		value = take_and_store(SettingConstants.VOICE_CHAT_NOTIFY_ENABLED)
-		value = take_and_store(SettingConstants.VOICE_CHAT_NOTIFY_SELF_ENABLED)
-		value = take_and_store(SettingConstants.MINIMAP_NOTIFY_ENABLED)
-		value = take_and_store(SettingConstants.MINIMAP_NOTIFY_SELF_ENABLED)
-		value = take_and_store(SettingConstants.MINIMAP_NOTIFY_ACTION)
+		value = variables.pop(SettingConstants.VOICE_CHAT_NOTIFY_ENABLED)
+		value = variables.pop(SettingConstants.VOICE_CHAT_NOTIFY_SELF_ENABLED)
+		value = variables.pop(SettingConstants.MINIMAP_NOTIFY_ENABLED)
+		value = variables.pop(SettingConstants.MINIMAP_NOTIFY_SELF_ENABLED)
+		value = variables.pop(SettingConstants.MINIMAP_NOTIFY_ACTION)
 		self.minimap_api.set_action(value)
-		value = take_and_store(SettingConstants.MINIMAP_NOTIFY_REPEAT_INTERVAL)
+		value = variables.pop(SettingConstants.MINIMAP_NOTIFY_REPEAT_INTERVAL)
 		self.minimap_api.set_action_interval(value)
 		assert not variables, "Not all variables have been handled"
 
@@ -101,7 +97,7 @@ class PairChatUserToPlayer(object):
 	user_cache_api = None
 	chat_client_api = None
 	player_api = None
-	settings_repository = None
+	settings_api = None
 	chat_user_repository = None
 
 	def execute(self, client_id):
@@ -112,10 +108,10 @@ class PairChatUserToPlayer(object):
 	def __find_and_pair_chat_user_to_player(self, client_id):
 		user = self.chat_user_repository.get(client_id)
 		players = list(self.player_api.get_players(in_battle=True, in_prebattle=True))
-		mappings = self.settings_repository.get(SettingConstants.NICK_MAPPINGS)
-		extract_patterns = self.settings_repository.get(SettingConstants.NICK_EXTRACT_PATTERNS)
-		use_ts_nick_search = self.settings_repository.get(SettingConstants.CHAT_NICK_SEARCH_ENABLED)
-		use_metadata = self.settings_repository.get(SettingConstants.GET_GAME_NICK_FROM_CHAT_CLIENT)
+		mappings = self.settings_api.get(SettingConstants.NICK_MAPPINGS)
+		extract_patterns = self.settings_api.get(SettingConstants.NICK_EXTRACT_PATTERNS)
+		use_ts_nick_search = self.settings_api.get(SettingConstants.CHAT_NICK_SEARCH_ENABLED)
+		use_metadata = self.settings_api.get(SettingConstants.GET_GAME_NICK_FROM_CHAT_CLIENT)
 
 		def find_player(nick, comparator=lambda a, b: a == b):
 			if hasattr(nick, "lower"):
@@ -208,7 +204,7 @@ class UpdateChatUserSpeakState(object):
 	minimap_api = None
 	chat_indicator_api = None
 	player_api = None
-	settings_repository = None
+	settings_api = None
 	chat_user_repository = None
 
 	def execute(self, client_id):
@@ -224,7 +220,7 @@ class UpdateChatUserSpeakState(object):
 				self.__update_chat_user_speak_status(client_id)
 			else:
 				# keep speaking state for a little longer
-				gameapi.EventLoop.callback(self.settings_repository.get(SettingConstants.SPEAK_STOP_DELAY), self.__update_chat_user_speak_status, client_id)
+				gameapi.EventLoop.callback(self.settings_api.get(SettingConstants.SPEAK_STOP_DELAY), self.__update_chat_user_speak_status, client_id)
 
 	def __update_chat_user_speak_status(self, client_id):
 		if self.chat_user_repository.has(client_id):
@@ -249,16 +245,16 @@ class UpdateChatUserSpeakState(object):
 						log.LOG_CURRENT_EXCEPTION()
 
 	def __is_minimap_speak_allowed(self, player_id):
-		if not self.settings_repository.get(SettingConstants.MINIMAP_NOTIFY_ENABLED):
+		if not self.settings_api.get(SettingConstants.MINIMAP_NOTIFY_ENABLED):
 			return False
-		if not self.settings_repository.get(SettingConstants.MINIMAP_NOTIFY_SELF_ENABLED) and self.player_api.get_my_dbid() == player_id:
+		if not self.settings_api.get(SettingConstants.MINIMAP_NOTIFY_SELF_ENABLED) and self.player_api.get_my_dbid() == player_id:
 			return False
 		return True
 
 	def __is_voice_chat_speak_allowed(self, player_id):
-		if not self.settings_repository.get(SettingConstants.VOICE_CHAT_NOTIFY_ENABLED):
+		if not self.settings_api.get(SettingConstants.VOICE_CHAT_NOTIFY_ENABLED):
 			return False
-		if not self.settings_repository.get(SettingConstants.VOICE_CHAT_NOTIFY_SELF_ENABLED) and self.player_api.get_my_dbid() == player_id:
+		if not self.settings_api.get(SettingConstants.VOICE_CHAT_NOTIFY_SELF_ENABLED) and self.player_api.get_my_dbid() == player_id:
 			return False
 		return True
 
@@ -424,10 +420,10 @@ class ProvidePositionalDataToChatClient(object):
 class BattleReplayStart(object):
 
 	user_cache_api = None
-	settings_repository = None
+	settings_api = None
 
 	def execute(self):
-		self.user_cache_api.set_write_enabled(self.settings_repository.get(SettingConstants.UPDATE_CACHE_IN_REPLAYS))
+		self.user_cache_api.set_write_enabled(self.settings_api.get(SettingConstants.UPDATE_CACHE_IN_REPLAYS))
 
 class PopulateUserCacheWithPlayers(object):
 

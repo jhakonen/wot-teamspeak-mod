@@ -30,17 +30,20 @@ class TestInteractorsPairChatUserToPlayer(object):
 		self.__user_cache_api = mock.Mock()
 		self.__chat_client_api = mock.Mock()
 		self.__player_api = mock.Mock()
-		self.__settings_repository = repositories.KeyValueRepository({})
+		self.__settings_api = mock.Mock()
+		self.__settings_api.get.side_effect = lambda key: self.__settings[key]
 		self.__chat_user_repository = repositories.ChatUserRepository()
 		boundaries.provide_dependency("user_cache_api",         self.__user_cache_api)
 		boundaries.provide_dependency("chat_client_api",        self.__chat_client_api)
 		boundaries.provide_dependency("player_api",             self.__player_api)
-		boundaries.provide_dependency("settings_repository",    self.__settings_repository)
+		boundaries.provide_dependency("settings_api",           self.__settings_api)
 		boundaries.provide_dependency("chat_user_repository",   self.__chat_user_repository)
-		self.__settings_repository.set(SettingConstants.NICK_MAPPINGS, {})
-		self.__settings_repository.set(SettingConstants.NICK_EXTRACT_PATTERNS, [])
-		self.__settings_repository.set(SettingConstants.CHAT_NICK_SEARCH_ENABLED, False)
-		self.__settings_repository.set(SettingConstants.GET_GAME_NICK_FROM_CHAT_CLIENT, False)
+		self.__settings = {
+			SettingConstants.NICK_MAPPINGS: {},
+			SettingConstants.NICK_EXTRACT_PATTERNS: [],
+			SettingConstants.CHAT_NICK_SEARCH_ENABLED: False,
+			SettingConstants.GET_GAME_NICK_FROM_CHAT_CLIENT: False
+		}
 		self.__user_cache_api.get_paired_player_ids.return_value = []
 		self.__channel_id = 2
 		self.__chat_client_api.get_current_channel_id.return_value = self.__channel_id
@@ -54,7 +57,7 @@ class TestInteractorsPairChatUserToPlayer(object):
 			yield re.compile(pattern, re.IGNORECASE)
 
 	def test_matches_using_metadata(self):
-		self.__settings_repository.set(SettingConstants.GET_GAME_NICK_FROM_CHAT_CLIENT, True)
+		self.__settings[SettingConstants.GET_GAME_NICK_FROM_CHAT_CLIENT] = True
 		self.__player_api.get_players.return_value = [dict(name="TestTomato", id=1000)]
 		self.__chat_user_repository.set(entities.ChatClientUser(
 			nick="TestDummy",
@@ -87,7 +90,7 @@ class TestInteractorsPairChatUserToPlayer(object):
 		self.__user_cache_api.pair.assert_called_with(1001, "deadf00d")
 
 	def test_extracts_nick_using_regexp_patterns(self):
-		self.__settings_repository.set(SettingConstants.NICK_EXTRACT_PATTERNS, [re.compile(r"\[[^\]]+\]\s*([a-z0-9_]+)", re.IGNORECASE)])
+		self.__settings[SettingConstants.NICK_EXTRACT_PATTERNS] = [re.compile(r"\[[^\]]+\]\s*([a-z0-9_]+)", re.IGNORECASE)]
 		self.__player_api.get_players.return_value = [dict(name="TestDummy", id=1000), dict(name="TESTtomato", id=1001)]
 		self.__chat_user_repository.set(entities.ChatClientUser(
 			nick="[T-BAD] TestTomato",
@@ -105,7 +108,7 @@ class TestInteractorsPairChatUserToPlayer(object):
 
 	def test_matches_using_mappings(self):
 		self.__player_api.get_players.return_value = [dict(name="TestDummy", id=1000), dict(name="TESTtomato123", id=1001)]
-		self.__settings_repository.set(SettingConstants.NICK_MAPPINGS, dict(matti="TESTtomato123"))
+		self.__settings[SettingConstants.NICK_MAPPINGS] = dict(matti="TESTtomato123")
 		self.__chat_user_repository.set(entities.ChatClientUser(
 			nick="Matti",
 			game_nick="",
@@ -122,8 +125,8 @@ class TestInteractorsPairChatUserToPlayer(object):
 
 	def test_matches_using_both_patterns_and_mappings(self):
 		self.__player_api.get_players.return_value = [dict(name="TestDummy", id=1000), dict(name="TESTtomato123", id=1001)]
-		self.__settings_repository.set(SettingConstants.NICK_EXTRACT_PATTERNS, [re.compile(r"\[[^\]]+\]\s*([a-z0-9_]+)", re.IGNORECASE)])
-		self.__settings_repository.set(SettingConstants.NICK_MAPPINGS, dict(matti="TESTtomato123"))
+		self.__settings[SettingConstants.NICK_EXTRACT_PATTERNS] = [re.compile(r"\[[^\]]+\]\s*([a-z0-9_]+)", re.IGNORECASE)]
+		self.__settings[SettingConstants.NICK_MAPPINGS] = dict(matti="TESTtomato123")
 		self.__chat_user_repository.set(entities.ChatClientUser(
 			nick="[T-BAD] Matti",
 			game_nick="",
@@ -139,7 +142,7 @@ class TestInteractorsPairChatUserToPlayer(object):
 		self.__user_cache_api.pair.assert_called_with(1001, "deadf00d")
 
 	def test_searches_players_from_ts_name(self):
-		self.__settings_repository.set(SettingConstants.CHAT_NICK_SEARCH_ENABLED, True)
+		self.__settings[SettingConstants.CHAT_NICK_SEARCH_ENABLED] = True
 		self.__player_api.get_players.return_value = [dict(name="TestDummy", id=1000), dict(name="TESTtomato", id=1001)]
 		self.__chat_user_repository.set(entities.ChatClientUser(
 			nick="[T-BAD] TestTomato",

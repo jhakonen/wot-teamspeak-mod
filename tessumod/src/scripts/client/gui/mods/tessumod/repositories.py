@@ -39,15 +39,3 @@ class ChatUserRepository(collections.Iterable):
 
 	def __iter__(self):
 		return self.__entities.itervalues()
-
-class KeyValueRepository(object):
-
-	def __init__(self, engine):
-		self.__entities = engine
-
-	def get(self, name):
-		return copy.copy(self.__entities.get(name))
-
-	def set(self, name, value):
-		self.__entities[name] = value
-		return value
