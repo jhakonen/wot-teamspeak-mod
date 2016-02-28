@@ -16,17 +16,34 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 import copy
-from ..infrastructure.keyvaluestorage import KeyValueStorage
+import os
+import json
+
 from ..infrastructure import utils
 
 class DataStorageAdapter(object):
 
 	def __init__(self):
-		self.__entities = KeyValueStorage(utils.get_states_dir_path())
+		self.__storage_path = utils.get_states_dir_path()
+		self.__cache_mapping = {}
+
+	def init(self):
+		if not os.path.isdir(self.__storage_path):
+			os.makedirs(self.__storage_path)
+		for filename in os.listdir(self.__storage_path):
+			filepath = self.__make_key_path(filename)
+			if os.path.isfile(filepath):
+				with open(filepath, "r") as file:
+					self.__cache_mapping[filename] = json.loads(file.read())
 
 	def get(self, name):
-		return copy.copy(self.__entities.get(name))
+		return self.__cache_mapping.get(name)
 
 	def set(self, name, value):
-		self.__entities[name] = value
+		with open(self.__make_key_path(name), "w") as file:
+			file.write(json.dumps(value))
+			self.__cache_mapping[name] = value
 		return value
+
+	def __make_key_path(self, name):
+		return os.path.join(self.__storage_path, name)

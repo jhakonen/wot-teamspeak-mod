@@ -44,7 +44,7 @@ def init():
 		boundaries.provide_dependency("battle",        battle)
 		boundaries.provide_dependency("players",       players)
 
-		[adapter.init() for adapter in (settings, notifications, usercache, chatclient)]
+		[adapter.init() for adapter in (settings, datastorage, notifications, usercache, chatclient)]
 
 		try:
 			from tessumod import build_info
