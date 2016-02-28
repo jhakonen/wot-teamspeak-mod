@@ -21,8 +21,10 @@ import subprocess
 from functools import partial
 import re
 import collections
+import struct
+import time
 
-from ..infrastructure import mytsplugin, clientquery, utils, log
+from ..infrastructure import sharedmemory, clientquery, utils, log
 
 class TeamSpeakChatClientAdapter(object):
 
@@ -41,7 +43,7 @@ class TeamSpeakChatClientAdapter(object):
 		self.__ts.on("user-changed-talking", self.__on_user_changed)
 		self.__ts.on("user-changed-my-channel", self.__on_user_changed)
 		self.__ts.on("user-removed", self.__on_user_removed)
-		self.__positional_data_api = mytsplugin.PositionalDataAPI()
+		self.__positional_data_api = PositionalDataAPI()
 		self.__selected_schandlerid = None
 
 	def init(self):
@@ -60,7 +62,7 @@ class TeamSpeakChatClientAdapter(object):
 		return self.__ts.get_my_cid(schandlerid)
 
 	def get_installed_plugin_version(self):
-		with mytsplugin.InfoAPI() as api:
+		with InfoAPI() as api:
 			return api.get_api_version()
 
 	def install_plugin(self):
@@ -280,3 +282,53 @@ class TeamSpeakClient(clientquery.ClientQuery):
 
 	def __on_error(self, error):
 		log.LOG_ERROR(error)
+
+class InfoAPI(sharedmemory.SharedMemory):
+
+	NAME = "TessuModTSPluginInfo"
+	SIZE = 1
+	ACCESS_TYPE = sharedmemory.ACCESS_READ
+
+	def get_api_version(self):
+		self.seek(0)
+		return struct.unpack("=B", self.read(1))[0]
+
+class PositionalDataAPI(sharedmemory.SharedMemory):
+
+	NAME = "TessuModTSPlugin3dAudio"
+	SIZE = 1024
+	ACCESS_TYPE = sharedmemory.ACCESS_WRITE
+
+	def __init__(self):
+		super(PositionalDataAPI, self).__init__()
+		self.__previous_camera_position = None
+		self.__previous_camera_direction = None
+		self.__previous_positions = None
+		self.__previous_timestamp = None
+
+	def set_data(self, camera_position, camera_direction, positions):
+		timestamp = int(time.time())
+		if self.__has_data_updated(timestamp, camera_position, camera_direction, positions):
+			self.seek(0)
+			self.write(struct.pack("I", timestamp))
+			self.write(self.__pack_float_vector(camera_position))
+			self.write(self.__pack_float_vector(camera_direction))
+			self.write(struct.pack("B", len(positions)))
+			for clid, position in positions.iteritems():
+				self.write(struct.pack("h", clid))
+				self.write(self.__pack_float_vector(position))
+			self.__previous_timestamp = timestamp
+			self.__previous_camera_position = camera_position
+			self.__previous_camera_direction = camera_direction
+			self.__previous_positions = positions
+
+	def __has_data_updated(self, timestamp, camera_position, camera_direction, positions):
+		return (
+			self.__previous_timestamp != timestamp
+			or self.__previous_camera_position != camera_position
+			or self.__previous_camera_direction != camera_direction
+			or self.__previous_positions != positions
+		)
+
+	def __pack_float_vector(self, vector):
+		return struct.pack("3f", vector[0], vector[1], vector[2])
