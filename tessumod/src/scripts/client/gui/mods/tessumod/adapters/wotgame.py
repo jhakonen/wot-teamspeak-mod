@@ -163,6 +163,9 @@ class NotificationsAdapter(object):
 		gameapi.Notifications.add_event_handler(self.TSPLUGIN_MOREINFO, self.__on_plugin_moreinfo_clicked)
 		self.__plugin_install_shown = False
 
+	def init(self):
+		gameapi.Notifications.init()
+
 	def show_info_message(self, message):
 		gameapi.Notifications.show_info_message(message)
 

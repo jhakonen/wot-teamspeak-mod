@@ -29,6 +29,9 @@ class SettingsAdapter(object):
 		self.__sync_repeater = eventloop.create_callback_repeater(self.__settings.sync)
 		self.__loaded_values = {}
 
+	def init(self):
+		self.__settings.sync()
+
 	def set_file_check_interval(self, interval):
 		self.__sync_repeater.start(interval)
 

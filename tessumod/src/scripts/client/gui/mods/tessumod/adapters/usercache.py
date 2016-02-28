@@ -23,6 +23,9 @@ class UserCacheAdapter(object):
 		self.__boundaries = boundaries
 		self.__sync_repeater = eventloop.create_callback_repeater(self.__usercache.sync)
 
+	def init(self):
+		self.__usercache.init()
+
 	def set_file_check_interval(self, interval):
 		self.__sync_repeater.start(interval)
 

@@ -69,10 +69,7 @@ def init():
 		boundaries.provide_dependency("battle",        battle)
 		boundaries.provide_dependency("players",       players)
 
-		settings_impl.sync()
-		gameapi.Notifications.init()
-		usercache_impl.init()
-		chatclient.init()
+		[adapter.init() for adapter in (settings, notifications, usercache, chatclient)]
 
 		print "TessuMod version {0} ({1})".format(utils.get_mod_version(), utils.get_support_url())
 
