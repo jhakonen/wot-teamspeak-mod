@@ -70,20 +70,6 @@ def get_states_dir_path():
 def get_plugin_installer_path():
 	return os.path.join(find_res_mods_version_path(), "tessumod.ts3_plugin")
 
-def get_mod_version():
-	try:
-		import build_info
-		return build_info.MOD_VERSION
-	except ImportError:
-		return "undefined"
-
-def get_support_url():
-	try:
-		import build_info
-		return build_info.SUPPORT_URL
-	except ImportError:
-		return "undefined"
-
 def patch_instance_method(instance, method_name, new_function):
 	original_method = getattr(instance, method_name)
 	new_method = types.MethodType(functools.partial(new_function, original_method), instance)

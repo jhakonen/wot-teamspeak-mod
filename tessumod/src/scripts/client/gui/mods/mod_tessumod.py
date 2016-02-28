@@ -15,7 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from tessumod.infrastructure import utils, gameapi, log
+from tessumod.infrastructure import gameapi, log
 from tessumod import boundaries, adapters
 
 def init():
@@ -46,7 +46,11 @@ def init():
 
 		[adapter.init() for adapter in (settings, notifications, usercache, chatclient)]
 
-		print "TessuMod version {0} ({1})".format(utils.get_mod_version(), utils.get_support_url())
+		try:
+			from tessumod import build_info
+			print "TessuMod version {0} ({1})".format(build_info.MOD_VERSION, build_info.SUPPORT_URL)
+		except ImportError:
+			print "TessuMod development version"
 
 	except:
 		log.LOG_CURRENT_EXCEPTION()
