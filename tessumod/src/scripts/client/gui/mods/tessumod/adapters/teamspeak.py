@@ -20,6 +20,7 @@ import threading
 import subprocess
 from functools import partial
 import re
+import collections
 
 from ..infrastructure import mytsplugin, clientquery, utils, log
 
@@ -34,9 +35,12 @@ class TeamSpeakChatClientAdapter(object):
 		self.__ts.on("connected-server-name", self.__on_connected_to_ts_server)
 		self.__ts.on("disconnected-server", self.__on_disconnected_from_ts_server)
 		self.__ts.on("server-tab-changed", self.__on_server_tab_changed)
-		self.__ts.on("client-user-added", self.__on_user_added)
-		self.__ts.on("client-user-changed", self.__on_user_changed)
-		self.__ts.on("client-user-removed", self.__on_user_removed)
+		self.__ts.on("user-added", self.__on_user_added)
+		self.__ts.on("user-changed-client-nickname", self.__on_user_changed)
+		self.__ts.on("user-changed-game-nickname", self.__on_user_changed)
+		self.__ts.on("user-changed-talking", self.__on_user_changed)
+		self.__ts.on("user-changed-my-channel", self.__on_user_changed)
+		self.__ts.on("user-removed", self.__on_user_removed)
 		self.__positional_data_api = mytsplugin.PositionalDataAPI()
 		self.__selected_schandlerid = None
 
@@ -80,6 +84,17 @@ class TeamSpeakChatClientAdapter(object):
 		else:
 			self.__positional_data_api.close()
 
+	def has_user(self, client_id):
+		return self.__ts.has_user(schandlerid=client_id[0], clid=client_id[1])
+
+	def get_user(self, client_id):
+		assert self.has_user(client_id)
+		return TeamSpeakUser(client_id, self.__ts)
+
+	def get_users(self):
+		for schandlerid, clid in self.__ts.iter_user_ids():
+			yield TeamSpeakUser((schandlerid, clid), self.__ts)
+
 	def update_positional_data(self, camera_position, camera_direction, positions):
 		if self.__selected_schandlerid is not None:
 			# positional data api doesn't support users other than those in
@@ -115,48 +130,57 @@ class TeamSpeakChatClientAdapter(object):
 		log.LOG_NOTE("Disconnected from TeamSpeak server")
 		self.__boundaries.usecase_clear_speak_statuses()
 
-	def __on_user_added(self, user_data):
-		client_id = self.__get_user_client_id(user_data)
-		input = self.__get_user_additional_data(user_data)
-		self.__boundaries.usecase_insert_chat_user(client_id=client_id, **input)
+	def __on_user_added(self, schandlerid, clid):
+		client_id = (schandlerid, clid)
+		self.__boundaries.usecase_cache_chat_user(client_id=client_id)
 		self.__boundaries.usecase_pair_chat_user_to_player(client_id=client_id)
 		self.__boundaries.usecase_update_chat_user_speak_state(client_id=client_id)
 
-	def __get_user_client_id(self, user_data):
-		return (user_data["schandlerid"], user_data["clid"])
-
-	def __get_user_additional_data(self, user_data):
-		input = {}
-		if "client_nickname" in user_data:
-			input["nick"] = user_data["client_nickname"]
-		if "game_nickname" in user_data:
-			input["game_nick"] = user_data["game_nickname"]
-		if "client_unique_identifier" in user_data:
-			input["unique_id"] = user_data["client_unique_identifier"]
-		if "cid" in user_data:
-			input["channel_id"] = user_data["cid"]
-		if "talking" in user_data:
-			input["speaking"] = user_data["talking"]
-		if "is_me" in user_data:
-			input["is_me"] = user_data["is_me"]
-		if "my_channel" in user_data:
-			input["in_my_channel"] = user_data["my_channel"]
-		return input		
-
-	def __on_user_removed(self, user_data):
-		client_id = self.__get_user_client_id(user_data)
+	def __on_user_removed(self, schandlerid, clid):
+		client_id = (schandlerid, clid)
 		self.__boundaries.usecase_remove_chat_user(client_id=client_id)
 
-	def __on_user_changed(self, user_data):
-		client_id = self.__get_user_client_id(user_data)
-		input = self.__get_user_additional_data(user_data)
-		self.__boundaries.usecase_insert_chat_user(client_id=client_id, **input)
+	def __on_user_changed(self, schandlerid, clid, **kwargs):
+		client_id = (schandlerid, clid)
+		self.__boundaries.usecase_cache_chat_user(client_id=client_id)
 		self.__boundaries.usecase_pair_chat_user_to_player(client_id=client_id)
 		self.__boundaries.usecase_update_chat_user_speak_state(client_id=client_id)
 
 	def __on_server_tab_changed(self, schandlerid):
 		log.LOG_NOTE("TeamSpeak client server tab was changed to {0}".format(schandlerid))
 		self.__selected_schandlerid = schandlerid
+
+class TeamSpeakUser(collections.Mapping):
+
+	__KEYS = {
+		"client_id": lambda self: self._get_client_id(),
+		"nick": lambda self: self._query_parameter("client-nickname"),
+		"game_nick": lambda self: self._query_parameter("game-nickname"),
+		"unique_id": lambda self: self._query_parameter("client-unique-identifier"),
+		"speaking": lambda self: self._query_parameter("talking"),
+		"is_me": lambda self: self._query_parameter("is-me"),
+		"in_my_channel": lambda self: self._query_parameter("my-channel")
+	}
+
+	def _get_client_id(self):
+		return self.__client_id
+
+	def _query_parameter(self, name):
+		return self.__cq.get_user_parameter(self.__client_id[0], self.__client_id[1], name)
+
+	def __init__(self, client_id, cq):
+		self.__client_id = client_id
+		self.__cq = cq
+
+	def __getitem__(self, name):
+		assert name in self.__KEYS
+		return self.__KEYS[name](self)
+
+	def __iter__(self):
+		return iter(self.__KEYS.keys())
+
+	def __len__(self):
+		return len(self.__KEYS)
 
 class TeamSpeakClient(clientquery.ClientQuery):
 
@@ -167,12 +191,13 @@ class TeamSpeakClient(clientquery.ClientQuery):
 		self.__host = None
 		self.__port = None
 		self.__connect_requested = False
+		self.__game_nicknames = {}
 		self.on("connected", self.__on_connected)
 		self.on("notifycurrentserverconnectionchanged", self.__on_notifycurrentserverconnectionchanged)
 		self.on("connected-server", self.__on_connected_server)
-		self.on("user-added", self.__on_server_user_added)
-		self.on("user-changed", self.__on_server_user_changed)
-		self.on("user-removed", self.__on_server_user_removed)
+		self.on("user-added", self.__on_user_added)
+		self.on("user-changed-client-meta-data", self.__on_user_changed_client_meta_data)
+		self.on("user-removed", self.__on_user_removed)
 		self.on("error", self.__on_error)
 
 	def set_host(self, host):
@@ -184,9 +209,17 @@ class TeamSpeakClient(clientquery.ClientQuery):
 	def connect(self):
 		super(TeamSpeakClient, self).connect(self.__host, self.__port)
 
+	def get_user_parameter(self, schandlerid, clid, parameter):
+		if parameter == "game-nickname":
+			client_id = (schandlerid, clid)
+			return self.__game_nicknames.get(client_id, None)
+		else:
+			return super(TeamSpeakClient, self).get_user_parameter(schandlerid, clid, parameter)
+
 	def set_game_nickname(self, name):
 		for schandlerid in self.get_connected_schandlerids():
-			metadata = self.get_user(schandlerid, lambda user: user["is_me"]).get("client_meta_data", None)
+			clid = self.get_my_clid(schandlerid)
+			metadata = self.get_user_parameter(schandlerid, clid, "client_meta_data")
 			if not metadata:
 				metadata = ""
 			new_tag = "<wot_nickname_start>{0}<wot_nickname_end>".format(name)
@@ -219,24 +252,31 @@ class TeamSpeakClient(clientquery.ClientQuery):
 			self.emit("connected-server-name", name)
 		self.command_servervariable("virtualserver_name", schandlerid=schandlerid, callback=on_servervariable_finish)
 
-	def __on_server_user_added(self, **kwargs):
-		if "client_meta_data" in kwargs:
-			kwargs["game_nickname"] = self.__extract_game_nick_from_metadata(kwargs["client_meta_data"])
-		self.emit("client-user-added", kwargs)
+	def __on_user_added(self, schandlerid, clid):
+		metadata = self.get_user_parameter(schandlerid, clid, "client-meta-data")
+		if metadata:
+			game_nickname = self.__extract_game_nick_from_metadata(metadata)
+			if game_nickname:
+				client_id = (schandlerid, clid)
+				self.__game_nicknames[client_id] = game_nickname
 
-	def __on_server_user_changed(self, **kwargs):
-		if "client_meta_data" in kwargs:
-			kwargs["game_nickname"] = self.__extract_game_nick_from_metadata(kwargs["client_meta_data"])
-		self.emit("client-user-changed", kwargs)
+	def __on_user_changed_client_meta_data(self, schandlerid, clid, old_value, new_value):
+		client_id = (schandlerid, clid)
+		old_nickname = self.__game_nicknames.get(client_id, None)
+		new_nickname = self.__extract_game_nick_from_metadata(new_value)
+		if old_nickname != new_nickname:
+			self.__game_nicknames[client_id] = new_nickname
+			self.emit("user-changed-game-nickname", schandlerid=schandlerid, clid=clid, old_value=old_nickname, new_value=new_nickname)
 
-	def __on_server_user_removed(self, **kwargs):
-		self.emit("client-user-removed", kwargs)
+	def __on_user_removed(self, schandlerid, clid):
+		client_id = (schandlerid, clid)
+		self.__game_nicknames.pop(client_id, None)
 
 	def __extract_game_nick_from_metadata(self, metadata):
 		matches = re.search(self.NICK_META_PATTERN, metadata)
 		if matches:
 			return matches.group(1)
-		return ""
+		return None
 
 	def __on_error(self, error):
 		log.LOG_ERROR(error)

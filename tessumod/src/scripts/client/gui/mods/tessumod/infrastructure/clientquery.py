@@ -638,6 +638,11 @@ class ClientQueryServerConnectionMixin(object):
 
 class ClientQueryServerUsersMixin(object):
 
+	__USER_VALUE_CONVERTERS = {
+		"cid": lambda x: int(x),
+		"talking": lambda x: bool(int(x))
+	}
+
 	def __init__(self):
 		super(ClientQueryServerUsersMixin, self).__init__()
 		self.__scusers = {}
@@ -652,12 +657,19 @@ class ClientQueryServerUsersMixin(object):
 		self.on("disconnected-server", self.__on_disconnected_server)
 		self.on("my-cid-changed", self.__on_my_cid_changed)
 
-	def get_user(self, schandlerid, selector):
+	def has_user(self, schandlerid, clid):
 		if schandlerid in self.__scusers:
-			for user in self.__scusers[schandlerid].itervalues():
-				if selector(user):
-					return user
-		return {}
+			return clid in self.__scusers[schandlerid]
+		return False
+
+	def get_user_parameter(self, schandlerid, clid, parameter):
+		user = self.__scusers.get(schandlerid, {}).get(clid, {})
+		return user.get(parameter, None)
+
+	def iter_user_ids(self):
+		for schandlerid in self.__scusers:
+			for clid in self.__scusers[schandlerid]:
+				yield schandlerid, clid
 
 	def __on_connected(self):
 		self.register_notify("notifycliententerview")
@@ -719,8 +731,9 @@ class ClientQueryServerUsersMixin(object):
 		self.__set_server_user(**args[0])
 
 	def __on_notifyclientmoved(self, args):
-		args[0]["cid"] = args[0]["ctid"]
-		self.__set_server_user(**args[0])
+		input = args[0]
+		input["cid"] = input.pop("ctid")
+		self.__set_server_user(**input)
 
 	def __on_notifyclientupdated(self, args):
 		self.__set_server_user(**args[0])
@@ -730,43 +743,39 @@ class ClientQueryServerUsersMixin(object):
 		clid = int(clid)
 		if schandlerid not in self.__scusers:
 			return
-		if "ctid" in kwargs and "cid" not in kwargs:
-			kwargs["cid"] = kwargs["ctid"]
 		users = self.__scusers[schandlerid]
-		new_user = clid not in users
-		if new_user:
-			users[clid] = {
+		exists = clid in users
+		if exists:
+			user = users[clid]
+		else:
+			user = users[clid] = {
+				"schandlerid": schandlerid,
 				"clid": clid,
 				"cid": None,
-				"client_nickname": None,
-				"client_unique_identifier": None,
-				"client_meta_data": None,
+				"client-nickname": None,
+				"client-unique-identifier": None,
+				"client-meta-data": None,
 				"talking": None,
-				"my_channel": None,
-				"is_me": None
+				"my-channel": None,
+				"is-me": None
 			}
-		user = users[clid]
-		output = {}
 
-		def extract_arg(name, converter=lambda x: x):
-			if name in kwargs:
-				value = converter(kwargs[name])
-				if value != user[name]:
-					output[name] = user[name] = value
+		for key, value in kwargs.iteritems():
+			self.__set_user_value(user, key, value, user_exists=exists)
+		self.__set_user_value(user, "my-channel", user["cid"] == self.get_my_cid(schandlerid), user_exists=exists)
+		self.__set_user_value(user, "is-me", user["clid"] == self.get_my_clid(schandlerid), user_exists=exists)
 
-		extract_arg("cid", lambda x: int(x))
-		extract_arg("client_nickname")
-		extract_arg("client_unique_identifier")
-		extract_arg("client_meta_data")
-		extract_arg("talking", lambda x: bool(int(x)))
+		if not exists:
+			self.emit("user-added", schandlerid=schandlerid, clid=clid)
 
-		kwargs["my_channel"] = user["cid"] == self.get_my_cid(schandlerid)
-		extract_arg("my_channel")
-		kwargs["is_me"] = clid == self.get_my_clid(schandlerid)
-		extract_arg("is_me")
-
-		if output:
-			self.emit("user-added" if new_user else "user-changed", schandlerid=schandlerid, clid=clid, **output)
+	def __set_user_value(self, user, key, value, user_exists):
+		key = key.replace("_", "-")
+		old_value = user.get(key, None)
+		new_value = self.__USER_VALUE_CONVERTERS.get(key, lambda x: x)(value)
+		if new_value != old_value:
+			user[key] = new_value
+			if user_exists:
+				self.emit("user-changed-"+key, schandlerid=user["schandlerid"], clid=user["clid"], old_value=old_value, new_value=new_value)
 
 	def __remove_server_user(self, schandlerid, clid, **kwargs):
 		schandlerid = int(schandlerid)

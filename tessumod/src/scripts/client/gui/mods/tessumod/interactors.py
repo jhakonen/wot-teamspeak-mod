@@ -21,7 +21,6 @@ import copy
 
 from infrastructure import utils, gameapi, log
 from constants import SettingConstants
-import entities
 
 class LoadSettings(object):
 
@@ -59,38 +58,16 @@ class LoadSettings(object):
 		self.minimap_api.set_action_interval(value)
 		assert not variables, "Not all variables have been handled"
 
-class InsertChatUser(object):
+class CacheChatUser(object):
 
 	user_cache_api = None
 	chat_client_api = None
-	chat_user_repository = None
 
-	def execute(self, client_id, **client_data):
-		if self.chat_user_repository.has(client_id):
-			old_user = self.chat_user_repository.get(client_id)
-			new_user = self.chat_user_repository.set(entities.ChatClientUser(
-				client_id = client_id,
-				nick = client_data["nick"] if "nick" in client_data else old_user.nick,
-				game_nick = client_data["game_nick"] if "game_nick" in client_data else old_user.game_nick,
-				unique_id = client_data["unique_id"] if "unique_id" in client_data else old_user.unique_id,
-				channel_id = client_data["channel_id"] if "channel_id" in client_data else old_user.channel_id,
-				speaking = client_data["speaking"] if "speaking" in client_data else old_user.speaking,
-				is_me = client_data["is_me"] if "is_me" in client_data else old_user.is_me,
-				in_my_channel = client_data["in_my_channel"] if "in_my_channel" in client_data else old_user.in_my_channel
-			))
-		else:
-			new_user = self.chat_user_repository.set(entities.ChatClientUser(
-				client_id = client_id,
-				nick = client_data.get("nick", None),
-				game_nick = client_data.get("game_nick", None),
-				unique_id = client_data.get("unique_id", None),
-				channel_id = client_data.get("channel_id", None),
-				speaking = client_data.get("speaking", None),
-				is_me = client_data.get("is_me", None),
-				in_my_channel = client_data.get("in_my_channel", None)
-			))
-		if new_user.in_my_channel:
-			self.user_cache_api.add_chat_user(new_user.unique_id, new_user.nick)
+	def execute(self, client_id):
+		if self.chat_client_api.has_user(client_id):
+			user = self.chat_client_api.get_user(client_id)
+			if user["in_my_channel"]:
+				self.user_cache_api.add_chat_user(user["unique_id"], user["nick"])
 
 class PairChatUserToPlayer(object):
 
@@ -98,15 +75,15 @@ class PairChatUserToPlayer(object):
 	chat_client_api = None
 	player_api = None
 	settings_api = None
-	chat_user_repository = None
 
 	def execute(self, client_id):
-		user = self.chat_user_repository.get(client_id)
-		if user.in_my_channel:
-			self.__find_and_pair_chat_user_to_player(client_id)
+		if not self.chat_client_api.has_user(client_id):
+			return
 
-	def __find_and_pair_chat_user_to_player(self, client_id):
-		user = self.chat_user_repository.get(client_id)
+		user = self.chat_client_api.get_user(client_id)
+		if not user["in_my_channel"]:
+			return
+
 		players = list(self.player_api.get_players(in_battle=True, in_prebattle=True))
 		mappings = self.settings_api.get(SettingConstants.NICK_MAPPINGS)
 		extract_patterns = self.settings_api.get(SettingConstants.NICK_EXTRACT_PATTERNS)
@@ -129,52 +106,52 @@ class PairChatUserToPlayer(object):
 		def match_using_metadata():
 			# find player using TS user's WOT nickname in metadata (available if user
 			# has TessuMod installed)
-			if user.game_nick:
-				player = find_player(user.game_nick)
+			if user["game_nick"]:
+				player = find_player(user["game_nick"])
 				if player:
-					log.LOG_DEBUG("Matched TS user to player with TS metadata", user.nick, user.game_nick, player)
+					log.LOG_DEBUG("Matched TS user to player with TS metadata", user["nick"], user["game_nick"], player)
 				return player
 
 		def match_using_extract_patterns():
 			# no metadata, try find player by using WOT nickname extracted from TS
 			# user's nickname using nick_extract_patterns
 			for pattern in extract_patterns:
-				matches = pattern.match(user.nick)
+				matches = pattern.match(user["nick"])
 				if matches is not None and matches.groups():
 					extracted_nick = matches.group(1).strip()
 					player = find_player(extracted_nick)
 					if player:
-						log.LOG_DEBUG("Matched TS user to player with pattern", user.nick, player, pattern.pattern)
+						log.LOG_DEBUG("Matched TS user to player with pattern", user["nick"], player, pattern.pattern)
 						return player
 					# extracted nickname didn't match any player, try find player by
 					# mapping the extracted nickname to WOT nickname (if available)
 					player = find_player(map_nick(extracted_nick))
 					if player:
-						log.LOG_DEBUG("Matched TS user to player with pattern and mapping", user.nick, player, pattern.pattern)
+						log.LOG_DEBUG("Matched TS user to player with pattern and mapping", user["nick"], player, pattern.pattern)
 						return player
 
 		def match_using_mappings():
 			# extract patterns didn't help, try find player by mapping TS nickname to
 			# WOT nickname (if available)
-			player = find_player(map_nick(user.nick))
+			player = find_player(map_nick(user["nick"]))
 			if player:
-				log.LOG_DEBUG("Matched TS user to player via mapping", user.nick, player)
+				log.LOG_DEBUG("Matched TS user to player via mapping", user["nick"], player)
 				return player
 
 		def match_using_name_comparison():
 			# still no match, as a last straw, try find player by searching each known
 			# WOT nickname from the TS nickname
 			if use_ts_nick_search:
-				player = find_player(user.nick, comparator=lambda a, b: a in b)
+				player = find_player(user["nick"], comparator=lambda a, b: a in b)
 				if player:
-					log.LOG_DEBUG("Matched TS user to player with TS nick search", user.nick, player)
+					log.LOG_DEBUG("Matched TS user to player with TS nick search", user["nick"], player)
 					return player
 			# or alternatively, try find player by just comparing that TS nickname and
 			# WOT nicknames are same
 			else:
-				player = find_player(user.nick)
+				player = find_player(user["nick"])
 				if player:
-					log.LOG_DEBUG("Matched TS user to player by comparing names", user.nick, player)
+					log.LOG_DEBUG("Matched TS user to player by comparing names", user["nick"], player)
 					return player
 
 		matchers = []
@@ -193,9 +170,9 @@ class PairChatUserToPlayer(object):
 
 		if player:
 			self.user_cache_api.add_player(id=player["id"], name=player["name"])
-			self.user_cache_api.pair(player["id"], user.unique_id)
+			self.user_cache_api.pair(player["id"], user["unique_id"])
 		else:
-			log.LOG_DEBUG("Failed to match TS user", user.nick)
+			log.LOG_DEBUG("Failed to match TS user", user["nick"])
 
 class UpdateChatUserSpeakState(object):
 
@@ -205,44 +182,44 @@ class UpdateChatUserSpeakState(object):
 	chat_indicator_api = None
 	player_api = None
 	settings_api = None
-	chat_user_repository = None
 
 	def execute(self, client_id):
-		user = self.chat_user_repository.get(client_id)
-		if user.in_my_channel:
-			self.__set_chat_user_speaking(client_id)
+		if not self.chat_client_api.has_user(client_id):
+			return
 
-	def __set_chat_user_speaking(self, client_id):
-		if self.chat_user_repository.has(client_id):
-			user = self.chat_user_repository.get(client_id)
-			if user.speaking:
-				# set speaking state immediately
-				self.__update_chat_user_speak_status(client_id)
-			else:
-				# keep speaking state for a little longer
-				gameapi.EventLoop.callback(self.settings_api.get(SettingConstants.SPEAK_STOP_DELAY), self.__update_chat_user_speak_status, client_id)
+		user = self.chat_client_api.get_user(client_id)
+		if not user["in_my_channel"]:
+			return
+
+		if user["speaking"]:
+			# set speaking state immediately
+			self.__update_chat_user_speak_status(client_id)
+		else:
+			# keep speaking state for a little longer
+			gameapi.EventLoop.callback(self.settings_api.get(SettingConstants.SPEAK_STOP_DELAY), self.__update_chat_user_speak_status, client_id)
 
 	def __update_chat_user_speak_status(self, client_id):
-		if self.chat_user_repository.has(client_id):
-			user = self.chat_user_repository.get(client_id)
-			for player_id in self.user_cache_api.get_paired_player_ids(user.unique_id):
-				player = self.player_api.get_player_by_dbid(player_id)
-				if player:
-					try:
-						self.chat_indicator_api.set_player_speaking(
-							player=player,
-							speaking=user.speaking and self.__is_voice_chat_speak_allowed(player["id"])
-						)
-					except:
-						log.LOG_CURRENT_EXCEPTION()
+		if not self.chat_client_api.has_user(client_id):
+			return
+		user = self.chat_client_api.get_user(client_id)
+		for player_id in self.user_cache_api.get_paired_player_ids(user["unique_id"]):
+			player = self.player_api.get_player_by_dbid(player_id)
+			if player:
+				try:
+					self.chat_indicator_api.set_player_speaking(
+						player=player,
+						speaking=user["speaking"] and self.__is_voice_chat_speak_allowed(player["id"])
+					)
+				except:
+					log.LOG_CURRENT_EXCEPTION()
 
-					try:
-						self.minimap_api.set_player_speaking(
-							player=player,
-							speaking=user.speaking and player["is_alive"] and self.__is_minimap_speak_allowed(player["id"])
-						)
-					except:
-						log.LOG_CURRENT_EXCEPTION()
+				try:
+					self.minimap_api.set_player_speaking(
+						player=player,
+						speaking=user["speaking"] and player["is_alive"] and self.__is_minimap_speak_allowed(player["id"])
+					)
+				except:
+					log.LOG_CURRENT_EXCEPTION()
 
 	def __is_minimap_speak_allowed(self, player_id):
 		if not self.settings_api.get(SettingConstants.MINIMAP_NOTIFY_ENABLED):
@@ -264,16 +241,16 @@ class RemoveChatUser(object):
 	minimap_api = None
 	user_cache_api = None
 	player_api = None
-	chat_user_repository = None
 
 	def execute(self, client_id):
-		user = self.chat_user_repository.get(client_id)
-		if user.speaking:
+		if not self.chat_client_api.has_user(client_id):
+			return
+		user = self.chat_client_api.get_user(client_id)
+		if user["speaking"]:
 			self.__stop_user_feedback(user)
-		self.chat_user_repository.remove(client_id)
 
 	def __stop_user_feedback(self, user):
-		for player_id in self.user_cache_api.get_paired_player_ids(user.unique_id):
+		for player_id in self.user_cache_api.get_paired_player_ids(user["unique_id"]):
 			player = self.player_api.get_player_by_dbid(player_id)
 			if player:
 				self.__update_player_speak_status(player)
@@ -403,17 +380,16 @@ class ProvidePositionalDataToChatClient(object):
 	battle_api = None
 	chat_client_api = None
 	user_cache_api = None
-	chat_user_repository = None
 
 	def execute(self):
 		camera_position = self.battle_api.get_camera_position()
 		camera_direction = self.battle_api.get_camera_direction()
 		positions = {}
-		for user in self.chat_user_repository:
-			for player_id in self.user_cache_api.get_paired_player_ids(user.unique_id):
+		for user in self.chat_client_api.get_users():
+			for player_id in self.user_cache_api.get_paired_player_ids(user["unique_id"]):
 				vehicle = self.battle_api.get_vehicle(player_id=player_id)
 				if vehicle and vehicle["is-alive"] and vehicle["position"]:
-					positions[user.client_id] = vehicle["position"]
+					positions[user["client_id"]] = vehicle["position"]
 		if camera_position and camera_direction and positions:
 			self.chat_client_api.update_positional_data(camera_position, camera_direction, positions)
 

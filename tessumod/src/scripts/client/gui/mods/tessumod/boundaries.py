@@ -34,8 +34,8 @@ def _inject_dependencies(target):
 def usecase_load_settings(setting_vars):
 	_execute(interactors.LoadSettings(), setting_vars)
 
-def usecase_insert_chat_user(client_id, **client_data):
-	_execute(interactors.InsertChatUser(), client_id, **client_data)
+def usecase_cache_chat_user(client_id, **client_data):
+	_execute(interactors.CacheChatUser(), client_id, **client_data)
 
 def usecase_pair_chat_user_to_player(client_id):
 	_execute(interactors.PairChatUserToPlayer(), client_id)

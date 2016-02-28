@@ -22,7 +22,7 @@ try:
 	from tessumod.infrastructure.settings import Settings
 	from tessumod.infrastructure.user_cache import UserCache
 	from tessumod.infrastructure.keyvaluestorage import KeyValueStorage
-	from tessumod import boundaries, adapters, repositories
+	from tessumod import boundaries, adapters
 	import os
 	import subprocess
 	import threading
@@ -60,8 +60,6 @@ def init():
 		chat_client_adapter    = adapters.teamspeak.TeamSpeakChatClientAdapter(gameapi.EventLoop, boundaries)
 		datastorage_adapter    = adapters.datastorage.DataStorageAdapter(storage)
 
-		chat_user_repository = repositories.ChatUserRepository()
-
 		boundaries.provide_dependency("settings_api",           settings_adapter)
 		boundaries.provide_dependency("minimap_api",            minimap_adapter)
 		boundaries.provide_dependency("chat_indicator_api",     chat_indicator_adapter)
@@ -71,7 +69,6 @@ def init():
 		boundaries.provide_dependency("notifications_api",      notifications_adapter)
 		boundaries.provide_dependency("battle_api",             battle_adapter)
 		boundaries.provide_dependency("player_api",             player_adapter)
-		boundaries.provide_dependency("chat_user_repository",   chat_user_repository)
 
 		settings.sync()
 		gameapi.Notifications.init()
