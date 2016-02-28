@@ -24,7 +24,7 @@ import collections
 import struct
 import time
 
-from ..infrastructure import sharedmemory, clientquery, utils, log
+from ..infrastructure import sharedmemory, clientquery, log
 
 class TeamSpeakChatClientAdapter(object):
 
@@ -46,7 +46,8 @@ class TeamSpeakChatClientAdapter(object):
 		self.__positional_data_api = PositionalDataAPI()
 		self.__selected_schandlerid = None
 
-	def init(self):
+	def init(self, plugin_filepath):
+		self.__plugin_filepath = os.path.normpath(plugin_filepath)
 		self.__ts.connect()
 
 	def set_host(self, host):
@@ -65,11 +66,14 @@ class TeamSpeakChatClientAdapter(object):
 		with InfoAPI() as api:
 			return api.get_api_version()
 
+	def get_plugin_filepath(self):
+		return self.__plugin_filepath
+
 	def install_plugin(self):
 		threading.Thread(
 			target = partial(
 				subprocess.call,
-				args  = [os.path.normpath(utils.get_plugin_installer_path())],
+				args  = [self.__plugin_filepath],
 				shell = True
 			)
 		).start()

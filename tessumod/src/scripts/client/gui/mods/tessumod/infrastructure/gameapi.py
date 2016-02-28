@@ -28,12 +28,13 @@ import Event as _Event
 import VOIP
 from VOIP.VOIPManager import VOIPManager
 import BattleReplay
+import ResMgr
 
 from functools import partial
 from traceback import format_exception
 import sys
+import types
 
-from utils import patch_instance_method
 import log
 
 Event = _Event.Event
@@ -430,3 +431,25 @@ class MinimapMarkerAnimation(object):
 				log.LOG_CURRENT_EXCEPTION()
 		else:
 			self.__on_done(self.__vehicle_id)
+
+class Environment(object):
+
+	@classmethod
+	def find_res_mods_version_path(cls):
+		for path in cls.get_resource_paths():
+			if "res_mods" in path:
+				return path
+		return ""
+
+	@classmethod
+	def get_resource_paths(cls):
+		res = ResMgr.openSection('../paths.xml')
+		sb = res['Paths']
+		vals = sb.values()
+		for vl in vals:
+			yield vl.asString
+
+def patch_instance_method(instance, method_name, new_function):
+	original_method = getattr(instance, method_name)
+	new_method = types.MethodType(partial(new_function, original_method), instance)
+	setattr(instance, method_name, new_method)

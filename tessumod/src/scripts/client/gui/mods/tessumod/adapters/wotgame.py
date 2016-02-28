@@ -18,10 +18,15 @@
 import os
 import xml.etree.ElementTree as ET
 
-from ..infrastructure import utils, gameapi
+from ..infrastructure import gameapi
 
 from messenger.proto.events import g_messengerEvents
 from PlayerEvents import g_playerEvents
+
+class EnvironmentAdapter(object):
+
+	def get_mods_dirpath(self):
+		return gameapi.Environment.find_res_mods_version_path()
 
 class BattleAdapter(object):
 
@@ -177,7 +182,7 @@ class NotificationsAdapter(object):
 
 	def show_plugin_install_message(self, **data):
 		if not self.__plugin_install_shown:
-			tmpl_filepath = os.path.join(utils.find_res_mods_version_path(), "gui", "tessu_mod", "tsplugin_install_notification.xml")
+			tmpl_filepath = os.path.join(gameapi.Environment.find_res_mods_version_path(), "gui", "tessu_mod", "tsplugin_install_notification.xml")
 			with open(tmpl_filepath, "r") as tmpl_file:
 				params = self.__parse_xml(tmpl_file.read())
 

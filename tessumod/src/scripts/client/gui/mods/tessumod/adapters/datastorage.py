@@ -19,15 +19,14 @@ import copy
 import os
 import json
 
-from ..infrastructure import utils
-
 class DataStorageAdapter(object):
 
 	def __init__(self):
-		self.__storage_path = utils.get_states_dir_path()
+		self.__storage_path = None
 		self.__cache_mapping = {}
 
-	def init(self):
+	def init(self, data_dirpath):
+		self.__storage_path = data_dirpath
 		if not os.path.isdir(self.__storage_path):
 			os.makedirs(self.__storage_path)
 		for filename in os.listdir(self.__storage_path):

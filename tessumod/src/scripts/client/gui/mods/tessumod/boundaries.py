@@ -31,6 +31,9 @@ def _inject_dependencies(target):
 			setattr(target, attr, _provided_dependencies[attr])
 	return target
 
+def usecase_initialize():
+	_execute(interactors.Initialize())
+
 def usecase_load_settings(setting_vars):
 	_execute(interactors.LoadSettings(), setting_vars)
 

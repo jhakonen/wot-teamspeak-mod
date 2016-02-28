@@ -15,20 +15,19 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-import os
-
 from ..infrastructure.user_cache import UserCache
-from ..infrastructure import utils
 
 class UserCacheAdapter(object):
 
 	def __init__(self, eventloop, boundaries):
-		self.__usercache = UserCache(os.path.join(utils.get_ini_dir_path(), "tessu_mod_cache.ini"))
-		self.__usercache.on_read_error += self.__on_read_error
+		self.__eventloop = eventloop
 		self.__boundaries = boundaries
-		self.__sync_repeater = eventloop.create_callback_repeater(self.__usercache.sync)
+		self.__usercache = None
+		self.__sync_repeater = self.__eventloop.create_callback_repeater(self.__on_sync_timeout)
 
-	def init(self):
+	def init(self, cache_filepath):
+		self.__usercache = UserCache(cache_filepath)
+		self.__usercache.on_read_error += self.__on_read_error
 		self.__usercache.init()
 
 	def set_file_check_interval(self, interval):
@@ -55,3 +54,7 @@ class UserCacheAdapter(object):
 	def __on_read_error(self, error_message):
 		'''This function is called if user cache's reading fails.'''
 		self.__boundaries.usecase_show_cache_error_message(error_message)
+
+	def __on_sync_timeout(self):
+		if self.__usercache:
+			self.__usercache.sync()

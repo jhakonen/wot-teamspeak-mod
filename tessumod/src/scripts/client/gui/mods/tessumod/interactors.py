@@ -19,8 +19,27 @@ import sys
 import os
 import copy
 
-from infrastructure import utils, gameapi, log
+from infrastructure import gameapi, log
 from constants import SettingConstants
+
+class Initialize(object):
+
+	settings = None
+	datastorage = None
+	notifications = None
+	usercache = None
+	chatclient = None
+	environment = None
+
+	def execute(self):
+		mods_dirpath = self.environment.get_mods_dirpath()
+		settings_dirpath = os.path.join(mods_dirpath, "..", "configs", "tessu_mod")
+
+		self.settings.init(os.path.join(settings_dirpath, "tessu_mod.ini"))
+		self.usercache.init(os.path.join(settings_dirpath, "tessu_mod_cache.ini"))
+		self.datastorage.init(os.path.join(settings_dirpath, "states"))
+		self.chatclient.init(os.path.join(mods_dirpath, "tessumod.ts3_plugin"))
+		self.notifications.init()
 
 class LoadSettings(object):
 
@@ -292,7 +311,7 @@ class ShowChatClientPluginInstallMessage(object):
 	datastorage = None
 
 	def execute(self):
-		installer_path = utils.get_plugin_installer_path()
+		installer_path = self.chatclient.get_plugin_filepath()
 		# plugin doesn't work in WinXP so check that we are running on
 		# sufficiently recent Windows OS
 		if not self.__is_vista_or_newer():

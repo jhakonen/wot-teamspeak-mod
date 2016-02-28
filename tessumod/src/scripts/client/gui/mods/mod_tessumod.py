@@ -30,6 +30,7 @@ def init():
 		notifications = adapters.wotgame.NotificationsAdapter(boundaries)
 		battle        = adapters.wotgame.BattleAdapter(boundaries)
 		players       = adapters.wotgame.PlayerAdapter()
+		environment   = adapters.wotgame.EnvironmentAdapter()
 		usercache     = adapters.usercache.UserCacheAdapter(gameapi.EventLoop, boundaries)
 		chatclient    = adapters.teamspeak.TeamSpeakChatClientAdapter(gameapi.EventLoop, boundaries)
 		datastorage   = adapters.datastorage.DataStorageAdapter()
@@ -43,14 +44,15 @@ def init():
 		boundaries.provide_dependency("notifications", notifications)
 		boundaries.provide_dependency("battle",        battle)
 		boundaries.provide_dependency("players",       players)
-
-		[adapter.init() for adapter in (settings, datastorage, notifications, usercache, chatclient)]
+		boundaries.provide_dependency("environment",   environment)
 
 		try:
 			from tessumod import build_info
 			print "TessuMod version {0} ({1})".format(build_info.MOD_VERSION, build_info.SUPPORT_URL)
 		except ImportError:
 			print "TessuMod development version"
+
+		boundaries.usecase_initialize()
 
 	except:
 		log.LOG_CURRENT_EXCEPTION()
