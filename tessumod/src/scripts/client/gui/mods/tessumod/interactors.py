@@ -24,18 +24,18 @@ from constants import SettingConstants
 
 class LoadSettings(object):
 
-	chat_client_api = None
-	minimap_api = None
-	settings_api = None
-	user_cache_api = None
+	chatclient = None
+	minimap = None
+	settings = None
+	usercache = None
 
 	def execute(self, variables):
 		variables = copy.copy(variables)
 		value = variables.pop(SettingConstants.LOG_LEVEL)
 		log.CURRENT_LOG_LEVEL = value
 		value = variables.pop(SettingConstants.FILE_CHECK_INTERVAL)
-		self.settings_api.set_file_check_interval(value)
-		self.user_cache_api.set_file_check_interval(value)
+		self.settings.set_file_check_interval(value)
+		self.usercache.set_file_check_interval(value)
 		value = variables.pop(SettingConstants.SPEAK_STOP_DELAY)
 		value = variables.pop(SettingConstants.GET_GAME_NICK_FROM_CHAT_CLIENT)
 		value = variables.pop(SettingConstants.UPDATE_CACHE_IN_REPLAYS)
@@ -43,52 +43,52 @@ class LoadSettings(object):
 		value = variables.pop(SettingConstants.NICK_EXTRACT_PATTERNS)
 		value = variables.pop(SettingConstants.NICK_MAPPINGS)
 		value = variables.pop(SettingConstants.CHAT_CLIENT_HOST)
-		self.chat_client_api.set_host(value)
+		self.chatclient.set_host(value)
 		value = variables.pop(SettingConstants.CHAT_CLIENT_PORT)
-		self.chat_client_api.set_port(value)
+		self.chatclient.set_port(value)
 		value = variables.pop(SettingConstants.CHAT_CLIENT_POLLING_INTERVAL)
-		self.chat_client_api.set_polling_interval(value)
+		self.chatclient.set_polling_interval(value)
 		value = variables.pop(SettingConstants.VOICE_CHAT_NOTIFY_ENABLED)
 		value = variables.pop(SettingConstants.VOICE_CHAT_NOTIFY_SELF_ENABLED)
 		value = variables.pop(SettingConstants.MINIMAP_NOTIFY_ENABLED)
 		value = variables.pop(SettingConstants.MINIMAP_NOTIFY_SELF_ENABLED)
 		value = variables.pop(SettingConstants.MINIMAP_NOTIFY_ACTION)
-		self.minimap_api.set_action(value)
+		self.minimap.set_action(value)
 		value = variables.pop(SettingConstants.MINIMAP_NOTIFY_REPEAT_INTERVAL)
-		self.minimap_api.set_action_interval(value)
+		self.minimap.set_action_interval(value)
 		assert not variables, "Not all variables have been handled"
 
 class CacheChatUser(object):
 
-	user_cache_api = None
-	chat_client_api = None
+	usercache = None
+	chatclient = None
 
 	def execute(self, client_id):
-		if self.chat_client_api.has_user(client_id):
-			user = self.chat_client_api.get_user(client_id)
+		if self.chatclient.has_user(client_id):
+			user = self.chatclient.get_user(client_id)
 			if user["in_my_channel"]:
-				self.user_cache_api.add_chat_user(user["unique_id"], user["nick"])
+				self.usercache.add_chat_user(user["unique_id"], user["nick"])
 
 class PairChatUserToPlayer(object):
 
-	user_cache_api = None
-	chat_client_api = None
-	player_api = None
-	settings_api = None
+	usercache = None
+	chatclient = None
+	players = None
+	settings = None
 
 	def execute(self, client_id):
-		if not self.chat_client_api.has_user(client_id):
+		if not self.chatclient.has_user(client_id):
 			return
 
-		user = self.chat_client_api.get_user(client_id)
+		user = self.chatclient.get_user(client_id)
 		if not user["in_my_channel"]:
 			return
 
-		players = list(self.player_api.get_players(in_battle=True, in_prebattle=True))
-		mappings = self.settings_api.get(SettingConstants.NICK_MAPPINGS)
-		extract_patterns = self.settings_api.get(SettingConstants.NICK_EXTRACT_PATTERNS)
-		use_ts_nick_search = self.settings_api.get(SettingConstants.CHAT_NICK_SEARCH_ENABLED)
-		use_metadata = self.settings_api.get(SettingConstants.GET_GAME_NICK_FROM_CHAT_CLIENT)
+		players = list(self.players.get_players(in_battle=True, in_prebattle=True))
+		mappings = self.settings.get(SettingConstants.NICK_MAPPINGS)
+		extract_patterns = self.settings.get(SettingConstants.NICK_EXTRACT_PATTERNS)
+		use_ts_nick_search = self.settings.get(SettingConstants.CHAT_NICK_SEARCH_ENABLED)
+		use_metadata = self.settings.get(SettingConstants.GET_GAME_NICK_FROM_CHAT_CLIENT)
 
 		def find_player(nick, comparator=lambda a, b: a == b):
 			if hasattr(nick, "lower"):
@@ -169,25 +169,25 @@ class PairChatUserToPlayer(object):
 				break
 
 		if player:
-			self.user_cache_api.add_player(id=player["id"], name=player["name"])
-			self.user_cache_api.pair(player["id"], user["unique_id"])
+			self.usercache.add_player(id=player["id"], name=player["name"])
+			self.usercache.pair(player["id"], user["unique_id"])
 		else:
 			log.LOG_DEBUG("Failed to match TS user", user["nick"])
 
 class UpdateChatUserSpeakState(object):
 
-	user_cache_api = None
-	chat_client_api = None
-	minimap_api = None
-	chat_indicator_api = None
-	player_api = None
-	settings_api = None
+	usercache = None
+	chatclient = None
+	minimap = None
+	chatindicator = None
+	players = None
+	settings = None
 
 	def execute(self, client_id):
-		if not self.chat_client_api.has_user(client_id):
+		if not self.chatclient.has_user(client_id):
 			return
 
-		user = self.chat_client_api.get_user(client_id)
+		user = self.chatclient.get_user(client_id)
 		if not user["in_my_channel"]:
 			return
 
@@ -196,17 +196,17 @@ class UpdateChatUserSpeakState(object):
 			self.__update_chat_user_speak_status(client_id)
 		else:
 			# keep speaking state for a little longer
-			gameapi.EventLoop.callback(self.settings_api.get(SettingConstants.SPEAK_STOP_DELAY), self.__update_chat_user_speak_status, client_id)
+			gameapi.EventLoop.callback(self.settings.get(SettingConstants.SPEAK_STOP_DELAY), self.__update_chat_user_speak_status, client_id)
 
 	def __update_chat_user_speak_status(self, client_id):
-		if not self.chat_client_api.has_user(client_id):
+		if not self.chatclient.has_user(client_id):
 			return
-		user = self.chat_client_api.get_user(client_id)
-		for player_id in self.user_cache_api.get_paired_player_ids(user["unique_id"]):
-			player = self.player_api.get_player_by_dbid(player_id)
+		user = self.chatclient.get_user(client_id)
+		for player_id in self.usercache.get_paired_player_ids(user["unique_id"]):
+			player = self.players.get_player_by_dbid(player_id)
 			if player:
 				try:
-					self.chat_indicator_api.set_player_speaking(
+					self.chatindicator.set_player_speaking(
 						player=player,
 						speaking=user["speaking"] and self.__is_voice_chat_speak_allowed(player["id"])
 					)
@@ -214,7 +214,7 @@ class UpdateChatUserSpeakState(object):
 					log.LOG_CURRENT_EXCEPTION()
 
 				try:
-					self.minimap_api.set_player_speaking(
+					self.minimap.set_player_speaking(
 						player=player,
 						speaking=user["speaking"] and player["is_alive"] and self.__is_minimap_speak_allowed(player["id"])
 					)
@@ -222,74 +222,74 @@ class UpdateChatUserSpeakState(object):
 					log.LOG_CURRENT_EXCEPTION()
 
 	def __is_minimap_speak_allowed(self, player_id):
-		if not self.settings_api.get(SettingConstants.MINIMAP_NOTIFY_ENABLED):
+		if not self.settings.get(SettingConstants.MINIMAP_NOTIFY_ENABLED):
 			return False
-		if not self.settings_api.get(SettingConstants.MINIMAP_NOTIFY_SELF_ENABLED) and self.player_api.get_my_dbid() == player_id:
+		if not self.settings.get(SettingConstants.MINIMAP_NOTIFY_SELF_ENABLED) and self.players.get_my_dbid() == player_id:
 			return False
 		return True
 
 	def __is_voice_chat_speak_allowed(self, player_id):
-		if not self.settings_api.get(SettingConstants.VOICE_CHAT_NOTIFY_ENABLED):
+		if not self.settings.get(SettingConstants.VOICE_CHAT_NOTIFY_ENABLED):
 			return False
-		if not self.settings_api.get(SettingConstants.VOICE_CHAT_NOTIFY_SELF_ENABLED) and self.player_api.get_my_dbid() == player_id:
+		if not self.settings.get(SettingConstants.VOICE_CHAT_NOTIFY_SELF_ENABLED) and self.players.get_my_dbid() == player_id:
 			return False
 		return True
 
 class RemoveChatUser(object):
 
-	chat_indicator_api = None
-	minimap_api = None
-	user_cache_api = None
-	player_api = None
+	chatindicator = None
+	minimap = None
+	usercache = None
+	players = None
 
 	def execute(self, client_id):
-		if not self.chat_client_api.has_user(client_id):
+		if not self.chatclient.has_user(client_id):
 			return
-		user = self.chat_client_api.get_user(client_id)
+		user = self.chatclient.get_user(client_id)
 		if user["speaking"]:
 			self.__stop_user_feedback(user)
 
 	def __stop_user_feedback(self, user):
-		for player_id in self.user_cache_api.get_paired_player_ids(user["unique_id"]):
-			player = self.player_api.get_player_by_dbid(player_id)
+		for player_id in self.usercache.get_paired_player_ids(user["unique_id"]):
+			player = self.players.get_player_by_dbid(player_id)
 			if player:
 				self.__update_player_speak_status(player)
 
 	def __update_player_speak_status(self, player):
 		try:
-			self.chat_indicator_api.set_player_speaking(player=player, speaking=False)
+			self.chatindicator.set_player_speaking(player=player, speaking=False)
 		except:
 			log.LOG_CURRENT_EXCEPTION()
 
 		try:
-			self.minimap_api.set_player_speaking(player=player, speaking=False)
+			self.minimap.set_player_speaking(player=player, speaking=False)
 		except:
 			log.LOG_CURRENT_EXCEPTION()
 
 class ClearSpeakStatuses(object):
 
-	minimap_api = None
-	chat_indicator_api = None
+	minimap = None
+	chatindicator = None
 
 	def execute(self):
 		'''Clears speak status of all players.'''
-		self.minimap_api.clear_all_players_speaking()
-		self.chat_indicator_api.clear_all_players_speaking()
+		self.minimap.clear_all_players_speaking()
+		self.chatindicator.clear_all_players_speaking()
 
 class NotifyChatClientDisconnected(object):
 
-	notifications_api = None
+	notifications = None
 
 	def execute(self):
-		self.notifications_api.show_warning_message("Disconnected from TeamSpeak client")
+		self.notifications.show_warning_message("Disconnected from TeamSpeak client")
 
 class ShowChatClientPluginInstallMessage(object):
 
 	AVAILABLE_PLUGIN_VERSION = 1
 
-	notifications_api = None
-	chat_client_api = None
-	datastorage_api = None
+	notifications = None
+	chatclient = None
+	datastorage = None
 
 	def execute(self):
 		installer_path = utils.get_plugin_installer_path()
@@ -299,11 +299,11 @@ class ShowChatClientPluginInstallMessage(object):
 			return
 		if not os.path.isfile(installer_path):
 			return
-		if self.__is_newest_plugin_version(self.chat_client_api.get_installed_plugin_version()):
+		if self.__is_newest_plugin_version(self.chatclient.get_installed_plugin_version()):
 			return
 		if self.__is_newest_plugin_version(self.__get_ignored_plugin_version()):
 			return
-		self.notifications_api.show_plugin_install_message()
+		self.notifications.show_plugin_install_message()
 
 	def __is_vista_or_newer(self):
 		'''Returns True if the game is running on Windows Vista or newer OS.'''
@@ -317,95 +317,95 @@ class ShowChatClientPluginInstallMessage(object):
 		return plugin_version >= self.AVAILABLE_PLUGIN_VERSION
 
 	def __get_ignored_plugin_version(self):
-		version = self.datastorage_api.get("ignored_plugin_version")
+		version = self.datastorage.get("ignored_plugin_version")
 		if version is not None:
 			return int(version)
 		return 0
 
 class InstallChatClientPlugin(object):
 
-	chat_client_api = None
+	chatclient = None
 
 	def execute(self):
-		self.chat_client_api.install_plugin()
+		self.chatclient.install_plugin()
 
 class IgnoreChatClientPluginInstallMessage(object):
 
 	AVAILABLE_PLUGIN_VERSION = ShowChatClientPluginInstallMessage.AVAILABLE_PLUGIN_VERSION
-	datastorage_api = None
+	datastorage = None
 
 	def execute(self, ignored):
-		self.datastorage_api.set("ignored_plugin_version", self.AVAILABLE_PLUGIN_VERSION if ignored else 0)
+		self.datastorage.set("ignored_plugin_version", self.AVAILABLE_PLUGIN_VERSION if ignored else 0)
 
 class ShowChatClientPluginInfoUrl(object):
 
-	chat_client_api = None
+	chatclient = None
 
 	def execute(self, url):
-		self.chat_client_api.show_plugin_info_url(url)
+		self.chatclient.show_plugin_info_url(url)
 
 class NotifyConnectedToChatServer(object):
 
-	notifications_api = None
+	notifications = None
 
 	def execute(self, server_name):
-		self.notifications_api.show_info_message("Connected to TeamSpeak server '{0}'".format(server_name))
+		self.notifications.show_info_message("Connected to TeamSpeak server '{0}'".format(server_name))
 
 class PublishGameNickToChatServer(object):
 
-	chat_client_api = None
-	player_api = None
+	chatclient = None
+	players = None
 
 	def execute(self):
-		self.chat_client_api.set_game_nickname(self.player_api.get_my_name())
+		self.chatclient.set_game_nickname(self.players.get_my_name())
 
 class ShowCacheErrorMessage(object):
 
-	notifications_api = None
-	user_cache_api = None
+	notifications = None
+	usercache = None
 
 	def execute(self, error_message):
-		self.notifications_api.show_error_message("Failed to read file '{0}':\n   {1}"
-			.format(self.user_cache_api.get_config_filepath(), error_message))
+		self.notifications.show_error_message("Failed to read file '{0}':\n   {1}"
+			.format(self.usercache.get_config_filepath(), error_message))
 
 class EnablePositionalDataToChatClient(object):
 
-	chat_client_api = None
+	chatclient = None
 
 	def execute(self, enabled):
-		self.chat_client_api.enable_positional_data(enabled)
+		self.chatclient.enable_positional_data(enabled)
 
 class ProvidePositionalDataToChatClient(object):
 
-	battle_api = None
-	chat_client_api = None
-	user_cache_api = None
+	battle = None
+	chatclient = None
+	usercache = None
 
 	def execute(self):
-		camera_position = self.battle_api.get_camera_position()
-		camera_direction = self.battle_api.get_camera_direction()
+		camera_position = self.battle.get_camera_position()
+		camera_direction = self.battle.get_camera_direction()
 		positions = {}
-		for user in self.chat_client_api.get_users():
-			for player_id in self.user_cache_api.get_paired_player_ids(user["unique_id"]):
-				vehicle = self.battle_api.get_vehicle(player_id=player_id)
+		for user in self.chatclient.get_users():
+			for player_id in self.usercache.get_paired_player_ids(user["unique_id"]):
+				vehicle = self.battle.get_vehicle(player_id=player_id)
 				if vehicle and vehicle["is-alive"] and vehicle["position"]:
 					positions[user["client_id"]] = vehicle["position"]
 		if camera_position and camera_direction and positions:
-			self.chat_client_api.update_positional_data(camera_position, camera_direction, positions)
+			self.chatclient.update_positional_data(camera_position, camera_direction, positions)
 
 class BattleReplayStart(object):
 
-	user_cache_api = None
-	settings_api = None
+	usercache = None
+	settings = None
 
 	def execute(self):
-		self.user_cache_api.set_write_enabled(self.settings_api.get(SettingConstants.UPDATE_CACHE_IN_REPLAYS))
+		self.usercache.set_write_enabled(self.settings.get(SettingConstants.UPDATE_CACHE_IN_REPLAYS))
 
 class PopulateUserCacheWithPlayers(object):
 
-	user_cache_api = None
-	player_api = None
+	usercache = None
+	players = None
 
 	def execute(self):
-		for player in self.player_api.get_players(clanmembers=True, friends=True):
-			self.user_cache_api.add_player(id=player["id"], name=player["name"])
+		for player in self.players.get_players(clanmembers=True, friends=True):
+			self.usercache.add_player(id=player["id"], name=player["name"])
