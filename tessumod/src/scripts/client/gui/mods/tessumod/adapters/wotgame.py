@@ -19,6 +19,7 @@ import os
 import xml.etree.ElementTree as ET
 
 from ..infrastructure import gameapi
+from ..infrastructure.timer import TimerMixin
 
 from messenger.proto.events import g_messengerEvents
 from PlayerEvents import g_playerEvents
@@ -28,18 +29,18 @@ class EnvironmentAdapter(object):
 	def get_mods_dirpath(self):
 		return gameapi.Environment.find_res_mods_version_path()
 
-class BattleAdapter(object):
+class BattleAdapter(TimerMixin):
 
 	POSITIONAL_DATA_PROVIDE_TIMEOUT = 0.1
 
 	def __init__(self, boundaries):
+		super(BattleAdapter, self).__init__()
 		self.__boundaries = boundaries
 		g_playerEvents.onAvatarBecomePlayer    += self.__on_avatar_become_player
 		g_playerEvents.onAccountBecomePlayer   += self.__on_account_become_player
 		g_playerEvents.onAvatarReady           += self.__on_avatar_ready
 		g_playerEvents.onAvatarBecomeNonPlayer += self.__on_avatar_become_non_player
 		g_messengerEvents.users.onUsersListReceived += self.__on_users_list_received
-		self.__positional_data_provide_repeater = gameapi.EventLoop.create_callback_repeater(self.__on_provide_positional_data)
 		gameapi.Battle.patch_battle_replay_play(self.__on_battle_replay_play)
 
 	def get_camera_position(self):
@@ -70,11 +71,11 @@ class BattleAdapter(object):
 
 	def __on_avatar_ready(self):
 		self.__boundaries.usecase_enable_positional_data_to_chat_client(True)
-		self.__positional_data_provide_repeater.start(self.POSITIONAL_DATA_PROVIDE_TIMEOUT)
+		self.on_timeout(self.POSITIONAL_DATA_PROVIDE_TIMEOUT, self.__on_provide_positional_data, repeat=True)
 
 	def __on_avatar_become_non_player(self):
 		self.__boundaries.usecase_enable_positional_data_to_chat_client(False)
-		self.__positional_data_provide_repeater.stop()
+		self.off_timeout(self.__on_provide_positional_data)
 		gameapi.Notifications.set_enabled(True)
 
 	def __on_users_list_received(self, tags):

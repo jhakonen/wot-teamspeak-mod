@@ -21,11 +21,12 @@ import os
 
 from ..constants import SettingConstants
 from ..infrastructure.settings import Settings
+from ..infrastructure.timer import TimerMixin
 
-class SettingsAdapter(object):
+class SettingsAdapter(TimerMixin):
 
-	def __init__(self, eventloop, boundaries):
-		self.__eventloop = eventloop
+	def __init__(self, boundaries):
+		super(SettingsAdapter, self).__init__()
 		self.__boundaries = boundaries
 		self.__loaded_values = {}
 
@@ -37,11 +38,11 @@ class SettingsAdapter(object):
 			pass
 		self.__settings = Settings(settings_filepath)
 		self.__settings.on_reloaded += self.__on_settings_reloaded
-		self.__sync_repeater = self.__eventloop.create_callback_repeater(self.__settings.sync)
+		self.on_timeout(1, self.__settings.sync, repeat=True)
 		self.__settings.sync()
 
 	def set_file_check_interval(self, interval):
-		self.__sync_repeater.start(interval)
+		self.on_timeout(interval, self.__settings.sync, repeat=True)
 
 	def get(self, key):
 		return copy.copy(self.__loaded_values[key])

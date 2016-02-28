@@ -15,7 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from tessumod.infrastructure import gameapi, log
+from tessumod.infrastructure import gameapi, log, timer
 from tessumod import boundaries, adapters
 
 def init():
@@ -23,16 +23,17 @@ def init():
 
 	try:
 		log.install_logger_impl(gameapi.Logger)
+		timer.set_eventloop(gameapi.EventLoop)
 
-		settings      = adapters.settings.SettingsAdapter(gameapi.EventLoop, boundaries)
+		settings      = adapters.settings.SettingsAdapter(boundaries)
 		minimap       = adapters.wotgame.MinimapAdapter()
 		chatindicator = adapters.wotgame.ChatIndicatorAdapter()
 		notifications = adapters.wotgame.NotificationsAdapter(boundaries)
 		battle        = adapters.wotgame.BattleAdapter(boundaries)
 		players       = adapters.wotgame.PlayerAdapter()
 		environment   = adapters.wotgame.EnvironmentAdapter()
-		usercache     = adapters.usercache.UserCacheAdapter(gameapi.EventLoop, boundaries)
-		chatclient    = adapters.teamspeak.TeamSpeakChatClientAdapter(gameapi.EventLoop, boundaries)
+		usercache     = adapters.usercache.UserCacheAdapter(boundaries)
+		chatclient    = adapters.teamspeak.TeamSpeakChatClientAdapter(boundaries)
 		datastorage   = adapters.datastorage.DataStorageAdapter()
 
 		boundaries.provide_dependency("settings",      settings)

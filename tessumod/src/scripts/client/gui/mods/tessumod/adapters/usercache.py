@@ -16,14 +16,15 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 from ..infrastructure.user_cache import UserCache
+from ..infrastructure.timer import TimerMixin
 
-class UserCacheAdapter(object):
+class UserCacheAdapter(TimerMixin):
 
-	def __init__(self, eventloop, boundaries):
-		self.__eventloop = eventloop
+	def __init__(self, boundaries):
+		super(UserCacheAdapter, self).__init__()
 		self.__boundaries = boundaries
 		self.__usercache = None
-		self.__sync_repeater = self.__eventloop.create_callback_repeater(self.__on_sync_timeout)
+		self.on_timeout(1, self.__on_sync_timeout, repeat=True)
 
 	def init(self, cache_filepath):
 		self.__usercache = UserCache(cache_filepath)
@@ -31,7 +32,7 @@ class UserCacheAdapter(object):
 		self.__usercache.init()
 
 	def set_file_check_interval(self, interval):
-		self.__sync_repeater.start(interval)
+		self.on_timeout(interval, self.__on_sync_timeout, repeat=True)
 
 	def set_write_enabled(self, enabled):
 		self.__usercache.is_write_enabled = enabled

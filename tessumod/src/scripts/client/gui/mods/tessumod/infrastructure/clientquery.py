@@ -23,6 +23,8 @@ import sys
 import log
 import errno
 
+from timer import TimerMixin
+
 def noop(*args, **kwargs):
 	pass
 
@@ -86,44 +88,6 @@ class EventEmitterMixin(object):
 		self.__listeners[event].append((priority, function))
 		self.__listeners[event].sort(reverse=True, key=lambda listener: listener[0])
 		return self
-
-class TimerMixin(object):
-	'''Mixin class which provides ability to register functions for timed calls
-	from event loop.
-	'''
-
-	def __init__(self):
-		self.__eventloop = None
-		self.__function_map = {}
-		super(TimerMixin, self).__init__()
-
-	def set_eventloop(self, eventloop):
-		self.__eventloop = eventloop
-
-	def on_timeout(self, secs, function, repeat=False):
-		'''Registers "function" to be called after "secs" seconds from event
-		loop.
-		
-		Setting "repeat" to True makes the call to repeat indefinately with
-		interval of "secs" seconds.
-		'''
-		self.off_timeout(function)
-		if repeat:
-			repeater = self.__eventloop.create_callback_repeater(function)
-			repeater.start(secs)
-			self.__function_map[function] = repeater
-		else:
-			self.__function_map[function] = self.__eventloop.callback(secs, function)
-
-	def off_timeout(self, function):
-		'''Unregisters previously registered timed function call.'''
-		if function in self.__function_map:
-			value = self.__function_map[function]
-			if hasattr(value, "stop"):
-				value.stop()
-			else:
-				self.__eventloop.cancel_callback(value)
-			del self.__function_map[function]
 
 class ClientQueryConnectionMixin(object):
 	'''Mixin class which provides basic TCP connection to TeamSpeak's

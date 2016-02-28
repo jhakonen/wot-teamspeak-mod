@@ -28,9 +28,8 @@ from ..infrastructure import sharedmemory, clientquery, log
 
 class TeamSpeakChatClientAdapter(object):
 
-	def __init__(self, eventloop, boundaries):
+	def __init__(self, boundaries):
 		self.__ts = TeamSpeakClient()
-		self.__ts.set_eventloop(eventloop)
 		self.__boundaries = boundaries
 		self.__ts.on("connected", self.__on_connected_to_ts)
 		self.__ts.on("disconnected", self.__on_disconnected_from_ts)

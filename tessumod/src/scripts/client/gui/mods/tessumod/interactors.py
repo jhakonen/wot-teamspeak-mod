@@ -18,8 +18,9 @@
 import sys
 import os
 import copy
+from functools import partial
 
-from infrastructure import gameapi, log
+from infrastructure import log, timer
 from constants import SettingConstants
 
 class Initialize(object):
@@ -193,7 +194,7 @@ class PairChatUserToPlayer(object):
 		else:
 			log.LOG_DEBUG("Failed to match TS user", user["nick"])
 
-class UpdateChatUserSpeakState(object):
+class UpdateChatUserSpeakState(timer.TimerMixin):
 
 	usercache = None
 	chatclient = None
@@ -215,7 +216,8 @@ class UpdateChatUserSpeakState(object):
 			self.__update_chat_user_speak_status(client_id)
 		else:
 			# keep speaking state for a little longer
-			gameapi.EventLoop.callback(self.settings.get(SettingConstants.SPEAK_STOP_DELAY), self.__update_chat_user_speak_status, client_id)
+			secs = self.settings.get(SettingConstants.SPEAK_STOP_DELAY)
+			self.on_timeout(secs, partial(self.__update_chat_user_speak_status, client_id))
 
 	def __update_chat_user_speak_status(self, client_id):
 		if not self.chatclient.has_user(client_id):
