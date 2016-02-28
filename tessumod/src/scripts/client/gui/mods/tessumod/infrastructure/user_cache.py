@@ -232,6 +232,9 @@ class INICache(object):
 	def init(self):
 		if self._initialized:
 			return
+		ini_dirpath = os.path.dirname(self.ini_path)
+		if not os.path.exists(ini_dirpath):
+			os.makedirs(ini_dirpath)
 		self._read_cache_file()
 		self.on_init_cleanup()
 		self._write_cache_file()

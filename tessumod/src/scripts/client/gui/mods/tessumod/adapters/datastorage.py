@@ -16,11 +16,13 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 import copy
+from ..infrastructure.keyvaluestorage import KeyValueStorage
+from ..infrastructure import utils
 
 class DataStorageAdapter(object):
 
-	def __init__(self, engine):
-		self.__entities = engine
+	def __init__(self):
+		self.__entities = KeyValueStorage(utils.get_states_dir_path())
 
 	def get(self, name):
 		return copy.copy(self.__entities.get(name))

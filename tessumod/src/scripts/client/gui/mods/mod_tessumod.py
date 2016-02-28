@@ -15,21 +15,8 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-AVAILABLE_PLUGIN_VERSION = 1
-
-try:
-	from tessumod.infrastructure import utils, mytsplugin, gameapi, log
-	from tessumod.infrastructure.settings import Settings
-	from tessumod.infrastructure.user_cache import UserCache
-	from tessumod.infrastructure.keyvaluestorage import KeyValueStorage
-	from tessumod import boundaries, adapters
-	import os
-	import subprocess
-	import threading
-	from functools import partial
-except:
-	import traceback
-	print traceback.format_exc()
+from tessumod.infrastructure import utils, gameapi, log
+from tessumod import boundaries, adapters
 
 def init():
 	'''Mod's main entry point. Called by WoT's built-in mod loader.'''
@@ -37,27 +24,15 @@ def init():
 	try:
 		log.install_logger_impl(gameapi.Logger)
 
-		# make sure that ini-folder exists
-		try:
-			os.makedirs(utils.get_ini_dir_path())
-		except os.error:
-			pass
-		settings_ini_path = os.path.join(utils.get_ini_dir_path(), "tessu_mod.ini")
-		cache_ini_path    = os.path.join(utils.get_ini_dir_path(), "tessu_mod_cache.ini")
-
-		usercache_impl = UserCache(cache_ini_path)
-		storage_impl   = KeyValueStorage(utils.get_states_dir_path())
-		settings_impl  = Settings(settings_ini_path)
-
-		settings      = adapters.settings.SettingsAdapter(gameapi.EventLoop, settings_impl, boundaries)
+		settings      = adapters.settings.SettingsAdapter(gameapi.EventLoop, boundaries)
 		minimap       = adapters.wotgame.MinimapAdapter()
 		chatindicator = adapters.wotgame.ChatIndicatorAdapter()
 		notifications = adapters.wotgame.NotificationsAdapter(boundaries)
 		battle        = adapters.wotgame.BattleAdapter(boundaries)
 		players       = adapters.wotgame.PlayerAdapter()
-		usercache     = adapters.usercache.UserCacheAdapter(usercache_impl, gameapi.EventLoop, boundaries)
+		usercache     = adapters.usercache.UserCacheAdapter(gameapi.EventLoop, boundaries)
 		chatclient    = adapters.teamspeak.TeamSpeakChatClientAdapter(gameapi.EventLoop, boundaries)
-		datastorage   = adapters.datastorage.DataStorageAdapter(storage_impl)
+		datastorage   = adapters.datastorage.DataStorageAdapter()
 
 		boundaries.provide_dependency("settings",      settings)
 		boundaries.provide_dependency("minimap",       minimap)

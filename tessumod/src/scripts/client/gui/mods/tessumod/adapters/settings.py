@@ -17,19 +17,27 @@
 
 import re
 import copy
+import os
 
 from ..constants import SettingConstants
+from ..infrastructure.settings import Settings
+from ..infrastructure import utils
 
 class SettingsAdapter(object):
 
-	def __init__(self, eventloop, settings, boundaries):
-		self.__settings = settings
+	def __init__(self, eventloop, boundaries):
+		self.__settings = Settings(os.path.join(utils.get_ini_dir_path(), "tessu_mod.ini"))
 		self.__boundaries = boundaries
 		self.__settings.on_reloaded += self.__on_settings_reloaded
 		self.__sync_repeater = eventloop.create_callback_repeater(self.__settings.sync)
 		self.__loaded_values = {}
 
 	def init(self):
+		# make sure that ini-folder exists
+		try:
+			os.makedirs(utils.get_ini_dir_path())
+		except os.error:
+			pass
 		self.__settings.sync()
 
 	def set_file_check_interval(self, interval):

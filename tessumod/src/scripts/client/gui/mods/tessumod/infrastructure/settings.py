@@ -169,6 +169,9 @@ class Settings(object):
 		self._write_default_file()
 
 	def _write_default_file(self):
+		ini_dirpath = os.path.dirname(self._ini_path)
+		if not os.path.exists(ini_dirpath):
+			os.makedirs(ini_dirpath)
 		if not os.path.isfile(self._ini_path):
 			with open(self._ini_path, "w") as f:
 				f.write(DEFAULT_INI)
