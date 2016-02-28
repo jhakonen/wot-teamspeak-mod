@@ -217,7 +217,8 @@ class TSClientQueryHandler(asynchat.async_chat):
 	def found_terminator(self):
 		command = self._buffer.strip()
 		self._buffer = ""
-		self.handle_command(command)
+		if command: # keep alive is empty string
+			self.handle_command(command)
 
 	def push(self, data):
 		asynchat.async_chat.push(self, data.encode('ascii'))
