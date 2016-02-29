@@ -30,16 +30,16 @@ def init():
 		log.install_logger_impl(gameapi.Logger)
 		timer.set_eventloop(gameapi.EventLoop)
 
-		boundaries.provide_dependency("settings",      SettingsAdapter(boundaries))
-		boundaries.provide_dependency("minimap",       MinimapAdapter())
-		boundaries.provide_dependency("chatindicator", ChatIndicatorAdapter())
-		boundaries.provide_dependency("usercache",     UserCacheAdapter(boundaries))
-		boundaries.provide_dependency("chatclient",    TeamSpeakChatClientAdapter(boundaries))
-		boundaries.provide_dependency("datastorage",   DataStorageAdapter())
-		boundaries.provide_dependency("notifications", NotificationsAdapter(boundaries))
-		boundaries.provide_dependency("battle",        BattleAdapter(boundaries))
-		boundaries.provide_dependency("players",       PlayerAdapter())
-		boundaries.provide_dependency("environment",   EnvironmentAdapter())
+		boundaries.inject("settings",      SettingsAdapter(boundaries))
+		boundaries.inject("minimap",       MinimapAdapter())
+		boundaries.inject("chatindicator", ChatIndicatorAdapter())
+		boundaries.inject("usercache",     UserCacheAdapter(boundaries))
+		boundaries.inject("chatclient",    TeamSpeakChatClientAdapter(boundaries))
+		boundaries.inject("datastorage",   DataStorageAdapter())
+		boundaries.inject("notifications", NotificationsAdapter(boundaries))
+		boundaries.inject("battle",        BattleAdapter(boundaries))
+		boundaries.inject("players",       PlayerAdapter())
+		boundaries.inject("environment",   EnvironmentAdapter())
 
 		try:
 			from tessumod import build_info

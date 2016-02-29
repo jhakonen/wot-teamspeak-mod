@@ -121,14 +121,13 @@ class TestCaseBase(unittest.TestCase):
 
 	def __install_event_handler(self, name, callback):
 		if self.mod_tessumod is not None:
-			dependencies = sys.modules["tessumod.boundaries"]._provided_dependencies
-			ts = dependencies["chatclient"]._TeamSpeakChatClientAdapter__ts
+			cq = sys.modules["tessumod.boundaries"].get_injected("chatclient").get_clientquery()
 			if name == "on_connected_to_ts_server":
-				ts.on("connected-server-name", callback)
+				cq.on("connected-server-name", callback)
 			elif name == "on_connected_to_ts_client":
-				ts.on("connected", callback)
+				cq.on("connected", callback)
 			elif name == "on_disconnected_from_ts_client":
-				ts.on("disconnected", callback)
+				cq.on("disconnected", callback)
 			else:
 				raise RuntimeError("No such event: {0}".format(name))
 			return True

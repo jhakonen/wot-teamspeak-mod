@@ -113,6 +113,9 @@ class TeamSpeakChatClientAdapter(object):
 			if self.__positional_data_api.is_open():
 				self.__positional_data_api.set_data(camera_position, camera_direction, fixed_positions)
 
+	def get_clientquery(self):
+		return self.__ts
+
 	def __on_connected_to_ts(self):
 		'''Called when TessuMod manages to connect TeamSpeak client. However, this
 		doesn't mean that the client is connected to any TeamSpeak server.
@@ -239,7 +242,7 @@ class TeamSpeakClient(clientquery.ClientQuery):
 
 		def on_currentschandlerid_finish(error, result):
 			if error:
-				log.LOG_ERROR(error)
+				log.LOG_ERROR("currentschandlerid command failed", error)
 			else:
 				self.emit("server-tab-changed", int(result["schandlerid"]))
 		self.command_currentschandlerid(callback=on_currentschandlerid_finish)
@@ -251,7 +254,7 @@ class TeamSpeakClient(clientquery.ClientQuery):
 		def on_servervariable_finish(error, result):
 			name = ""
 			if error:
-				log.LOG_ERROR(error)
+				log.LOG_ERROR("servervariable command failed", error)
 			else:
 				name = result["virtualserver_name"]
 			self.emit("connected-server-name", name)
@@ -284,7 +287,7 @@ class TeamSpeakClient(clientquery.ClientQuery):
 		return None
 
 	def __on_error(self, error):
-		log.LOG_ERROR(error)
+		log.LOG_ERROR("An error occured", error)
 
 class InfoAPI(sharedmemory.SharedMemory):
 

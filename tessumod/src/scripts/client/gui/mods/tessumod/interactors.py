@@ -25,12 +25,14 @@ from constants import SettingConstants
 
 class Initialize(object):
 
-	settings = None
-	datastorage = None
-	notifications = None
-	usercache = None
-	chatclient = None
-	environment = None
+	INJECT = (
+		"settings",
+		"datastorage",
+		"notifications",
+		"usercache",
+		"chatclient",
+		"environment"
+	)
 
 	def execute(self):
 		mods_dirpath = self.environment.get_mods_dirpath()
@@ -44,10 +46,7 @@ class Initialize(object):
 
 class LoadSettings(object):
 
-	chatclient = None
-	minimap = None
-	settings = None
-	usercache = None
+	INJECT = ("chatclient", "minimap", "settings", "usercache")
 
 	def execute(self, variables):
 		variables = copy.copy(variables)
@@ -80,8 +79,7 @@ class LoadSettings(object):
 
 class CacheChatUser(object):
 
-	usercache = None
-	chatclient = None
+	INJECT = ("usercache", "chatclient")
 
 	def execute(self, client_id):
 		if self.chatclient.has_user(client_id):
@@ -91,10 +89,7 @@ class CacheChatUser(object):
 
 class PairChatUserToPlayer(object):
 
-	usercache = None
-	chatclient = None
-	players = None
-	settings = None
+	INJECT = ("usercache", "chatclient", "players", "settings")
 
 	def execute(self, client_id):
 		if not self.chatclient.has_user(client_id):
@@ -196,12 +191,14 @@ class PairChatUserToPlayer(object):
 
 class UpdateChatUserSpeakState(timer.TimerMixin):
 
-	usercache = None
-	chatclient = None
-	minimap = None
-	chatindicator = None
-	players = None
-	settings = None
+	INJECT = (
+		"usercache",
+		"chatclient",
+		"minimap",
+		"chatindicator",
+		"players",
+		"settings"
+	)
 
 	def execute(self, client_id):
 		if not self.chatclient.has_user(client_id):
@@ -258,10 +255,7 @@ class UpdateChatUserSpeakState(timer.TimerMixin):
 
 class RemoveChatUser(object):
 
-	chatindicator = None
-	minimap = None
-	usercache = None
-	players = None
+	INJECT = ("chatindicator", "minimap", "usercache", "players")
 
 	def execute(self, client_id):
 		if not self.chatclient.has_user(client_id):
@@ -289,8 +283,7 @@ class RemoveChatUser(object):
 
 class ClearSpeakStatuses(object):
 
-	minimap = None
-	chatindicator = None
+	INJECT = ("minimap", "chatindicator")
 
 	def execute(self):
 		'''Clears speak status of all players.'''
@@ -299,18 +292,16 @@ class ClearSpeakStatuses(object):
 
 class NotifyChatClientDisconnected(object):
 
-	notifications = None
+	INJECT = ("notifications",)
 
 	def execute(self):
 		self.notifications.show_warning_message("Disconnected from TeamSpeak client")
 
 class ShowChatClientPluginInstallMessage(object):
 
-	AVAILABLE_PLUGIN_VERSION = 1
+	INJECT = ("notifications", "chatclient", "datastorage")
 
-	notifications = None
-	chatclient = None
-	datastorage = None
+	AVAILABLE_PLUGIN_VERSION = 1
 
 	def execute(self):
 		installer_path = self.chatclient.get_plugin_filepath()
@@ -345,45 +336,44 @@ class ShowChatClientPluginInstallMessage(object):
 
 class InstallChatClientPlugin(object):
 
-	chatclient = None
+	INJECT = ("chatclient",)
 
 	def execute(self):
 		self.chatclient.install_plugin()
 
 class IgnoreChatClientPluginInstallMessage(object):
 
+	INJECT = ("datastorage",)
+
 	AVAILABLE_PLUGIN_VERSION = ShowChatClientPluginInstallMessage.AVAILABLE_PLUGIN_VERSION
-	datastorage = None
 
 	def execute(self, ignored):
 		self.datastorage.set("ignored_plugin_version", self.AVAILABLE_PLUGIN_VERSION if ignored else 0)
 
 class ShowChatClientPluginInfoUrl(object):
 
-	chatclient = None
+	INJECT = ("chatclient",)
 
 	def execute(self, url):
 		self.chatclient.show_plugin_info_url(url)
 
 class NotifyConnectedToChatServer(object):
 
-	notifications = None
+	INJECT = ("notifications",)
 
 	def execute(self, server_name):
 		self.notifications.show_info_message("Connected to TeamSpeak server '{0}'".format(server_name))
 
 class PublishGameNickToChatServer(object):
 
-	chatclient = None
-	players = None
+	INJECT = ("chatclient", "players")
 
 	def execute(self):
 		self.chatclient.set_game_nickname(self.players.get_my_name())
 
 class ShowCacheErrorMessage(object):
 
-	notifications = None
-	usercache = None
+	INJECT = ("notifications", "usercache")
 
 	def execute(self, error_message):
 		self.notifications.show_error_message("Failed to read file '{0}':\n   {1}"
@@ -391,16 +381,14 @@ class ShowCacheErrorMessage(object):
 
 class EnablePositionalDataToChatClient(object):
 
-	chatclient = None
+	INJECT = ("chatclient",)
 
 	def execute(self, enabled):
 		self.chatclient.enable_positional_data(enabled)
 
 class ProvidePositionalDataToChatClient(object):
 
-	battle = None
-	chatclient = None
-	usercache = None
+	INJECT = ("battle", "chatclient", "usercache")
 
 	def execute(self):
 		camera_position = self.battle.get_camera_position()
@@ -416,16 +404,14 @@ class ProvidePositionalDataToChatClient(object):
 
 class BattleReplayStart(object):
 
-	usercache = None
-	settings = None
+	INJECT = ("usercache", "settings")
 
 	def execute(self):
 		self.usercache.set_write_enabled(self.settings.get(SettingConstants.UPDATE_CACHE_IN_REPLAYS))
 
 class PopulateUserCacheWithPlayers(object):
 
-	usercache = None
-	players = None
+	INJECT = ("usercache", "players")
 
 	def execute(self):
 		for player in self.players.get_players(clanmembers=True, friends=True):

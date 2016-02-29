@@ -17,18 +17,21 @@
 
 import interactors
 
-_provided_dependencies = {}
+_injectables = {}
 
-def provide_dependency(name, obj):
-	_provided_dependencies[name] = obj
+def inject(name, obj):
+	_injectables[name] = obj
+
+def get_injected(name):
+	return _injectables[name]
 
 def _execute(interactor, *args, **kwargs):
 	return _inject_dependencies(interactor).execute(*args, **kwargs)
 
 def _inject_dependencies(target):
-	for attr in target.__class__.__dict__:
-		if attr in _provided_dependencies:
-			setattr(target, attr, _provided_dependencies[attr])
+	for attr in target.INJECT:
+		if attr in _injectables:
+			setattr(target, attr, _injectables[attr])
 	return target
 
 def usecase_initialize():

@@ -34,10 +34,10 @@ class TestInteractorsPairChatUserToPlayer(object):
 		self.__players = mock.Mock()
 		self.__settings = mock.Mock()
 		self.__settings.get.side_effect = lambda key: self.__settings_data[key]
-		boundaries.provide_dependency("usercache",  self.__usercache)
-		boundaries.provide_dependency("chatclient", self.__chatclient)
-		boundaries.provide_dependency("players",    self.__players)
-		boundaries.provide_dependency("settings",   self.__settings)
+		boundaries.inject("usercache",  self.__usercache)
+		boundaries.inject("chatclient", self.__chatclient)
+		boundaries.inject("players",    self.__players)
+		boundaries.inject("settings",   self.__settings)
 		self.__settings_data = {
 			SettingConstants.NICK_MAPPINGS: {},
 			SettingConstants.NICK_EXTRACT_PATTERNS: [],

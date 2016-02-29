@@ -557,7 +557,7 @@ class ClientQueryServerConnectionMixin(object):
 		self.register_notify("notifyclientmoved")
 		def on_serverconnectionhandlerlist_finish(error, result):
 			if error:
-				log.LOG_ERROR(error)
+				log.LOG_ERROR("serverconnectionhandlerlist command failed", error)
 			else:
 				for schandlerid in result:
 					self.__execute_whoami(schandlerid)
@@ -569,7 +569,7 @@ class ClientQueryServerConnectionMixin(object):
 				if error.id == 1794: # not connected to ts server
 					pass
 				else:
-					log.LOG_ERROR(error)
+					log.LOG_ERROR("whoami command failed", error)
 			else:
 				self.__scdata[result["schandlerid"]] = {
 					"clid": result["clid"],
@@ -667,7 +667,7 @@ class ClientQueryServerUsersMixin(object):
 
 	def __on_clientlist_finish(self, error, result):
 		if error:
-			log.LOG_ERROR(error)
+			log.LOG_ERROR("clientlist command failed", error)
 		else:
 			for client in result["clients"]:
 				self.__set_server_user(schandlerid=result["schandlerid"], **client)
@@ -680,7 +680,7 @@ class ClientQueryServerUsersMixin(object):
 
 	def __on_get_client_metadata_finish(self, error, result):
 		if error:
-			log.LOG_ERROR(error)
+			log.LOG_ERROR("Failed to get client's metadata", error)
 		else:
 			self.__set_server_user(**result)
 
