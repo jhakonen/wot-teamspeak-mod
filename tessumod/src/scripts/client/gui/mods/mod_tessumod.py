@@ -21,7 +21,7 @@ from tessumod.adapters.wotgame import MinimapAdapter, ChatIndicatorAdapter, Noti
 from tessumod.adapters.usercache import UserCacheAdapter
 from tessumod.adapters.teamspeak import TeamSpeakChatClientAdapter
 from tessumod.adapters.datastorage import DataStorageAdapter
-from tessumod import boundaries
+from tessumod import application as app
 
 def init():
 	'''Mod's main entry point. Called by WoT's built-in mod loader.'''
@@ -30,16 +30,16 @@ def init():
 		log.install_logger_impl(gameapi.Logger)
 		timer.set_eventloop(gameapi.EventLoop)
 
-		boundaries.inject("settings",      SettingsAdapter(boundaries))
-		boundaries.inject("minimap",       MinimapAdapter())
-		boundaries.inject("chatindicator", ChatIndicatorAdapter())
-		boundaries.inject("usercache",     UserCacheAdapter(boundaries))
-		boundaries.inject("chatclient",    TeamSpeakChatClientAdapter(boundaries))
-		boundaries.inject("datastorage",   DataStorageAdapter())
-		boundaries.inject("notifications", NotificationsAdapter(boundaries))
-		boundaries.inject("battle",        BattleAdapter(boundaries))
-		boundaries.inject("players",       PlayerAdapter())
-		boundaries.inject("environment",   EnvironmentAdapter())
+		app.inject("settings",      SettingsAdapter(app))
+		app.inject("minimap",       MinimapAdapter())
+		app.inject("chatindicator", ChatIndicatorAdapter())
+		app.inject("usercache",     UserCacheAdapter(app))
+		app.inject("chatclient",    TeamSpeakChatClientAdapter(app))
+		app.inject("datastorage",   DataStorageAdapter())
+		app.inject("notifications", NotificationsAdapter(app))
+		app.inject("battle",        BattleAdapter(app))
+		app.inject("players",       PlayerAdapter())
+		app.inject("environment",   EnvironmentAdapter())
 
 		try:
 			from tessumod import build_info
@@ -47,7 +47,7 @@ def init():
 		except ImportError:
 			print "TessuMod development version"
 
-		boundaries.usecase_initialize()
+		app.execute_initialize()
 
 	except:
 		log.LOG_CURRENT_EXCEPTION()

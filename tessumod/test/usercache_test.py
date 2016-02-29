@@ -46,10 +46,10 @@ class TestUserCacheAdapter(object):
 		except:
 			pass
 		self.eventloop = mock.Mock()
-		self.boundaries = mock.Mock()
-		self.boundaries.usecase_show_cache_error_message.side_effect = self.set_error
+		self.app = mock.Mock()
+		self.app.execute_show_cache_error_message.side_effect = self.set_error
 		timer.set_eventloop(self.eventloop)
-		self.adapter = UserCacheAdapter(self.boundaries)
+		self.adapter = UserCacheAdapter(self.app)
 		self.error_message = ""
 		self.adapter.init(ini_path)
 

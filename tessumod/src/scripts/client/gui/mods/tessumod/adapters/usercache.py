@@ -78,9 +78,9 @@ _PAIRINGS_HELP = """
 
 class UserCacheAdapter(TimerMixin):
 
-	def __init__(self, boundaries):
+	def __init__(self, app):
 		super(UserCacheAdapter, self).__init__()
-		self.__boundaries = boundaries
+		self.__app = app
 
 		self.__ts_users = {}
 		self.__players = {}
@@ -210,7 +210,7 @@ class UserCacheAdapter(TimerMixin):
 
 	def __on_read_error(self, error_message):
 		'''This function is called if user cache's reading fails.'''
-		self.__boundaries.usecase_show_cache_error_message(error_message)
+		self.__app.execute_show_cache_error_message(error_message)
 
 	def __on_sync_timeout(self):
 		if self.__ini_cache:

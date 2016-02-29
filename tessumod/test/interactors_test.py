@@ -21,7 +21,7 @@ import mock
 import copy
 
 import helpers
-from tessumod import boundaries
+from tessumod import application as app
 from tessumod.constants import SettingConstants
 
 class TestInteractorsPairChatUserToPlayer(object):
@@ -34,10 +34,10 @@ class TestInteractorsPairChatUserToPlayer(object):
 		self.__players = mock.Mock()
 		self.__settings = mock.Mock()
 		self.__settings.get.side_effect = lambda key: self.__settings_data[key]
-		boundaries.inject("usercache",  self.__usercache)
-		boundaries.inject("chatclient", self.__chatclient)
-		boundaries.inject("players",    self.__players)
-		boundaries.inject("settings",   self.__settings)
+		app.inject("usercache",  self.__usercache)
+		app.inject("chatclient", self.__chatclient)
+		app.inject("players",    self.__players)
+		app.inject("settings",   self.__settings)
 		self.__settings_data = {
 			SettingConstants.NICK_MAPPINGS: {},
 			SettingConstants.NICK_EXTRACT_PATTERNS: [],
@@ -75,7 +75,7 @@ class TestInteractorsPairChatUserToPlayer(object):
 			is_me=False,
 			in_my_channel=True
 		)
-		boundaries.usecase_pair_chat_user_to_player(client_id=client_id)
+		app.execute_pair_chat_user_to_player(client_id=client_id)
 		self.__usercache.add_player.assert_called_with(id=1000, name="TestTomato")
 		self.__usercache.pair.assert_called_with(1000, "deadf00d")
 
@@ -91,7 +91,7 @@ class TestInteractorsPairChatUserToPlayer(object):
 			is_me=False,
 			in_my_channel=True
 		)
-		boundaries.usecase_pair_chat_user_to_player(client_id=client_id)
+		app.execute_pair_chat_user_to_player(client_id=client_id)
 		self.__usercache.add_player.assert_called_with(id=1001, name="TESTtomato")
 		self.__usercache.pair.assert_called_with(1001, "deadf00d")
 
@@ -108,7 +108,7 @@ class TestInteractorsPairChatUserToPlayer(object):
 			is_me=False,
 			in_my_channel=True
 		)
-		boundaries.usecase_pair_chat_user_to_player(client_id=client_id)
+		app.execute_pair_chat_user_to_player(client_id=client_id)
 		self.__usercache.add_player.assert_called_with(id=1001, name="TESTtomato")
 		self.__usercache.pair.assert_called_with(1001, "deadf00d")
 
@@ -125,7 +125,7 @@ class TestInteractorsPairChatUserToPlayer(object):
 			is_me=False,
 			in_my_channel=True
 		)
-		boundaries.usecase_pair_chat_user_to_player(client_id=client_id)
+		app.execute_pair_chat_user_to_player(client_id=client_id)
 		self.__usercache.add_player.assert_called_with(id=1001, name="TESTtomato123")
 		self.__usercache.pair.assert_called_with(1001, "deadf00d")
 
@@ -143,7 +143,7 @@ class TestInteractorsPairChatUserToPlayer(object):
 			is_me=False,
 			in_my_channel=True
 		)
-		boundaries.usecase_pair_chat_user_to_player(client_id=client_id)
+		app.execute_pair_chat_user_to_player(client_id=client_id)
 		self.__usercache.add_player.assert_called_with(id=1001, name="TESTtomato123")
 		self.__usercache.pair.assert_called_with(1001, "deadf00d")
 
@@ -160,6 +160,6 @@ class TestInteractorsPairChatUserToPlayer(object):
 			is_me=False,
 			in_my_channel=True
 		)
-		boundaries.usecase_pair_chat_user_to_player(client_id=client_id)
+		app.execute_pair_chat_user_to_player(client_id=client_id)
 		self.__usercache.add_player.assert_called_with(id=1001, name="TESTtomato")
 		self.__usercache.pair.assert_called_with(1001, "deadf00d")

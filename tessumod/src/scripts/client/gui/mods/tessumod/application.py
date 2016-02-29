@@ -17,6 +17,66 @@
 
 import interactors
 
+def execute_initialize():
+	_execute(interactors.Initialize())
+
+def execute_load_settings(setting_vars):
+	_execute(interactors.LoadSettings(), setting_vars)
+
+def execute_cache_chat_user(client_id, **client_data):
+	_execute(interactors.CacheChatUser(), client_id, **client_data)
+
+def execute_pair_chat_user_to_player(client_id):
+	_execute(interactors.PairChatUserToPlayer(), client_id)
+
+def execute_update_chat_user_speak_state(client_id):
+	_execute(interactors.UpdateChatUserSpeakState(), client_id)
+
+def execute_remove_chat_user(client_id):
+	_execute(interactors.RemoveChatUser(), client_id)
+
+def execute_clear_speak_statuses():
+	_execute(interactors.ClearSpeakStatuses())
+
+def execute_notify_chat_client_disconnected():
+	_execute(interactors.NotifyChatClientDisconnected())
+
+def execute_show_chat_client_plugin_install_message():
+	_execute(interactors.ShowChatClientPluginInstallMessage())
+
+def execute_install_chat_client_plugin():
+	_execute(interactors.InstallChatClientPlugin())
+
+def execute_ignore_chat_client_plugin_install_message(ignored):
+	_execute(interactors.IgnoreChatClientPluginInstallMessage(), ignored)
+
+def execute_show_chat_client_plugin_info_url(url):
+	_execute(interactors.ShowChatClientPluginInfoUrl(), url)
+
+def execute_notify_connected_to_chat_server(server_name):
+	_execute(interactors.NotifyConnectedToChatServer(), server_name)
+
+def execute_publish_game_nick_to_chat_server():
+	_execute(interactors.PublishGameNickToChatServer())
+
+def execute_show_cache_error_message(error_message):
+	_execute(interactors.ShowCacheErrorMessage(), error_message)
+
+def execute_enable_positional_data_to_chat_client(enabled):
+	_execute(interactors.EnablePositionalDataToChatClient(), enabled)
+
+def execute_provide_positional_data_to_chat_client():
+	_execute(interactors.ProvidePositionalDataToChatClient())
+
+def execute_battle_replay_start():
+	_execute(interactors.BattleReplayStart())
+
+def execute_populate_user_cache_with_players():
+	_execute(interactors.PopulateUserCacheWithPlayers())
+
+def _execute(interactor, *args, **kwargs):
+	return _inject_dependencies(interactor).execute(*args, **kwargs)
+
 _injectables = {}
 
 def inject(name, obj):
@@ -25,68 +85,8 @@ def inject(name, obj):
 def get_injected(name):
 	return _injectables[name]
 
-def _execute(interactor, *args, **kwargs):
-	return _inject_dependencies(interactor).execute(*args, **kwargs)
-
 def _inject_dependencies(target):
 	for attr in target.INJECT:
 		if attr in _injectables:
 			setattr(target, attr, _injectables[attr])
 	return target
-
-def usecase_initialize():
-	_execute(interactors.Initialize())
-
-def usecase_load_settings(setting_vars):
-	_execute(interactors.LoadSettings(), setting_vars)
-
-def usecase_cache_chat_user(client_id, **client_data):
-	_execute(interactors.CacheChatUser(), client_id, **client_data)
-
-def usecase_pair_chat_user_to_player(client_id):
-	_execute(interactors.PairChatUserToPlayer(), client_id)
-
-def usecase_update_chat_user_speak_state(client_id):
-	_execute(interactors.UpdateChatUserSpeakState(), client_id)
-
-def usecase_remove_chat_user(client_id):
-	_execute(interactors.RemoveChatUser(), client_id)
-
-def usecase_clear_speak_statuses():
-	_execute(interactors.ClearSpeakStatuses())
-
-def usecase_notify_chat_client_disconnected():
-	_execute(interactors.NotifyChatClientDisconnected())
-
-def usecase_show_chat_client_plugin_install_message():
-	_execute(interactors.ShowChatClientPluginInstallMessage())
-
-def usecase_install_chat_client_plugin():
-	_execute(interactors.InstallChatClientPlugin())
-
-def usecase_ignore_chat_client_plugin_install_message(ignored):
-	_execute(interactors.IgnoreChatClientPluginInstallMessage(), ignored)
-
-def usecase_show_chat_client_plugin_info_url(url):
-	_execute(interactors.ShowChatClientPluginInfoUrl(), url)
-
-def usecase_notify_connected_to_chat_server(server_name):
-	_execute(interactors.NotifyConnectedToChatServer(), server_name)
-
-def usecase_publish_game_nick_to_chat_server():
-	_execute(interactors.PublishGameNickToChatServer())
-
-def usecase_show_cache_error_message(error_message):
-	_execute(interactors.ShowCacheErrorMessage(), error_message)
-
-def usecase_enable_positional_data_to_chat_client(enabled):
-	_execute(interactors.EnablePositionalDataToChatClient(), enabled)
-
-def usecase_provide_positional_data_to_chat_client():
-	_execute(interactors.ProvidePositionalDataToChatClient())
-
-def usecase_battle_replay_start():
-	_execute(interactors.BattleReplayStart())
-
-def usecase_populate_user_cache_with_players():
-	_execute(interactors.PopulateUserCacheWithPlayers())

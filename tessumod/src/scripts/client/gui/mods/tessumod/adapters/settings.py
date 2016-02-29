@@ -163,9 +163,9 @@ repeat_interval: 3.5
 
 class SettingsAdapter(TimerMixin):
 
-	def __init__(self, boundaries):
+	def __init__(self, app):
 		super(SettingsAdapter, self).__init__()
-		self.__boundaries = boundaries
+		self.__app = app
 		self.__loaded_values = {}
 
 	def set_file_check_interval(self, interval):
@@ -253,7 +253,7 @@ class SettingsAdapter(TimerMixin):
 			SettingConstants.MINIMAP_NOTIFY_ACTION          : self.__parser.get("MinimapNotifications", "action"),
 			SettingConstants.MINIMAP_NOTIFY_REPEAT_INTERVAL : self.__parser.getfloat("MinimapNotifications", "repeat_interval")
 		}
-		self.__boundaries.usecase_load_settings(self.__loaded_values)
+		self.__app.execute_load_settings(self.__loaded_values)
 
 	def __get_list(self, section, option):
 		items = []
