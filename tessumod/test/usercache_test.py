@@ -17,8 +17,10 @@
 
 import os
 import ConfigParser
+import mock
 import helpers
-from tessumod.infrastructure.user_cache import UserCache
+from tessumod.adapters.usercache import UserCacheAdapter
+from tessumod.infrastructure import timer
 
 ini_path = os.path.join(helpers.temp_dirpath, "tessu_mod_cache.ini")
 
@@ -32,7 +34,7 @@ def has_cache_value(section, name):
 	parser.read([ini_path])
 	return parser.has_option(section, name)
 
-class TestUserCache(object):
+class TestUserCacheAdapter(object):
 
 	def setUp(self):
 		try:
@@ -43,11 +45,13 @@ class TestUserCache(object):
 			os.remove(ini_path)
 		except:
 			pass
-
-		self.cache = UserCache(ini_path)
-		self.cache.on_read_error += self.set_error
+		self.eventloop = mock.Mock()
+		self.boundaries = mock.Mock()
+		self.boundaries.usecase_show_cache_error_message.side_effect = self.set_error
+		timer.set_eventloop(self.eventloop)
+		self.adapter = UserCacheAdapter(self.boundaries)
 		self.error_message = ""
-		self.cache.init()
+		self.adapter.init(ini_path)
 
 	def set_error(self, message):
 		self.error_message = message
@@ -57,7 +61,7 @@ class TestUserCache(object):
 		print contents
 		with open(ini_path, "w") as file:
 			file.write(contents)
-		self.cache._ini_cache._sync_time = 0
+		self.adapter.get_backend()._sync_time = 0
 
 	def get_cache_file_contents(self):
 		with open(ini_path, "r") as file:
@@ -75,8 +79,8 @@ class TestUserCache(object):
 			[UserPlayerPairings]
 			erkki = erkkituhoaja
 		""")
-		self.cache.sync()
-		assert 1234567 in self.cache.get_paired_player_ids("asaZjcw/gfebE/PM=")
+		self.adapter.get_backend().sync()
+		assert 1234567 in self.adapter.get_paired_player_ids("asaZjcw/gfebE/PM=")
 
 	def test_read_multiple_players_paired_to_single_ts_user(self):
 		self.write_cache_file("""
@@ -88,9 +92,9 @@ class TestUserCache(object):
 			[UserPlayerPairings]
 			erkki = erkkituhoaja,watnao
 		""")
-		self.cache.sync()
-		assert 1234567 in self.cache.get_paired_player_ids("asaZjcw/gfebE/PM=")
-		assert 4897346 in self.cache.get_paired_player_ids("asaZjcw/gfebE/PM=")
+		self.adapter.get_backend().sync()
+		assert 1234567 in self.adapter.get_paired_player_ids("asaZjcw/gfebE/PM=")
+		assert 4897346 in self.adapter.get_paired_player_ids("asaZjcw/gfebE/PM=")
 
 	def test_read_multiple_ts_users_paired_to_single_player(self):
 		self.write_cache_file("""
@@ -103,9 +107,9 @@ class TestUserCache(object):
 			erkki = erkkituhoaja
 			matti = erkkituhoaja
 		""")
-		self.cache.sync()
-		assert 1234567 in self.cache.get_paired_player_ids("asaZjcw/gfebE/PM=")
-		assert 1234567 in self.cache.get_paired_player_ids("adfZjcw/gffbE/FO=")
+		self.adapter.get_backend().sync()
+		assert 1234567 in self.adapter.get_paired_player_ids("asaZjcw/gfebE/PM=")
+		assert 1234567 in self.adapter.get_paired_player_ids("adfZjcw/gffbE/FO=")
 
 	def test_error_received_on_missing_player_definition(self):
 		self.write_cache_file("""
@@ -116,7 +120,7 @@ class TestUserCache(object):
 			erkki = erkkituhoaja
 		""")
 		orig_contents = self.get_cache_file_contents()
-		self.cache.sync()
+		self.adapter.get_backend().sync()
 		assert "erkkituhoaja" in self.error_message
 		self.assert_ini_contents_not_modified(orig_contents)
 
@@ -129,7 +133,7 @@ class TestUserCache(object):
 			matti = erkkituhoaja
 		""")
 		orig_contents = self.get_cache_file_contents()
-		self.cache.sync()
+		self.adapter.get_backend().sync()
 		assert "matti" in self.error_message
 		self.assert_ini_contents_not_modified(orig_contents)
 
@@ -141,64 +145,64 @@ class TestUserCache(object):
 			erkki = erkkituhoaja
 		""")
 		orig_contents = self.get_cache_file_contents()
-		self.cache.sync()
+		self.adapter.get_backend().sync()
 		assert "TeamSpeakUsers" in self.error_message
 		self.assert_ini_contents_not_modified(orig_contents)
 
 	def test_file_unchanged_after_read_error_and_modify(self):
 		self.test_error_received_on_missing_ts_user_definition()
 		orig_contents = self.get_cache_file_contents()
-		self.cache.add_ts_user("erkki", "asaZjcw/gfebE/PM=")
-		self.cache.sync()
+		self.adapter.add_chat_user("asaZjcw/gfebE/PM=", "erkki")
+		self.adapter.get_backend().sync()
 		self.assert_ini_contents_not_modified(orig_contents)
 
 	def test_can_add_ts_user(self):
-		self.cache.add_ts_user("Erkki", "asaZjcw/gfebE/PM=")
-		self.cache.sync()
+		self.adapter.add_chat_user("asaZjcw/gfebE/PM=", "Erkki")
+		self.adapter.get_backend().sync()
 		assert get_cache_value("TeamSpeakUsers", "erkki") == "asaZjcw/gfebE/PM="
 
 	def test_can_add_player(self):
-		self.cache.add_player("ErkkiTuhoaja", 1234567)
-		self.cache.sync()
+		self.adapter.add_player(1234567, "ErkkiTuhoaja")
+		self.adapter.get_backend().sync()
 		assert get_cache_value("GamePlayers", "erkkituhoaja") == "1234567"
 
 	def test_can_pair(self):
-		self.cache.add_ts_user("Erkki", "asaZjcw/gfebE/PM=")
-		self.cache.add_player("ErkkiTuhoaja", 1234567)
-		self.cache.pair(1234567, "asaZjcw/gfebE/PM=")
-		self.cache.sync()
+		self.adapter.add_chat_user("asaZjcw/gfebE/PM=", "Erkki")
+		self.adapter.add_player(1234567, "ErkkiTuhoaja")
+		self.adapter.pair(1234567, "asaZjcw/gfebE/PM=")
+		self.adapter.get_backend().sync()
 		assert get_cache_value("UserPlayerPairings", "erkki") == "erkkituhoaja"
 
 	def test_can_get_pairing(self):
-		self.cache.add_ts_user("Erkki", "asaZjcw/gfebE/PM=")
-		self.cache.add_player("ErkkiTuhoaja", 1234567)
-		self.cache.pair(1234567, "asaZjcw/gfebE/PM=")
-		assert 1234567 in self.cache.get_paired_player_ids("asaZjcw/gfebE/PM=")
+		self.adapter.add_chat_user("asaZjcw/gfebE/PM=", "Erkki")
+		self.adapter.add_player(1234567, "ErkkiTuhoaja")
+		self.adapter.pair(1234567, "asaZjcw/gfebE/PM=")
+		assert 1234567 in self.adapter.get_paired_player_ids("asaZjcw/gfebE/PM=")
 
 	def test_get_two_paired_players_for_one_ts_user(self):
-		self.cache.add_ts_user("Erkki", "asaZjcw/gfebE/PM=")
-		self.cache.add_player("ErkkiTuhoaja", 1234567)
-		self.cache.add_player("Watnao", 4897346)
-		self.cache.pair(1234567, "asaZjcw/gfebE/PM=")
-		self.cache.pair(4897346, "asaZjcw/gfebE/PM=")
-		assert 1234567 in self.cache.get_paired_player_ids("asaZjcw/gfebE/PM=")
-		assert 4897346 in self.cache.get_paired_player_ids("asaZjcw/gfebE/PM=")
+		self.adapter.add_chat_user("asaZjcw/gfebE/PM=", "Erkki")
+		self.adapter.add_player(1234567, "ErkkiTuhoaja")
+		self.adapter.add_player(4897346, "Watnao")
+		self.adapter.pair(1234567, "asaZjcw/gfebE/PM=")
+		self.adapter.pair(4897346, "asaZjcw/gfebE/PM=")
+		assert 1234567 in self.adapter.get_paired_player_ids("asaZjcw/gfebE/PM=")
+		assert 4897346 in self.adapter.get_paired_player_ids("asaZjcw/gfebE/PM=")
 
 	def test_get_two_paired_ts_users_for_one_player(self):
-		self.cache.add_ts_user("Erkki", "asaZjcw/gfebE/PM=")
-		self.cache.add_ts_user("Matti", "adfZjcw/gffbE/FO=")
-		self.cache.add_player("ErkkiTuhoaja", 1234567)
-		self.cache.pair(1234567, "asaZjcw/gfebE/PM=")
-		self.cache.pair(1234567, "adfZjcw/gffbE/FO=")
-		assert 1234567 in self.cache.get_paired_player_ids("asaZjcw/gfebE/PM=")
-		assert 1234567 in self.cache.get_paired_player_ids("adfZjcw/gffbE/FO=")
+		self.adapter.add_chat_user("asaZjcw/gfebE/PM=", "Erkki")
+		self.adapter.add_chat_user("adfZjcw/gffbE/FO=", "Matti")
+		self.adapter.add_player(1234567, "ErkkiTuhoaja")
+		self.adapter.pair(1234567, "asaZjcw/gfebE/PM=")
+		self.adapter.pair(1234567, "adfZjcw/gffbE/FO=")
+		assert 1234567 in self.adapter.get_paired_player_ids("asaZjcw/gfebE/PM=")
+		assert 1234567 in self.adapter.get_paired_player_ids("adfZjcw/gffbE/FO=")
 
 	def test_disabling_cache_write_does_not_sync_to_file(self):
-		self.cache.is_write_enabled = False
-		self.cache.add_ts_user("Erkki", "asaZjcw/gfebE/PM=")
-		self.cache.add_player("ErkkiTuhoaja", 1234567)
-		self.cache.pair(1234567, "asaZjcw/gfebE/PM=")
-		self.cache.sync()
+		self.adapter.set_write_enabled(False)
+		self.adapter.add_chat_user("asaZjcw/gfebE/PM=", "Erkki")
+		self.adapter.add_player(1234567, "ErkkiTuhoaja")
+		self.adapter.pair(1234567, "asaZjcw/gfebE/PM=")
+		self.adapter.get_backend().sync()
 		assert not has_cache_value("TeamSpeakUsers", "Erkki")
 		assert not has_cache_value("GamePlayers", "ErkkiTuhoaja")
 		assert not has_cache_value("UserPlayerPairings", "Erkki")
