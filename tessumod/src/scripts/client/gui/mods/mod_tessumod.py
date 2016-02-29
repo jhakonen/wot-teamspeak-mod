@@ -16,7 +16,12 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 from tessumod.infrastructure import gameapi, log, timer
-from tessumod import boundaries, adapters
+from tessumod.adapters.settings import SettingsAdapter
+from tessumod.adapters.wotgame import MinimapAdapter, ChatIndicatorAdapter, NotificationsAdapter, BattleAdapter, PlayerAdapter, EnvironmentAdapter
+from tessumod.adapters.usercache import UserCacheAdapter
+from tessumod.adapters.teamspeak import TeamSpeakChatClientAdapter
+from tessumod.adapters.datastorage import DataStorageAdapter
+from tessumod import boundaries
 
 def init():
 	'''Mod's main entry point. Called by WoT's built-in mod loader.'''
@@ -25,27 +30,16 @@ def init():
 		log.install_logger_impl(gameapi.Logger)
 		timer.set_eventloop(gameapi.EventLoop)
 
-		settings      = adapters.settings.SettingsAdapter(boundaries)
-		minimap       = adapters.wotgame.MinimapAdapter()
-		chatindicator = adapters.wotgame.ChatIndicatorAdapter()
-		notifications = adapters.wotgame.NotificationsAdapter(boundaries)
-		battle        = adapters.wotgame.BattleAdapter(boundaries)
-		players       = adapters.wotgame.PlayerAdapter()
-		environment   = adapters.wotgame.EnvironmentAdapter()
-		usercache     = adapters.usercache.UserCacheAdapter(boundaries)
-		chatclient    = adapters.teamspeak.TeamSpeakChatClientAdapter(boundaries)
-		datastorage   = adapters.datastorage.DataStorageAdapter()
-
-		boundaries.provide_dependency("settings",      settings)
-		boundaries.provide_dependency("minimap",       minimap)
-		boundaries.provide_dependency("chatindicator", chatindicator)
-		boundaries.provide_dependency("usercache",     usercache)
-		boundaries.provide_dependency("chatclient",    chatclient)
-		boundaries.provide_dependency("datastorage",   datastorage)
-		boundaries.provide_dependency("notifications", notifications)
-		boundaries.provide_dependency("battle",        battle)
-		boundaries.provide_dependency("players",       players)
-		boundaries.provide_dependency("environment",   environment)
+		boundaries.provide_dependency("settings",      SettingsAdapter(boundaries))
+		boundaries.provide_dependency("minimap",       MinimapAdapter())
+		boundaries.provide_dependency("chatindicator", ChatIndicatorAdapter())
+		boundaries.provide_dependency("usercache",     UserCacheAdapter(boundaries))
+		boundaries.provide_dependency("chatclient",    TeamSpeakChatClientAdapter(boundaries))
+		boundaries.provide_dependency("datastorage",   DataStorageAdapter())
+		boundaries.provide_dependency("notifications", NotificationsAdapter(boundaries))
+		boundaries.provide_dependency("battle",        BattleAdapter(boundaries))
+		boundaries.provide_dependency("players",       PlayerAdapter())
+		boundaries.provide_dependency("environment",   EnvironmentAdapter())
 
 		try:
 			from tessumod import build_info
