@@ -255,7 +255,7 @@ class UpdateChatUserSpeakState(timer.TimerMixin):
 
 class RemoveChatUser(object):
 
-	INJECT = ("chatindicator", "minimap", "usercache", "players")
+	INJECT = ("chatclient", "chatindicator", "minimap", "usercache", "players")
 
 	def execute(self, client_id):
 		if not self.chatclient.has_user(client_id):
