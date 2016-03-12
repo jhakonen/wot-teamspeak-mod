@@ -18,7 +18,7 @@
 from ..infrastructure import log
 from ..infrastructure.timer import TimerMixin
 
-import ConfigParser
+from ..thirdparty.iniparse import ConfigParser
 import os
 import csv
 import re
@@ -248,7 +248,7 @@ class INICache(object):
 	def __read_cache_file(self):
 		if not os.path.isfile(self.ini_path):
 			return
-		parser = ConfigParser.RawConfigParser()
+		parser = ConfigParser()
 		if not parser.read(self.ini_path):
 			log.LOG_ERROR("Failed to parse ini file '{0}'"
 				.format(self.ini_path))
@@ -261,7 +261,7 @@ class INICache(object):
 
 	def __write_cache_file(self):
 		if self.is_write_allowed:
-			parser = ConfigParser.RawConfigParser()
+			parser = ConfigParser()
 			self.on_write(parser)
 			with open(self.ini_path, "w") as f:
 				string_io = cStringIO.StringIO()

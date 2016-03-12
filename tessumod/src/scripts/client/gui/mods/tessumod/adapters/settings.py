@@ -15,7 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-import ConfigParser
+from ..thirdparty.iniparse import ConfigParser
 import csv
 import re
 import copy
@@ -206,7 +206,7 @@ class SettingsAdapter(TimerMixin):
 		return os.path.getmtime(self.__ini_filepath)
 
 	def __load_parser(self):
-		self.__parser = ConfigParser.SafeConfigParser()
+		self.__parser = ConfigParser()
 		self.__parser.add_section("General")
 		self.__parser.set("General", "log_level", "1")
 		self.__parser.set("General", "ini_check_interval", "5")
