@@ -226,38 +226,48 @@ class Player(object):
 		if in_battle:
 			try:
 				vehicles = BigWorld.player().arena.vehicles
+				names = []
 				for id in vehicles:
 					vehicle = vehicles[id]
-					log.LOG_DEBUG("Found player from battle", vehicle["name"])
+					names.append(vehicle["name"])
 					yield dict(name=vehicle["name"], id=vehicle["accountDBID"])
+				log.LOG_DEBUG("Found players from battle", names)
 			except AttributeError:
 				pass
 		if in_prebattle:
 			try:
 				# get players from Team Battle room
+				names = []
 				for unit in BigWorld.player().unitMgr.units.itervalues():
 					for id, player in unit.getPlayers().iteritems():
-						log.LOG_DEBUG("Found player from unit", player["nickName"])
+						names.append(player["nickName"])
 						yield dict(name=player["nickName"], id=id)
+				log.LOG_DEBUG("Found players from units", names)
 			except AttributeError:
 				pass
 			try:
 				# get players from Training Room and the like
+				names = []
 				for roster in BigWorld.player().prebattle.rosters.itervalues():
 					for info in roster.itervalues():
-						log.LOG_DEBUG("Found player from rosters", info["name"])
+						names.append(info["name"])
 						yield dict(name=info["name"], id=info["dbID"])
+				log.LOG_DEBUG("Found players from rosters", info["name"])
 			except AttributeError:
 				pass
 		users_storage = storage_getter('users')()
 		if clanmembers:
+			names = []
 			for member in users_storage.getClanMembersIterator(False):
-				log.LOG_DEBUG("Found clan member", member.getName())
+				names.append(member.getName())
 				yield dict(name=member.getName(), id=member.getID())
+			log.LOG_DEBUG("Found clan members", names)
 		if friends:
+			names = []
 			for friend in users_storage.getList(FriendsFindCriteria()):
-				log.LOG_DEBUG("Found friend", friend.getName())
+				names.append(friend.getName())
 				yield dict(name=friend.getName(), id=friend.getID())
+			log.LOG_DEBUG("Found friends", names)
 
 class Notifications(object):
 
