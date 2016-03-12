@@ -41,7 +41,10 @@ class TimerMixin(object):
 			repeater.start(secs)
 			self.__function_map[function] = repeater
 		else:
-			self.__function_map[function] = g_eventloop.callback(secs, function)
+			def clear_function_map_wrapper():
+				del self.__function_map[function]
+				function()
+			self.__function_map[function] = g_eventloop.callback(secs, clear_function_map_wrapper)
 
 	def off_timeout(self, function):
 		'''Unregisters previously registered timed function call.'''
