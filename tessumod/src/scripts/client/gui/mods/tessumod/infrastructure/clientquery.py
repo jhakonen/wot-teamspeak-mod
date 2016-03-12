@@ -643,7 +643,9 @@ class ClientQueryServerUsersMixin(object):
 		self.register_notify("notifyclientupdated")
 
 	def __on_connected_server(self, schandlerid):
-		self.__reload_server_connection_data(schandlerid)
+		self.__clear_server_connection_data(schandlerid)
+		self.__scusers[schandlerid] = {}
+		self.command_clientlist(schandlerid=schandlerid, callback=self.__on_clientlist_finish)
 
 	def __on_disconnected_server(self, schandlerid):
 		self.__clear_server_connection_data(schandlerid)
@@ -653,17 +655,11 @@ class ClientQueryServerUsersMixin(object):
 		for clid in user:
 			self.__set_server_user(schandlerid=schandlerid,	clid=clid)
 
-	def __reload_server_connection_data(self, schandlerid):
-		self.__clear_server_connection_data(schandlerid)
-		self.command_clientlist(schandlerid=schandlerid, callback=self.__on_clientlist_finish)
-
 	def __clear_server_connection_data(self, schandlerid):
 		if schandlerid in self.__scusers:
 			for clid in self.__scusers[schandlerid].keys():
 				self.__remove_server_user(schandlerid=schandlerid, clid=clid)
-			self.__scusers[schandlerid].clear()
-		else:
-			self.__scusers[schandlerid] = {}
+		self.__scusers.pop(schandlerid, None)
 
 	def __on_clientlist_finish(self, error, result):
 		if error:
@@ -685,7 +681,9 @@ class ClientQueryServerUsersMixin(object):
 			self.__set_server_user(**result)
 
 	def __on_notifycliententerview(self, args):
-		self.__set_server_user(**args[0])
+		input = args[0]
+		input["cid"] = input.pop("ctid")
+		self.__set_server_user(**input)
 
 	def __on_notifyclientleftview(self, args):
 		self.__remove_server_user(**args[0])
