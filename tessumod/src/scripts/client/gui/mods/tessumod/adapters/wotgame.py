@@ -63,29 +63,29 @@ class BattleAdapter(TimerMixin):
 		return result
 
 	def __on_avatar_become_player(self):
-		self.__app.execute_publish_game_nick_to_chat_server()
+		self.__app["publish-gamenick-to-chatserver"]()
 		gameapi.Notifications.set_enabled(False)
 
 	def __on_account_become_player(self):
-		self.__app.execute_publish_game_nick_to_chat_server()
+		self.__app["publish-gamenick-to-chatserver"]()
 
 	def __on_avatar_ready(self):
-		self.__app.execute_enable_positional_data_to_chat_client(True)
+		self.__app["enable-positional-data-to-chatclient"](True)
 		self.on_timeout(self.POSITIONAL_DATA_PROVIDE_TIMEOUT, self.__on_provide_positional_data, repeat=True)
 
 	def __on_avatar_become_non_player(self):
-		self.__app.execute_enable_positional_data_to_chat_client(False)
+		self.__app["enable-positional-data-to-chatclient"](False)
 		self.off_timeout(self.__on_provide_positional_data)
 		gameapi.Notifications.set_enabled(True)
 
 	def __on_users_list_received(self, tags):
-		self.__app.execute_populate_user_cache_with_players()
+		self.__app["populate-usercache-with-players"]()
 
 	def __on_provide_positional_data(self):
-		self.__app.execute_provide_positional_data_to_chat_client()
+		self.__app["provide-positional-data-to-chatclient"]()
 
 	def __on_battle_replay_play(self, original_self, original_method, *args, **kwargs):
-		self.__app.execute_battle_replay_start()
+		self.__app["battle-replay-start"]()
 		return original_method(original_self, *args, **kwargs)
 
 class PlayerAdapter(object):
@@ -227,13 +227,13 @@ class NotificationsAdapter(object):
 		return "".join(contents).strip()
 
 	def __on_plugin_install(self, type_id, msg_id, data):
-		self.__app.execute_install_chat_client_plugin()
+		self.__app["install-chatclient-plugin"]()
 
 	def __on_plugin_ignore_toggled(self, type_id, msg_id, data):
 		new_state = False if data["ignore_state"] == "on" else True
 		data["ignore_state"] = "on" if new_state else "off"
-		self.__app.execute_ignore_chat_client_plugin_install_message(new_state)
+		self.__app["ignore-chatclient-plugin-install-message"](new_state)
 		gameapi.Notifications.update_custom_message(type_id, msg_id, data)
 
 	def __on_plugin_moreinfo_clicked(self, type_id, msg_id, data):
-		self.__app.execute_show_chat_client_plugin_info_url(data["moreinfo_url"])
+		self.__app["show-chatclient-plugin-info-url"](data["moreinfo_url"])

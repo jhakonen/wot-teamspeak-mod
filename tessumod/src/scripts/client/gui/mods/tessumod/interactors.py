@@ -20,19 +20,16 @@ import os
 import copy
 from functools import partial
 
-from infrastructure import log, timer
+from infrastructure import log, timer, di
 from constants import SettingConstants
 
+@di.inject("settings")
+@di.inject("datastorage")
+@di.inject("notifications")
+@di.inject("usercache")
+@di.inject("chatclient")
+@di.inject("environment")
 class Initialize(object):
-
-	INJECT = (
-		"settings",
-		"datastorage",
-		"notifications",
-		"usercache",
-		"chatclient",
-		"environment"
-	)
 
 	def execute(self):
 		mods_dirpath = self.environment.get_mods_dirpath()
@@ -44,9 +41,11 @@ class Initialize(object):
 		self.chatclient.init(os.path.join(mods_dirpath, "tessumod.ts3_plugin"))
 		self.notifications.init()
 
+@di.inject("chatclient")
+@di.inject("minimap")
+@di.inject("settings")
+@di.inject("usercache")
 class LoadSettings(object):
-
-	INJECT = ("chatclient", "minimap", "settings", "usercache")
 
 	def execute(self, variables):
 		variables = copy.copy(variables)
@@ -77,9 +76,9 @@ class LoadSettings(object):
 		self.minimap.set_action_interval(value)
 		assert not variables, "Not all variables have been handled"
 
+@di.inject("usercache")
+@di.inject("chatclient")
 class CacheChatUser(object):
-
-	INJECT = ("usercache", "chatclient")
 
 	def execute(self, client_id):
 		if self.chatclient.has_user(client_id):
@@ -87,9 +86,11 @@ class CacheChatUser(object):
 			if user["in_my_channel"]:
 				self.usercache.add_chat_user(user["unique_id"], user["nick"])
 
+@di.inject("usercache")
+@di.inject("chatclient")
+@di.inject("players")
+@di.inject("settings")
 class PairChatUserToPlayer(object):
-
-	INJECT = ("usercache", "chatclient", "players", "settings")
 
 	def execute(self, client_id):
 		if not self.chatclient.has_user(client_id):
@@ -189,16 +190,13 @@ class PairChatUserToPlayer(object):
 		else:
 			log.LOG_DEBUG("Failed to match TS user", user["nick"])
 
+@di.inject("usercache")
+@di.inject("chatclient")
+@di.inject("minimap")
+@di.inject("chatindicator")
+@di.inject("players")
+@di.inject("settings")
 class UpdateChatUserSpeakState(timer.TimerMixin):
-
-	INJECT = (
-		"usercache",
-		"chatclient",
-		"minimap",
-		"chatindicator",
-		"players",
-		"settings"
-	)
 
 	def execute(self, client_id):
 		if not self.chatclient.has_user(client_id):
@@ -253,9 +251,12 @@ class UpdateChatUserSpeakState(timer.TimerMixin):
 			return False
 		return True
 
+@di.inject("chatclient")
+@di.inject("chatindicator")
+@di.inject("minimap")
+@di.inject("usercache")
+@di.inject("players")
 class RemoveChatUser(object):
-
-	INJECT = ("chatclient", "chatindicator", "minimap", "usercache", "players")
 
 	def execute(self, client_id):
 		if not self.chatclient.has_user(client_id):
@@ -281,25 +282,25 @@ class RemoveChatUser(object):
 		except:
 			log.LOG_CURRENT_EXCEPTION()
 
+@di.inject("minimap")
+@di.inject("chatindicator")
 class ClearSpeakStatuses(object):
-
-	INJECT = ("minimap", "chatindicator")
 
 	def execute(self):
 		'''Clears speak status of all players.'''
 		self.minimap.clear_all_players_speaking()
 		self.chatindicator.clear_all_players_speaking()
 
+@di.inject("notifications")
 class NotifyChatClientDisconnected(object):
-
-	INJECT = ("notifications",)
 
 	def execute(self):
 		self.notifications.show_warning_message("Disconnected from TeamSpeak client")
 
+@di.inject("notifications")
+@di.inject("chatclient")
+@di.inject("datastorage")
 class ShowChatClientPluginInstallMessage(object):
-
-	INJECT = ("notifications", "chatclient", "datastorage")
 
 	AVAILABLE_PLUGIN_VERSION = 1
 
@@ -334,61 +335,57 @@ class ShowChatClientPluginInstallMessage(object):
 			return int(version)
 		return 0
 
+@di.inject("chatclient")
 class InstallChatClientPlugin(object):
-
-	INJECT = ("chatclient",)
 
 	def execute(self):
 		self.chatclient.install_plugin()
 
+@di.inject("datastorage")
 class IgnoreChatClientPluginInstallMessage(object):
-
-	INJECT = ("datastorage",)
 
 	AVAILABLE_PLUGIN_VERSION = ShowChatClientPluginInstallMessage.AVAILABLE_PLUGIN_VERSION
 
 	def execute(self, ignored):
 		self.datastorage.set("ignored_plugin_version", self.AVAILABLE_PLUGIN_VERSION if ignored else 0)
 
+@di.inject("chatclient")
 class ShowChatClientPluginInfoUrl(object):
-
-	INJECT = ("chatclient",)
 
 	def execute(self, url):
 		self.chatclient.show_plugin_info_url(url)
 
+@di.inject("notifications")
 class NotifyConnectedToChatServer(object):
-
-	INJECT = ("notifications",)
 
 	def execute(self, server_name):
 		self.notifications.show_info_message("Connected to TeamSpeak server '{0}'".format(server_name))
 
+@di.inject("chatclient")
+@di.inject("players")
 class PublishGameNickToChatServer(object):
-
-	INJECT = ("chatclient", "players")
 
 	def execute(self):
 		self.chatclient.set_game_nickname(self.players.get_my_name())
 
+@di.inject("notifications")
+@di.inject("usercache")
 class ShowCacheErrorMessage(object):
-
-	INJECT = ("notifications", "usercache")
 
 	def execute(self, error_message):
 		self.notifications.show_error_message("Failed to read file '{0}':\n   {1}"
 			.format(self.usercache.get_config_filepath(), error_message))
 
+@di.inject("chatclient")
 class EnablePositionalDataToChatClient(object):
-
-	INJECT = ("chatclient",)
 
 	def execute(self, enabled):
 		self.chatclient.enable_positional_data(enabled)
 
+@di.inject("battle")
+@di.inject("chatclient")
+@di.inject("usercache")
 class ProvidePositionalDataToChatClient(object):
-
-	INJECT = ("battle", "chatclient", "usercache")
 
 	def execute(self):
 		camera_position = self.battle.get_camera_position()
@@ -402,16 +399,16 @@ class ProvidePositionalDataToChatClient(object):
 		if camera_position and camera_direction and positions:
 			self.chatclient.update_positional_data(camera_position, camera_direction, positions)
 
+@di.inject("usercache")
+@di.inject("settings")
 class BattleReplayStart(object):
-
-	INJECT = ("usercache", "settings")
 
 	def execute(self):
 		self.usercache.set_write_enabled(self.settings.get(SettingConstants.UPDATE_CACHE_IN_REPLAYS))
 
+@di.inject("usercache")
+@di.inject("players")
 class PopulateUserCacheWithPlayers(object):
-
-	INJECT = ("usercache", "players")
 
 	def execute(self):
 		for player in self.players.get_players(clanmembers=True, friends=True):

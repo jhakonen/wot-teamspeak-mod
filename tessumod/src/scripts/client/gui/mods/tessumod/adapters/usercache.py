@@ -210,7 +210,7 @@ class UserCacheAdapter(TimerMixin):
 
 	def __on_read_error(self, error_message):
 		'''This function is called if user cache's reading fails.'''
-		self.__app.execute_show_cache_error_message(error_message)
+		self.__app["show-usercache-error-message"](error_message)
 
 	def __on_sync_timeout(self):
 		if self.__ini_cache:

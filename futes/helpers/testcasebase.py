@@ -121,7 +121,7 @@ class TestCaseBase(unittest.TestCase):
 
 	def __install_event_handler(self, name, callback):
 		if self.mod_tessumod is not None:
-			cq = sys.modules["tessumod.application"].get_injected("chatclient").get_clientquery()
+			cq = sys.modules["tessumod.infrastructure.di"].get_provided("chatclient").get_clientquery()
 			if name == "on_connected_to_ts_server":
 				cq.on("connected-server-name", callback)
 			elif name == "on_connected_to_ts_client":

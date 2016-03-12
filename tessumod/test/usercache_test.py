@@ -45,9 +45,9 @@ class TestUserCacheAdapter(object):
 			os.remove(ini_path)
 		except:
 			pass
-		self.eventloop = mock.Mock()
-		self.app = mock.Mock()
-		self.app.execute_show_cache_error_message.side_effect = self.set_error
+		self.eventloop = mock.MagicMock()
+		self.app = mock.MagicMock()
+		self.app["show-usercache-error-message"].side_effect = self.set_error
 		timer.set_eventloop(self.eventloop)
 		self.adapter = UserCacheAdapter(self.app)
 		self.error_message = ""

@@ -15,13 +15,19 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from tessumod.infrastructure import gameapi, log, timer
+from tessumod.infrastructure import gameapi, log, timer, di
 from tessumod.adapters.settings import SettingsAdapter
-from tessumod.adapters.wotgame import MinimapAdapter, ChatIndicatorAdapter, NotificationsAdapter, BattleAdapter, PlayerAdapter, EnvironmentAdapter
+from tessumod.adapters.wotgame import (MinimapAdapter, ChatIndicatorAdapter, NotificationsAdapter, BattleAdapter,
+	PlayerAdapter, EnvironmentAdapter)
 from tessumod.adapters.usercache import UserCacheAdapter
 from tessumod.adapters.teamspeak import TeamSpeakChatClientAdapter
 from tessumod.adapters.datastorage import DataStorageAdapter
-from tessumod import application as app
+from tessumod.interactors import (Initialize, LoadSettings, CacheChatUser, PairChatUserToPlayer,
+	UpdateChatUserSpeakState, RemoveChatUser, ClearSpeakStatuses, NotifyChatClientDisconnected,
+	ShowChatClientPluginInstallMessage, InstallChatClientPlugin, IgnoreChatClientPluginInstallMessage,
+	ShowChatClientPluginInfoUrl, NotifyConnectedToChatServer, PublishGameNickToChatServer, ShowCacheErrorMessage,
+	EnablePositionalDataToChatClient, ProvidePositionalDataToChatClient, BattleReplayStart,
+	PopulateUserCacheWithPlayers)
 
 def init():
 	'''Mod's main entry point. Called by WoT's built-in mod loader.'''
@@ -30,16 +36,43 @@ def init():
 		log.install_logger_impl(gameapi.Logger)
 		timer.set_eventloop(gameapi.EventLoop)
 
-		app.inject("settings",      SettingsAdapter(app))
-		app.inject("minimap",       MinimapAdapter())
-		app.inject("chatindicator", ChatIndicatorAdapter())
-		app.inject("usercache",     UserCacheAdapter(app))
-		app.inject("chatclient",    TeamSpeakChatClientAdapter(app))
-		app.inject("datastorage",   DataStorageAdapter())
-		app.inject("notifications", NotificationsAdapter(app))
-		app.inject("battle",        BattleAdapter(app))
-		app.inject("players",       PlayerAdapter())
-		app.inject("environment",   EnvironmentAdapter())
+		app = {
+			"initialize": Initialize,
+			"load-settings": LoadSettings,
+			"cache-chatuser": CacheChatUser,
+			"pair-chatuser-to-player": PairChatUserToPlayer,
+			"update-chatuser-speakstate": UpdateChatUserSpeakState,
+			"remove-chatuser": RemoveChatUser,
+			"clear-speakstatuses": ClearSpeakStatuses,
+			"notify-chatclient-disconnected": NotifyChatClientDisconnected,
+			"show-chatclient-plugin-install-message": ShowChatClientPluginInstallMessage,
+			"install-chatclient-plugin": InstallChatClientPlugin,
+			"ignore-chatclient-plugin-install-message": IgnoreChatClientPluginInstallMessage,
+			"show-chatclient-plugin-info-url": ShowChatClientPluginInfoUrl,
+			"notify-connected-to-chatserver": NotifyConnectedToChatServer,
+			"publish-gamenick-to-chatserver": PublishGameNickToChatServer,
+			"show-usercache-error-message": ShowCacheErrorMessage,
+			"enable-positional-data-to-chatclient": EnablePositionalDataToChatClient,
+			"provide-positional-data-to-chatclient": ProvidePositionalDataToChatClient,
+			"battle-replay-start": BattleReplayStart,
+			"populate-usercache-with-players": PopulateUserCacheWithPlayers
+		}
+
+		[di.install_provider(interactor) for interactor in app.itervalues()]
+
+		for name, cls in app.iteritems():
+			app[name] = create_executable(cls)
+
+		di.provide("settings",      SettingsAdapter(app))
+		di.provide("minimap",       MinimapAdapter())
+		di.provide("chatindicator", ChatIndicatorAdapter())
+		di.provide("usercache",     UserCacheAdapter(app))
+		di.provide("chatclient",    TeamSpeakChatClientAdapter(app))
+		di.provide("datastorage",   DataStorageAdapter())
+		di.provide("notifications", NotificationsAdapter(app))
+		di.provide("battle",        BattleAdapter(app))
+		di.provide("players",       PlayerAdapter())
+		di.provide("environment",   EnvironmentAdapter())
 
 		try:
 			from tessumod import build_info
@@ -47,7 +80,12 @@ def init():
 		except ImportError:
 			print "TessuMod development version"
 
-		app.execute_initialize()
+		app["initialize"]()
 
 	except:
 		log.LOG_CURRENT_EXCEPTION()
+
+def create_executable(cls):
+	def execute(*args, **kwargs):
+		return cls().execute(*args, **kwargs)
+	return execute

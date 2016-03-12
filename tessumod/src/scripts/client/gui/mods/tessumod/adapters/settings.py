@@ -253,7 +253,7 @@ class SettingsAdapter(TimerMixin):
 			SettingConstants.MINIMAP_NOTIFY_ACTION          : self.__parser.get("MinimapNotifications", "action"),
 			SettingConstants.MINIMAP_NOTIFY_REPEAT_INTERVAL : self.__parser.getfloat("MinimapNotifications", "repeat_interval")
 		}
-		self.__app.execute_load_settings(self.__loaded_values)
+		self.__app["load-settings"](self.__loaded_values)
 
 	def __get_list(self, section, option):
 		items = []
