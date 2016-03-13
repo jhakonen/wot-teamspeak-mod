@@ -61,7 +61,7 @@ class TestUserCacheAdapter(object):
 		print contents
 		with open(ini_path, "w") as file:
 			file.write(contents)
-		self.adapter.get_backend()._sync_time = 0
+		self.adapter.get_backend()._INICache__sync_time = 0
 
 	def get_cache_file_contents(self):
 		with open(ini_path, "r") as file:
