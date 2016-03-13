@@ -24,6 +24,9 @@ import io
 import os
 import re
 
+class NotDefined(object):
+	pass
+
 class INIFile(TimerMixin, EventEmitterMixin):
 
 	def __init__(self, default_contents):
@@ -55,26 +58,38 @@ class INIFile(TimerMixin, EventEmitterMixin):
 		self.__write_default_file()
 		self.__sync()
 
-	def get_int(self, section, option):
+	def get_int(self, section, option, default=NotDefined):
+		if default != NotDefined and not self.__parser.has_option(section, option):
+			return default
 		return self.__parser.getint(section, option)
 
-	def get_float(self, section, option):
+	def get_float(self, section, option, default=NotDefined):
+		if default != NotDefined and not self.__parser.has_option(section, option):
+			return default
 		return self.__parser.getfloat(section, option)
 
-	def get_boolean(self, section, option):
+	def get_boolean(self, section, option, default=NotDefined):
+		if default != NotDefined and not self.__parser.has_option(section, option):
+			return default
 		return self.__parser.getboolean(section, option)
 
-	def get_string(self, section, option):
+	def get_string(self, section, option, default=NotDefined):
+		if default != NotDefined and not self.__parser.has_option(section, option):
+			return default
 		return self.__parser.get(section, option)
 
-	def get_list(self, section, option):
+	def get_list(self, section, option, default=NotDefined):
+		if default != NotDefined and not self.__parser.has_option(section, option):
+			return default
 		items = []
 		for row in csv.reader([self.__parser.get(section, option)]):
 			for item in row:
 				items.append(item)
 		return items
 
-	def get_dict(self, section, key_getter):
+	def get_dict(self, section, key_getter, default=NotDefined):
+		if default != NotDefined and not self.__parser.has_section(section):
+			return default
 		return {option: key_getter(section, option) for option in self.__parser.options(section)}
 
 	def set(self, section, option, value):
@@ -93,8 +108,9 @@ class INIFile(TimerMixin, EventEmitterMixin):
 		self.set(section, option, value)
 
 	def add_section(self, section):
-		self.__parser.add_section(section)
-		self.__write_needed = True
+		if not self.__parser.has_section(section):
+			self.__parser.add_section(section)
+			self.__write_needed = True
 
 	def remove(self, section, option):
 		self.__parser.remove_option(section, option)
@@ -111,10 +127,11 @@ class INIFile(TimerMixin, EventEmitterMixin):
 				f.write(self.__default_contents)
 
 	def __sync(self):
-		if self.__is_modified():
-			self.__read_file()
 		if self.__writing_enabled and self.__write_needed:
 			self.__write_file()
+			self.__write_needed = False
+		if self.__is_modified():
+			self.__read_file()
 
 	def __is_modified(self):
 		return self.__load_time < self.__get_modified_time()
@@ -123,10 +140,10 @@ class INIFile(TimerMixin, EventEmitterMixin):
 		return os.path.getmtime(self.__filepath)
 
 	def __read_file(self):
-		self.emit("file-load-before")
+		self.__parser = ConfigParser()
 		if self.__parser.read(self.__filepath):
 			self.__load_time = self.__get_modified_time()
-			self.emit("file-load-after")
+			self.emit("file-loaded")
 		else:
 			log.LOG_ERROR("Failed to parse ini file '{0}'".format(self.__filepath))
 

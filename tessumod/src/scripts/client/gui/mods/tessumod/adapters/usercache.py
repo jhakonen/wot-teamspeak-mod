@@ -77,7 +77,7 @@ class UserCacheAdapter(object):
 
 	def __init__(self, app):
 		self.__inifile = INIFile(DEFAULT_INI)
-		self.__inifile.on("file-load-after", self.__on_file_loaded)
+		self.__inifile.on("file-loaded", self.__on_file_loaded)
 		self.__app = app
 		self.__ts_users = {}
 		self.__players = {}
