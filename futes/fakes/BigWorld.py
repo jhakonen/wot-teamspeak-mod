@@ -8,7 +8,9 @@ class UserDataObject(object):
 	pass
 
 def logError(type, msg, *args):
-	LOG_ERROR(type, msg, *args)
+	print "{type}: {msg}".format(type=type, msg=msg)
+	for arg in args:
+		print arg
 
 def callback(secs, func):
 	global g_next_handle
