@@ -252,7 +252,7 @@ class Player(object):
 					for info in roster.itervalues():
 						names.append(info["name"])
 						yield dict(name=info["name"], id=info["dbID"])
-				log.LOG_DEBUG("Found players from rosters", info["name"])
+				log.LOG_DEBUG("Found players from rosters", names)
 			except AttributeError:
 				pass
 		users_storage = storage_getter('users')()
