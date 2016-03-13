@@ -15,15 +15,11 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from ..thirdparty.iniparse import ConfigParser
-import csv
 import re
 import copy
-import os
 
 from ..constants import SettingConstants
-from ..infrastructure.timer import TimerMixin
-from ..infrastructure import log
+from ..infrastructure.inifile import INIFile
 
 DEFAULT_INI = """
 ; Defines configuration options for TessuMod.
@@ -161,106 +157,66 @@ action: attackSender
 repeat_interval: 3.5
 """
 
-class SettingsAdapter(TimerMixin):
+class SettingsAdapter(object):
 
 	def __init__(self, app):
-		super(SettingsAdapter, self).__init__()
+		self.__inifile = INIFile(DEFAULT_INI)
+		self.__inifile.on("file-load-before", self.__on_file_load)
+		self.__inifile.on("file-load-after", self.__on_file_loaded)
 		self.__app = app
 		self.__loaded_values = {}
 
 	def set_file_check_interval(self, interval):
-		self.on_timeout(interval, self.__sync, repeat=True)
+		self.__inifile.set_file_check_interval(interval)
 
 	def get(self, key):
 		return copy.copy(self.__loaded_values[key])
 
 	def init(self, settings_filepath):
-		# make sure that ini-folder exists
-		try:
-			os.makedirs(settings_filepath)
-		except os.error:
-			pass
-		self.__load_time = 0
-		self.__parser = None
-		self.__ini_filepath = settings_filepath
-		self.__write_default_file()
-		self.__sync()
+		self.__inifile.set_filepath(settings_filepath)
+		self.__inifile.init()
 
-	def __write_default_file(self):
-		ini_dirpath = os.path.dirname(self.__ini_filepath)
-		if not os.path.exists(ini_dirpath):
-			os.makedirs(ini_dirpath)
-		if not os.path.isfile(self.__ini_filepath):
-			with open(self.__ini_filepath, "w") as f:
-				f.write(DEFAULT_INI)
+	def __on_file_load(self):
+		self.__inifile.add_section("General")
+		self.__inifile.set("General", "log_level", "1")
+		self.__inifile.set("General", "ini_check_interval", "5")
+		self.__inifile.set("General", "speak_stop_delay", "1")
+		self.__inifile.set("General", "get_wot_nick_from_ts_metadata", "on")
+		self.__inifile.set("General", "update_cache_in_replays", "off")
+		self.__inifile.set("General", "ts_nick_search_enabled", "on")
+		self.__inifile.set("General", "nick_extract_patterns", "")
+		self.__inifile.add_section("NameMappings")
+		self.__inifile.add_section("TSClientQueryService")
+		self.__inifile.set("TSClientQueryService", "host", "localhost")
+		self.__inifile.set("TSClientQueryService", "port", "25639")
+		self.__inifile.set("TSClientQueryService", "polling_interval", "0.1")
+		self.__inifile.add_section("VoiceChatNotifications")
+		self.__inifile.set("VoiceChatNotifications", "enabled", "on")
+		self.__inifile.set("VoiceChatNotifications", "self_enabled", "on")
+		self.__inifile.add_section("MinimapNotifications")
+		self.__inifile.set("MinimapNotifications", "enabled", "on")
+		self.__inifile.set("MinimapNotifications", "self_enabled", "on")
+		self.__inifile.set("MinimapNotifications", "action", "attackSender")
+		self.__inifile.set("MinimapNotifications", "repeat_interval", "3.5")
 
-	def __sync(self):
-		if self._is_modified():
-			self.__load_parser()
-			self.__on_settings_reloaded()
-
-	def _is_modified(self):
-		return self.__load_time < self.__get_modified_time()
-
-	def __get_modified_time(self):
-		return os.path.getmtime(self.__ini_filepath)
-
-	def __load_parser(self):
-		self.__parser = ConfigParser()
-		self.__parser.add_section("General")
-		self.__parser.set("General", "log_level", "1")
-		self.__parser.set("General", "ini_check_interval", "5")
-		self.__parser.set("General", "speak_stop_delay", "1")
-		self.__parser.set("General", "get_wot_nick_from_ts_metadata", "on")
-		self.__parser.set("General", "update_cache_in_replays", "off")
-		self.__parser.set("General", "ts_nick_search_enabled", "on")
-		self.__parser.set("General", "nick_extract_patterns", "")
-		self.__parser.add_section("NameMappings")
-		self.__parser.add_section("TSClientQueryService")
-		self.__parser.set("TSClientQueryService", "host", "localhost")
-		self.__parser.set("TSClientQueryService", "port", "25639")
-		self.__parser.set("TSClientQueryService", "polling_interval", "0.1")
-		self.__parser.add_section("VoiceChatNotifications")
-		self.__parser.set("VoiceChatNotifications", "enabled", "on")
-		self.__parser.set("VoiceChatNotifications", "self_enabled", "on")
-		self.__parser.add_section("MinimapNotifications")
-		self.__parser.set("MinimapNotifications", "enabled", "on")
-		self.__parser.set("MinimapNotifications", "self_enabled", "on")
-		self.__parser.set("MinimapNotifications", "action", "attackSender")
-		self.__parser.set("MinimapNotifications", "repeat_interval", "3.5")
-		if self.__parser.read(self.__ini_filepath):
-			self.__load_time = self.__get_modified_time()
-		else:
-			log.LOG_ERROR("Failed to parse ini file '{0}'".format(self.__ini_filepath))
-
-	def __on_settings_reloaded(self):
+	def __on_file_loaded(self):
 		self.__loaded_values = {
-			SettingConstants.LOG_LEVEL                      : self.__parser.getint("General", "log_level"),
-			SettingConstants.FILE_CHECK_INTERVAL            : self.__parser.getfloat("General", "ini_check_interval"),
-			SettingConstants.SPEAK_STOP_DELAY               : self.__parser.getfloat("General", "speak_stop_delay"),
-			SettingConstants.GET_GAME_NICK_FROM_CHAT_CLIENT : self.__parser.getboolean("General", "get_wot_nick_from_ts_metadata"),
-			SettingConstants.UPDATE_CACHE_IN_REPLAYS        : self.__parser.getboolean("General", "update_cache_in_replays"),
-			SettingConstants.CHAT_NICK_SEARCH_ENABLED       : self.__parser.getboolean("General", "ts_nick_search_enabled"),
-			SettingConstants.NICK_EXTRACT_PATTERNS          : [re.compile(pattern, re.IGNORECASE) for pattern in self.__get_list("General", "nick_extract_patterns")],
-			SettingConstants.NICK_MAPPINGS                  : {k.lower(): v.lower() for k, v in self.__get_dict("NameMappings").iteritems()},
-			SettingConstants.CHAT_CLIENT_HOST               : self.__parser.get("TSClientQueryService", "host"),
-			SettingConstants.CHAT_CLIENT_PORT               : self.__parser.getint("TSClientQueryService", "port"),
-			SettingConstants.CHAT_CLIENT_POLLING_INTERVAL   : self.__parser.getfloat("TSClientQueryService", "polling_interval"),
-			SettingConstants.VOICE_CHAT_NOTIFY_ENABLED      : self.__parser.getboolean("VoiceChatNotifications", "enabled"),
-			SettingConstants.VOICE_CHAT_NOTIFY_SELF_ENABLED : self.__parser.getboolean("VoiceChatNotifications", "self_enabled"),
-			SettingConstants.MINIMAP_NOTIFY_ENABLED         : self.__parser.getboolean("MinimapNotifications", "enabled"),
-			SettingConstants.MINIMAP_NOTIFY_SELF_ENABLED    : self.__parser.getboolean("MinimapNotifications", "self_enabled"),
-			SettingConstants.MINIMAP_NOTIFY_ACTION          : self.__parser.get("MinimapNotifications", "action"),
-			SettingConstants.MINIMAP_NOTIFY_REPEAT_INTERVAL : self.__parser.getfloat("MinimapNotifications", "repeat_interval")
+			SettingConstants.LOG_LEVEL                      : self.__inifile.get_int("General", "log_level"),
+			SettingConstants.FILE_CHECK_INTERVAL            : self.__inifile.get_float("General", "ini_check_interval"),
+			SettingConstants.SPEAK_STOP_DELAY               : self.__inifile.get_float("General", "speak_stop_delay"),
+			SettingConstants.GET_GAME_NICK_FROM_CHAT_CLIENT : self.__inifile.get_boolean("General", "get_wot_nick_from_ts_metadata"),
+			SettingConstants.UPDATE_CACHE_IN_REPLAYS        : self.__inifile.get_boolean("General", "update_cache_in_replays"),
+			SettingConstants.CHAT_NICK_SEARCH_ENABLED       : self.__inifile.get_boolean("General", "ts_nick_search_enabled"),
+			SettingConstants.NICK_EXTRACT_PATTERNS          : [re.compile(pattern, re.IGNORECASE) for pattern in self.__inifile.get_list("General", "nick_extract_patterns")],
+			SettingConstants.NICK_MAPPINGS                  : {k.lower(): v.lower() for k, v in self.__inifile.get_dict("NameMappings", self.__inifile.get_string).iteritems()},
+			SettingConstants.CHAT_CLIENT_HOST               : self.__inifile.get_string("TSClientQueryService", "host"),
+			SettingConstants.CHAT_CLIENT_PORT               : self.__inifile.get_int("TSClientQueryService", "port"),
+			SettingConstants.CHAT_CLIENT_POLLING_INTERVAL   : self.__inifile.get_float("TSClientQueryService", "polling_interval"),
+			SettingConstants.VOICE_CHAT_NOTIFY_ENABLED      : self.__inifile.get_boolean("VoiceChatNotifications", "enabled"),
+			SettingConstants.VOICE_CHAT_NOTIFY_SELF_ENABLED : self.__inifile.get_boolean("VoiceChatNotifications", "self_enabled"),
+			SettingConstants.MINIMAP_NOTIFY_ENABLED         : self.__inifile.get_boolean("MinimapNotifications", "enabled"),
+			SettingConstants.MINIMAP_NOTIFY_SELF_ENABLED    : self.__inifile.get_boolean("MinimapNotifications", "self_enabled"),
+			SettingConstants.MINIMAP_NOTIFY_ACTION          : self.__inifile.get_string("MinimapNotifications", "action"),
+			SettingConstants.MINIMAP_NOTIFY_REPEAT_INTERVAL : self.__inifile.get_float("MinimapNotifications", "repeat_interval")
 		}
 		self.__app["load-settings"](self.__loaded_values)
-
-	def __get_list(self, section, option):
-		items = []
-		for row in csv.reader([self.__parser.get(section, option)]):
-			for item in row:
-				items.append(item)
-		return items
-
-	def __get_dict(self, section):
-		return {option: self.__parser.get(section, option) for option in self.__parser.options(section)}

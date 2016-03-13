@@ -24,6 +24,7 @@ import log
 import errno
 
 from timer import TimerMixin
+from eventemitter import EventEmitterMixin
 
 def noop(*args, **kwargs):
 	pass
@@ -52,42 +53,6 @@ class Error(Exception):
 			return "{0}TeamSpeak Error: {1}".format(stack_str, self.__message) 
 		else:
 			return "{0}TeamSpeak Error: {1} ({2})".format(stack_str, self.__message, self.__id)
-
-class EventEmitterMixin(object):
-	'''Mixin class which provides ability to emit and receive send events.'''
-
-	def __init__(self):
-		self.__listeners = {}
-		super(EventEmitterMixin, self).__init__()
-
-	def emit(self, event, *args, **kwargs):
-		'''Emits given "event" name. Iterates through all event handlers
-		registered for that event passing given arguments for each handler.
-
-		Raising StopIteration exception from inside event handler prevents
-		calling of any further event handlers.
-		''' 
-		if event in self.__listeners:
-			for priority, function in self.__listeners[event]:
-				try:
-					function(*args, **kwargs)
-				except StopIteration:
-					return
-				except Exception:
-					log.LOG_CURRENT_EXCEPTION()
-
-	def on(self, event, function, priority=0):
-		'''Registers an event handler "function" for "event".
-		When event is emitted each registered event handler is called in the
-		order of "priority".
-		Calling order of event handlers with same "priority" is undefined.
-		'''
-		assert callable(function)
-		if event not in self.__listeners:
-			self.__listeners[event] = []
-		self.__listeners[event].append((priority, function))
-		self.__listeners[event].sort(reverse=True, key=lambda listener: listener[0])
-		return self
 
 class ClientQueryConnectionMixin(object):
 	'''Mixin class which provides basic TCP connection to TeamSpeak's
