@@ -23,9 +23,8 @@ import os
 import csv
 import re
 import io
-import cStringIO
 
-_GENERAL_HELP = """
+DEFAULT_INI = """
 ; This file stores paired TeamSpeak users and WOT players. When TessuMod
 ; manages to match a TeamSpeak user to a WOT player ingame it stores the match
 ; into this file. This allows TessuMod to match users in future even if the
@@ -43,9 +42,8 @@ _GENERAL_HELP = """
 ; All nick names in this cache are stored in lower case, no matter how they are
 ; written in WOT or in TeamSpeak. Also, any ini-syntax's reserved characters
 ; are replaced with '*'.
-""".strip()
 
-_TS_USERS_HELP = """
+
 ; TessuMod will populate this section with TeamSpeak users who are in the same
 ; TeamSpeak channel with you.
 ; 
@@ -53,9 +51,9 @@ _TS_USERS_HELP = """
 ; value is user's unique id. The nick doesn't have to be the real user nick
 ; name, it can be anything. If you modify the nick name, make sure you also
 ; update names used in UserPlayerPairings.
-""".strip()
+[TeamSpeakUsers]
 
-_PLAYERS_HELP  = """
+
 ; TessuMod will populate this section with players from your friend and clan
 ; member lists. Players are also added when someone speaks in your TeamSpeak
 ; channel and TessuMod manages to match the user to player which isn't yet in
@@ -65,16 +63,17 @@ _PLAYERS_HELP  = """
 ; value is player's id. The nick doesn't have to be the real player nick name,
 ; it can be anything. If you modify the nick name, make sure you also update
 ; names used in UserPlayerPairings.
-""".strip()
+[GamePlayers]
 
-_PAIRINGS_HELP = """
+
 ; This section is updated when TessuMod, using nick matching rules, manages to
 ; match TeamSpeak user to a WOT player.
 ; 
 ; The pairings are stored as key/value pairs where key is TeamSpeak nick name
 ; and value is a list of WOT nick names that the TeamSpeak user will match
 ; against. The WOT nick list is a comma-separated-value.
-""".strip()
+[UserPlayerPairings]
+"""
 
 class UserCacheAdapter(TimerMixin):
 
@@ -91,12 +90,20 @@ class UserCacheAdapter(TimerMixin):
 		self.on_timeout(1, self.__on_sync_timeout, repeat=True)
 
 	def init(self, cache_filepath):
+		self.__write_default_file(cache_filepath)
 		self.__ini_cache = INICache(cache_filepath)
 		self.__ini_cache.on_init_cleanup = self.__on_init_cleanup
 		self.__ini_cache.on_read = self.__on_read
 		self.__ini_cache.on_write = self.__on_write
-		self.__ini_cache.on_write_io = self.__on_write_io
 		self.__ini_cache.init()
+
+	def __write_default_file(self, filepath):
+		ini_dirpath = os.path.dirname(filepath)
+		if not os.path.exists(ini_dirpath):
+			os.makedirs(ini_dirpath)
+		if not os.path.isfile(filepath):
+			with open(filepath, "w") as f:
+				f.write(DEFAULT_INI)
 
 	def set_file_check_interval(self, interval):
 		self.on_timeout(interval, self.__on_sync_timeout, repeat=True)
@@ -187,9 +194,6 @@ class UserCacheAdapter(TimerMixin):
 			self.__on_read_error(error_message if error_message else error)
 
 	def __on_write(self, parser):
-		parser.add_section("TeamSpeakUsers")
-		parser.add_section("GamePlayers")
-		parser.add_section("UserPlayerPairings")
 		for id, nick in self.__ts_users.iteritems():
 			parser.set("TeamSpeakUsers", ini_escape(nick), str(id))
 		for id, nick in self.__players.iteritems():
@@ -199,14 +203,6 @@ class UserCacheAdapter(TimerMixin):
 				ini_escape(self.__ts_users[ts_id]),
 				ini_escape(csv_join([self.__players[player_id] for player_id in player_ids]))
 			)
-
-	def __on_write_io(self, string_io):
-		ini_contents = string_io.getvalue()
-		ini_contents = ini_contents.replace("[TeamSpeakUsers]",     _TS_USERS_HELP + "\n[TeamSpeakUsers]", 1)
-		ini_contents = ini_contents.replace("[GamePlayers]",        _PLAYERS_HELP  + "\n[GamePlayers]", 1)
-		ini_contents = ini_contents.replace("[UserPlayerPairings]", _PAIRINGS_HELP + "\n[UserPlayerPairings]", 1)
-		string_io.truncate(0)
-		string_io.write(_GENERAL_HELP + "\n\n\n" + ini_contents)
 
 	def __on_read_error(self, error_message):
 		'''This function is called if user cache's reading fails.'''
@@ -227,7 +223,6 @@ class INICache(object):
 		self.on_init_cleanup = noop
 		self.on_read = noop
 		self.on_write = noop
-		self.on_write_io = noop
 		self.is_write_allowed = True
 
 	def init(self):
@@ -262,12 +257,13 @@ class INICache(object):
 	def __write_cache_file(self):
 		if self.is_write_allowed:
 			parser = ConfigParser()
+			if not parser.read(self.ini_path):
+				log.LOG_ERROR("Failed to parse ini file '{0}'"
+					.format(self.ini_path))
+				return
 			self.on_write(parser)
 			with open(self.ini_path, "w") as f:
-				string_io = cStringIO.StringIO()
-				parser.write(string_io)
-				self.on_write_io(string_io)
-				f.write(string_io.getvalue())
+				parser.write(f)
 			self.__update_sync_time()
 		self.__write_needed = False
 
