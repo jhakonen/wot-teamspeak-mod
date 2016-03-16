@@ -17,7 +17,12 @@ SCRIPT_DIRPATH           = os.path.dirname(os.path.realpath(__file__))
 FAKES_DIRPATH            = os.path.join(SCRIPT_DIRPATH, "..", "fakes")
 MOD_SRC_DIRPATH          = os.path.join(SCRIPT_DIRPATH, "..", "..", "tessumod", "src")
 MOD_SCRIPTS_DIRPATH      = os.path.join(MOD_SRC_DIRPATH, "scripts", "client", "gui", "mods")
-TMP_DIRPATH              = os.path.join(os.getcwd(), "tmp")
+
+if "TESTS_TEMP_DIR" in os.environ:
+	TMP_DIRPATH = os.path.normpath(os.environ["TESTS_TEMP_DIR"])
+else:
+	TMP_DIRPATH = os.path.join(os.getcwd(), "tmp")
+
 MODS_VERSION_DIRPATH     = os.path.join(TMP_DIRPATH, "res_mods", "version")
 INI_DIRPATH              = os.path.join(MODS_VERSION_DIRPATH, "..", "configs", "tessu_mod")
 TS_PLUGIN_INSTALLER_PATH = os.path.join(MODS_VERSION_DIRPATH, "tessumod.ts3_plugin")

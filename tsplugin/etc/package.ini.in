@@ -1,0 +1,6 @@
+Name = "{PLUGIN_NAME}"
+Type = Plugin
+Author = "{PLUGIN_AUTHOR}"
+Version = "{PLUGIN_VERSION}"
+Platforms = win32, win64
+Description = "{PLUGIN_DESCRIPTION}"

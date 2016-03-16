@@ -1,0 +1,186 @@
+vars:
+  version: 0.7.0
+  game_version: 0.9.14
+  plugin_name: TessuMod Plugin
+  plugin_author: Janne Hakonen (jhakonen @ WOT EU server)
+  plugin_version: "{version}"
+  plugin_description: "This plugin provides support for 3D audio, with help of TessuMod, it positions users voice in TeamSpeak so that their voices appear to come from their vehicle's direction on battlefield."
+  support_url: http://forum.worldoftanks.eu/index.php?/topic/433614-/
+  release_archive_path: "{cwd}/tessumod-{version}-bin.zip"
+  symbol_archive_path: "{cwd}/tessumod-{version}-dbg.zip"
+  root_build_dir: "{cwd}/build"
+  # You should define these values in config.yaml, see config.yaml.example
+  # for example definitions.
+  qmake_path_x86:
+  qmake_path_x64:
+  msvc_vars_path:
+  wot_install_path:
+
+builders:
+  - tailfile:
+      tags: ['tail']
+      filepath: "{wot_install_path}/python.log"
+
+projects:
+  tsplugin:
+    tags: ['tsplugin']
+    vars:
+      tmp_dir: "{root_build_dir}/tsplugin/tmp"
+      archive_dir: "{root_build_dir}/tsplugin/archive"
+      installer_dir: "{root_build_dir}/tsplugin/installer"
+      symbols_dir: "{root_build_dir}/tsplugin/symbols"
+      source_dir: "{root}/tsplugin"
+
+    builders:
+      - in_generate:
+          tags: ['build', 'clean']
+          input_files:
+            - "{source_dir}/etc/package.ini.in"
+          target_dir: "{installer_dir}"
+          defines:
+            PLUGIN_NAME: "{plugin_name}"
+            PLUGIN_DESCRIPTION: "{plugin_description}"
+            PLUGIN_AUTHOR: "{plugin_author}"
+            PLUGIN_VERSION: "{plugin_version}"
+
+      - qmake:
+          tags: ['build', 'clean']
+          architecture: x86
+          source_dir: "{source_dir}"
+          build_dir: "{tmp_dir}/x86"
+          qmake_path: "{qmake_path_x86}"
+          msvc_vars_path: "{msvc_vars_path}"
+          output_dll_path: "{installer_dir}/plugins/tessumod_plugin_x86.dll"
+          output_dbg_path: "{symbols_dir}/tessumod_plugin_x86.pdb"
+          defines:
+            PLUGIN_NAME: "{plugin_name}"
+            PLUGIN_DESCRIPTION: "{plugin_description}"
+            PLUGIN_AUTHOR: "{plugin_author}"
+            PLUGIN_VERSION: "{plugin_version}"
+      - qmake:
+          tags: ['build', 'clean']
+          architecture: x86_amd64
+          source_dir: "{source_dir}"
+          build_dir: "{tmp_dir}/x64"
+          qmake_path: "{qmake_path_x64}"
+          msvc_vars_path: "{msvc_vars_path}"
+          output_dll_path: "{installer_dir}/plugins/tessumod_plugin_x64.dll"
+          output_dbg_path: "{symbols_dir}/tessumod_plugin_x64.pdb"
+          defines:
+            PLUGIN_NAME: "{plugin_name}"
+            PLUGIN_DESCRIPTION: "{plugin_description}"
+            PLUGIN_AUTHOR: "{plugin_author}"
+            PLUGIN_VERSION: "{plugin_version}"
+      - copy:
+          tags: ['build', 'clean']
+          input_files:
+              - "{source_dir}/audio/*"
+              - "{source_dir}/etc/alsoft.ini"
+              - "{source_dir}/etc/hrtfs/*"
+              - "{source_dir}/libs/OpenAL*.dll"
+          target_dir: "{installer_dir}/plugins/tessumod_plugin"
+      - copy:
+          tags: ['build', 'clean']
+          input_files:
+              - "{source_dir}/libs/OpenAL*.pdb"
+          target_dir: "{symbols_dir}"
+      - compress:
+          tags: ['build', 'clean']
+          contents_dir: "{installer_dir}"
+          archive_path: "{archive_dir}/tessumod.ts3_plugin"
+      - compress:
+          tags: ['build', 'clean']
+          contents_dir: "{archive_dir}"
+          archive_path: "{release_archive_path}"
+          prefix: "res_mods/{game_version}"
+      - compress:
+          tags: ['build', 'clean']
+          contents_dir: "{symbols_dir}"
+          archive_path: "{symbol_archive_path}"
+
+  tessumod:
+    tags: ['tessumod']
+    vars:
+      src_dir: "{root}/tessumod/src"
+      tmp_dir: "{root_build_dir}/tessumod/tmp"
+      archive_dir: "{root_build_dir}/tessumod/archive"
+      unittests_dir: "{root}/tessumod/test"
+      unittests_tmp_dir: "{root_build_dir}/tessumod/unittests"
+      futes_dir: "{root}/futes"
+      futes_tmp_dir: "{root_build_dir}/tessumod/futes"
+
+    builders:
+      - in_generate:
+          tags: ['build', 'clean']
+          input_files:
+            - "{src_dir}/scripts/client/gui/mods/tessumod/build_info.py.in"
+          target_dir: "{tmp_dir}"
+          defines:
+            SUPPORT_URL: "{support_url}"
+            MOD_VERSION: "{version}"
+      - in_generate:
+          tags: ['build', 'clean']
+          input_files:
+            - "{src_dir}/TessuMod.txt.in"
+          target_dir: "{archive_dir}"
+          defines:
+            SUPPORT_URL: "{support_url}"
+      - py_compile:
+          tags: ['build', 'clean']
+          input_files:
+            - "{src_dir}/scripts/client/gui/mods/mod_tessumod.py"
+          target_dir: "{archive_dir}/scripts/client/gui/mods"
+          dbg_dir: "scripts/client/gui/mods"
+      - py_compile:
+          tags: ['build', 'clean']
+          input_files:
+            - "{src_dir}/scripts/client/gui/mods/tessumod/*.py"
+            - "{tmp_dir}/build_info.py"
+          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod"
+          dbg_dir: "scripts/client/gui/mods/tessumod"
+      - py_compile:
+          tags: ['build', 'clean']
+          input_files:
+            - "{src_dir}/scripts/client/gui/mods/tessumod/adapters/*.py"
+          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/adapters"
+          dbg_dir: "scripts/client/gui/mods/tessumod/adapters"
+      - py_compile:
+          tags: ['build', 'clean']
+          input_files:
+            - "{src_dir}/scripts/client/gui/mods/tessumod/infrastructure/*.py"
+          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/infrastructure"
+          dbg_dir: "scripts/client/gui/mods/tessumod/infrastructure"
+      - py_compile:
+          tags: ['build', 'clean']
+          input_files:
+            - "{src_dir}/scripts/client/gui/mods/tessumod/thirdparty/__init__.py"
+          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/thirdparty"
+          dbg_dir: "scripts/client/gui/mods/tessumod/thirdparty"
+      - py_compile:
+          tags: ['build', 'clean']
+          input_files:
+            - "{src_dir}/scripts/client/gui/mods/tessumod/thirdparty/iniparse/*.py"
+          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/thirdparty/iniparse"
+          dbg_dir: "scripts/client/gui/mods/tessumod/thirdparty/iniparse"
+      - copy:
+          tags: ['build', 'clean']
+          input_files:
+            - "{src_dir}/gui/tessu_mod/*"
+          target_dir: "{archive_dir}/gui/tessu_mod"
+      - compress:
+          tags: ['build', 'clean']
+          contents_dir: "{archive_dir}"
+          archive_path: "{release_archive_path}"
+          prefix: "res_mods/{game_version}"
+      - nosetests:
+          tags: ['unittests', 'clean']
+          tests_dir: "{unittests_dir}"
+          tmp_dir: "{unittests_tmp_dir}"
+      - nosetests:
+          tags: ['futes', 'clean']
+          tests_dir: "{futes_dir}"
+          tmp_dir: "{futes_tmp_dir}"
+      - uncompress:
+          tags: ['install']
+          archive_path: "{release_archive_path}"
+          target_dir: "{wot_install_path}"

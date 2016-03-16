@@ -20,7 +20,11 @@ import os
 
 script_dirpath = os.path.dirname(os.path.realpath(__file__))
 project_rootpath = os.path.realpath(os.path.join(script_dirpath, "..", ".."))
-temp_dirpath = os.path.join(project_rootpath, "tmp")
+
+if "TESTS_TEMP_DIR" in os.environ:
+	temp_dirpath = os.path.normpath(os.environ["TESTS_TEMP_DIR"])
+else:
+	temp_dirpath = os.path.join(os.getcwd(), "tmp")
 
 sys.path.extend([
 	os.path.realpath(os.path.join(project_rootpath, "futes", "fakes")),
