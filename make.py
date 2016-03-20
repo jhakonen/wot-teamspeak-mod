@@ -87,11 +87,13 @@ def log_task(title, verbose):
 @task
 def configure(ctx, qmake_x86=None, qmake_x64=None, msvc_vars=None, wot_install=None):
 	with log_task("Configuring...", ctx.verbose):
-		with open("config.json", "w+") as file:
-			contents = file.read()
-			config = {"vars": {}}
-			if contents:
-				config = json.loads(contents)
+		config = {"vars": {}}
+		# read previous values
+		if os.path.exists("config.json"):
+			with open("config.json", "r") as file:
+				config = json.loads(file.read())
+		# write new values
+		with open("config.json", "w") as file:
 			if qmake_x86:
 				config["vars"]["qmake_path_x86"] = qmake_x86
 			if qmake_x64:
