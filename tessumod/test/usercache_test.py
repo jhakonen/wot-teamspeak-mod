@@ -147,7 +147,7 @@ class TestUserCacheAdapter(object):
 		""")
 		orig_contents = self.get_cache_file_contents()
 		self.adapter.get_backend().init()
-		assert "erkki" in self.error_message
+		assert "TeamSpeakUsers" in self.error_message
 		self.assert_ini_contents_not_modified(orig_contents)
 
 	def test_file_unchanged_after_read_error_and_modify(self):
