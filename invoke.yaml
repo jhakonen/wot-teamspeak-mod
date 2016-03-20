@@ -9,8 +9,7 @@ vars:
   release_archive_path: "{cwd}/tessumod-{version}-bin.zip"
   symbol_archive_path: "{cwd}/tessumod-{version}-dbg.zip"
   root_build_dir: "{cwd}/build"
-  # You should define these values in config.yaml, see config.yaml.example
-  # for example definitions.
+  # You should define these with 'make.py configure':
   qmake_path_x86:
   qmake_path_x64:
   msvc_vars_path:
