@@ -18,6 +18,7 @@
 import sys
 import os
 import json
+from contextlib import contextmanager
 
 # prevent *.pyc-file generation
 sys.dont_write_bytecode = True # for current process
@@ -70,11 +71,22 @@ class MakeConfig(Config):
 			runtime_path=runtime_path
 		)
 
+@contextmanager
+def log_task(title, verbose):
+	logger = make_tools.Logger(verbose=verbose)
+	logger.info(title + " ", lb_end=False)
+	try:
+		yield logger
+	except:
+		logger.flush_verbose_messages()
+		logger.exception()
+		sys.exit(1)
+	else:
+		logger.info(colored("[ ok ]", "green"), lb_start=False)
+
 @task
 def configure(ctx, qmake_x86=None, qmake_x64=None, msvc_vars=None, wot_install=None):
-	logger = make_tools.Logger(verbose=ctx.verbose)
-	logger.info("Configuring... ", lb_end=False)
-	try:
+	with log_task("Configuring...", ctx.verbose):
 		with open("config.json", "w+") as file:
 			contents = file.read()
 			config = {"vars": {}}
@@ -89,71 +101,38 @@ def configure(ctx, qmake_x86=None, qmake_x64=None, msvc_vars=None, wot_install=N
 			if wot_install:
 				config["vars"]["wot_install_path"] = wot_install
 			file.write(json.dumps(config))
-	except:
-		logger.exception()
-		sys.exit(1)
-	else:
-		logger.info(colored("[ ok ]", "green"), lb_start=False)
 
 @task
 def build(ctx):
-	logger = make_tools.Logger(verbose=ctx.verbose)
-	logger.info("Building... ", lb_end=False)
-	try:
+	with log_task("Building...", ctx.verbose) as logger:
 		with make_tools.with_builders(logger, root, ctx.config, ctx["exclude-tags"]) as builders:
 			for builder in builders:
 				if "build" in builder.tags:
 					builder.execute()
-	except:
-		logger.exception()
-		sys.exit(1)
-	else:
-		logger.info(colored("[ ok ]", "green"), lb_start=False)
 
 @task
 def clean(ctx):
-	logger = make_tools.Logger(verbose=ctx.verbose)
-	logger.info("Cleaning... ", lb_end=False)
-	try:
+	with log_task("Cleaning...", ctx.verbose) as logger:
 		with make_tools.with_builders(logger, root, ctx.config, ctx["exclude-tags"]) as builders:
 			for builder in reversed(builders):
 				if "clean" in builder.tags:
 					builder.clean()
-	except:
-		logger.exception()
-		sys.exit(1)
-	else:
-		logger.info(colored("[ ok ]", "green"), lb_start=False)
 
 @task
 def unittests(ctx):
-	logger = make_tools.Logger(verbose=ctx.verbose)
-	logger.info("Running unit tests... ", lb_end=False)
-	try:
+	with log_task("Running unit tests...", ctx.verbose) as logger:
 		with make_tools.with_builders(logger, root, ctx.config, ctx["exclude-tags"]) as builders:
 			for builder in builders:
 				if "unittests" in builder.tags:
 					builder.execute()
-	except:
-		logger.exception()
-		sys.exit(1)
-	else:
-		logger.info(colored("[ ok ]", "green"), lb_start=False)
 
 @task
 def futes(ctx):
-	logger = make_tools.Logger(verbose=ctx.verbose)
-	logger.info("Running functional tests... ", lb_end=False)
-	try:
+	with log_task("Running functional tests...", ctx.verbose) as logger:
 		with make_tools.with_builders(logger, root, ctx.config, ctx["exclude-tags"]) as builders:
 			for builder in builders:
 				if "futes" in builder.tags:
 					builder.execute()
-	except:
-		logger.exception()
-		sys.exit(1)
-	else:
-		logger.info(colored("[ ok ]", "green"), lb_start=False)
 
 @task(unittests, futes)
 def tests(ctx):
@@ -161,18 +140,11 @@ def tests(ctx):
 
 @task(build)
 def install(ctx):
-	logger = make_tools.Logger(verbose=ctx.verbose)
-	logger.info("Installing... ", lb_end=False)
-	try:
+	with log_task("Installing...", ctx.verbose) as logger:
 		with make_tools.with_builders(logger, root, ctx.config, ctx["exclude-tags"]) as builders:
 			for builder in builders:
 				if "install" in builder.tags:
 					builder.execute()
-	except:
-		logger.exception()
-		sys.exit(1)
-	else:
-		logger.info(colored("[ ok ]", "green"), lb_start=False)
 
 @task(build, tests)
 def release(ctx):
@@ -180,16 +152,11 @@ def release(ctx):
 
 @task
 def tail(ctx):
-	logger = make_tools.Logger(verbose=ctx.verbose)
-	logger.info("Tailing python.log...")
-	try:
+	with log_task("Tailing python.log...", ctx.verbose) as logger:
 		with make_tools.with_builders(logger, root, ctx.config, ctx["exclude-tags"]) as builders:
 			for builder in builders:
 				if "tail" in builder.tags:
 					builder.execute()
-	except:
-		logger.exception()
-		sys.exit(1)
 
 ns = Collection(loaded_from=root)
 ns.add_task(configure)

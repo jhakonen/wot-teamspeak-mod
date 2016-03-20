@@ -29,6 +29,7 @@ import traceback
 import Queue
 import threading
 import warnings
+import codecs
 from contextlib import contextmanager
 
 # 3rd party libs
@@ -94,65 +95,76 @@ def __deinitialize_builders(builders):
 	for builder in builders:
 		builder.deinitialize()
 
+def to_unicode(arg):
+	if not isinstance(arg, unicode):
+		return unicode(arg, sys.getfilesystemencoding())
+	return arg
+
 class Logger(object):
 
 	def __init__(self, verbose):
 		self.__verbose = verbose
 		self.__on_empty_line = True
-		self.__stdout = sys.stdout
-		self.__stderr = sys.stderr
+		ConsoleWriter = codecs.getwriter(sys.getfilesystemencoding())
+		self.__stdout = ConsoleWriter(sys.stdout)
+		self.__stdout.on_new_line = True
+		self.__stderr = ConsoleWriter(sys.stderr)
+		self.__stderr.on_new_line = True
 		self.__cached = io.StringIO()
+		self.__cached.on_new_line = True
 
 	@property
 	def verbose(self):
 		return self.__verbose
 
 	def debug(self, *args, **kwargs):
+		d = self.__stdout if self.__verbose else self.__cached
 		lb_end = kwargs.pop("lb_end", True)
-		lb_start = kwargs.pop("lb_start", True) and not self.__on_empty_line
-		msg = self.__format_msg(None, lb_start, lb_end, *args, **kwargs)
-		if self.__verbose:
-			self.__write(self.__stdout, msg)
-		else:
-			self.__cached.write(unicode(msg, errors='replace'))
+		lb_start = kwargs.pop("lb_start", True) and not d.on_new_line
+		self.__write(d, self.__format_msg(d.on_new_line, None, lb_start, lb_end, *args, **kwargs))
 
 	def info(self, *args, **kwargs):
+		d = self.__stdout
 		lb_end = kwargs.pop("lb_end", True)
-		lb_start = kwargs.pop("lb_start", True) and not self.__on_empty_line
-		self.__write(self.__stdout, self.__format_msg(None, lb_start, lb_end, *args, **kwargs))
+		lb_start = kwargs.pop("lb_start", True) and not d.on_new_line
+		self.__write(d, self.__format_msg(d.on_new_line, None, lb_start, lb_end, *args, **kwargs))
 
 	def warning(self, *args, **kwargs):
+		d = self.__stderr
 		lb_end = kwargs.pop("lb_end", True)
-		lb_start = kwargs.pop("lb_start", True) and not self.__on_empty_line
-		self.__write(self.__stderr, self.__format_msg("yellow", lb_start, lb_end, "Warning:", *args, **kwargs))
+		lb_start = kwargs.pop("lb_start", True) and not d.on_new_line
+		self.__write(d, self.__format_msg(d.on_new_line, "yellow", lb_start, lb_end, "Warning:", *args, **kwargs))
 
 	def error(self, *args, **kwargs):
+		d = self.__stderr
 		lb_end = kwargs.pop("lb_end", True)
-		lb_start = kwargs.pop("lb_start", True) and not self.__on_empty_line
-		self.__write(self.__stderr, self.__format_msg("red", lb_start, lb_end, "Error:", *args, **kwargs))
+		lb_start = kwargs.pop("lb_start", True) and not d.on_new_line
+		self.__write(d, self.__format_msg(d.on_new_line, "red", lb_start, lb_end, "Error:", *args, **kwargs))
 
 	def exception(self, **kwargs):
+		d = self.__stderr
 		lb_end = kwargs.pop("lb_end", True)
-		lb_start = kwargs.pop("lb_start", True) and not self.__on_empty_line
-		self.__write(self.__stderr, self.__format_msg("red", lb_start, lb_end, "Exception:", traceback.format_exc()))
+		lb_start = kwargs.pop("lb_start", True) and not d.on_new_line
+		self.__write(d, self.__format_msg(d.on_new_line, "red", lb_start, lb_end, "Exception:", traceback.format_exc()))
 
 	def flush_verbose_messages(self):
+		self.__write(self.__stdout, "\n")
 		self.__cached.seek(0)
 		for line in self.__cached:
 			self.__write(self.__stdout, line)
 		self.__cached.truncate(0)
 
-	def __format_msg(self, color, lb_start, lb_end, *args, **kwargs):
-		msg = " ".join([str(arg) for arg in args])
+	def __format_msg(self, on_new_line, color, lb_start, lb_end, *args, **kwargs):
+		msg = " ".join([to_unicode(arg) for arg in args])
 		try:
 			msg = msg.format(kwargs)
 		except KeyError:
 			pass
 		if color is not None:
 			msg = colored(msg, color)
-		if self.__on_empty_line or lb_start:
+		if on_new_line or lb_start:
 			msg = colored(time.strftime("[%H:%M:%S] "), "grey", attrs=["bold"]) + msg
-		if lb_start and not self.__on_empty_line:
+		if lb_start and not on_new_line:
 			msg = "\n" + msg
 		if lb_end:
 			msg = msg + "\n"
@@ -160,7 +172,7 @@ class Logger(object):
 
 	def __write(self, device, msg):
 		device.write(msg)
-		self.__on_empty_line = msg.endswith("\n")
+		device.on_new_line = msg.endswith("\n")
 
 class AbstractBuilder(object):
 
@@ -203,6 +215,12 @@ class AbstractBuilder(object):
 		pass
 
 	def deinitialize(self):
+		pass
+
+	def execute(self):
+		pass
+
+	def clean(self):
 		pass
 
 	def expand_value(self, input):
@@ -439,9 +457,6 @@ class UncompressBuilder(AbstractBuilder, TargetDirMixin):
 				self.logger.debug("Extracting:", input_path, "to", self.get_target_dir())
 				package_file.extract(input_path, self.get_target_dir())
 
-	def clean(self):
-		raise NotImplementedError("uncompress builder's clean target is not yet implemented")
-
 class QMakeBuilder(AbstractBuilder, DefinesMixin):
 
 	def __init__(self):
@@ -496,11 +511,11 @@ class QMakeBuilder(AbstractBuilder, DefinesMixin):
 		try:
 			while proc.poll() is None or not stdout_queue.empty() or not stderr_queue.empty():
 				try:
-					self.logger.debug(stdout_queue.get(timeout=0.01))
+					self.logger.debug(to_unicode(stdout_queue.get(timeout=0.01)))
 				except Queue.Empty:
 					pass
 				try:
-					self.logger.debug(stderr_queue.get(timeout=0.01))
+					self.logger.debug(to_unicode(stderr_queue.get(timeout=0.01)))
 				except Queue.Empty:
 					pass
 		except KeyboardInterrupt:
@@ -547,22 +562,18 @@ class NoseTestsBuilder(AbstractBuilder):
 		assert os.path.exists(self.__tests_dir), \
 			"Tests directory doesn't exist, is '{}' correct?".format(self.config["tests_dir"])
 
-		try:
-			os.environ["TESTS_TEMP_DIR"] = self.__tmp_dir
-			result = MyNoseTestProgram(
-				argv=[
-					"",
-					self.__tests_dir,
-					"--with-process-isolation",
-					"--with-process-isolation-individual"
-				],
-				exit=False,
-				stream=MyNoseTestLogStream(self.logger)
-			).success;
-			assert result, "Unit tests execution failed"
-		except:
-			self.logger.flush_verbose_messages()
-			raise
+		os.environ["TESTS_TEMP_DIR"] = self.__tmp_dir
+		result = MyNoseTestProgram(
+			argv=[
+				"",
+				self.__tests_dir,
+				"--with-process-isolation",
+				"--with-process-isolation-individual"
+			],
+			exit=False,
+			stream=MyNoseTestLogStream(self.logger)
+		).success;
+		assert result, "Unit tests execution failed"
 
 	def clean(self):
 		self.safe_rmtree(self.__tmp_dir)
@@ -611,9 +622,5 @@ class TailFileBuilder(AbstractBuilder):
 					self.logger.info(line)
 		except KeyboardInterrupt:
 			pass
-
-	def clean(self):
-		# empty
-		pass
 
 init()
