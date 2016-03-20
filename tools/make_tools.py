@@ -15,6 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
+import io
 import os
 import sys
 import time
@@ -100,16 +101,20 @@ class Logger(object):
 		self.__on_empty_line = True
 		self.__stdout = sys.stdout
 		self.__stderr = sys.stderr
+		self.__cached = io.StringIO()
 
 	@property
 	def verbose(self):
 		return self.__verbose
 
 	def debug(self, *args, **kwargs):
+		lb_end = kwargs.pop("lb_end", True)
+		lb_start = kwargs.pop("lb_start", True) and not self.__on_empty_line
+		msg = self.__format_msg(None, lb_start, lb_end, *args, **kwargs)
 		if self.__verbose:
-			lb_end = kwargs.pop("lb_end", True)
-			lb_start = kwargs.pop("lb_start", True) and not self.__on_empty_line
-			self.__write(self.__stdout, self.__format_msg(None, lb_start, lb_end, *args, **kwargs))
+			self.__write(self.__stdout, msg)
+		else:
+			self.__cached.write(unicode(msg, errors='replace'))
 
 	def info(self, *args, **kwargs):
 		lb_end = kwargs.pop("lb_end", True)
@@ -130,6 +135,12 @@ class Logger(object):
 		lb_end = kwargs.pop("lb_end", True)
 		lb_start = kwargs.pop("lb_start", True) and not self.__on_empty_line
 		self.__write(self.__stderr, self.__format_msg("red", lb_start, lb_end, "Exception:", traceback.format_exc()))
+
+	def flush_verbose_messages(self):
+		self.__cached.seek(0)
+		for line in self.__cached:
+			self.__write(self.__stdout, line)
+		self.__cached.truncate(0)
 
 	def __format_msg(self, color, lb_start, lb_end, *args, **kwargs):
 		msg = " ".join([str(arg) for arg in args])
@@ -536,18 +547,22 @@ class NoseTestsBuilder(AbstractBuilder):
 		assert os.path.exists(self.__tests_dir), \
 			"Tests directory doesn't exist, is '{}' correct?".format(self.config["tests_dir"])
 
-		os.environ["TESTS_TEMP_DIR"] = self.__tmp_dir
-		result = MyNoseTestProgram(
-			argv=[
-				"",
-				self.__tests_dir,
-				"--with-process-isolation",
-				"--with-process-isolation-individual"
-			],
-			exit=False,
-			stream=MyNoseTestLogStream(self.logger)
-		).success;
-		assert result, "Unit tests execution failed"
+		try:
+			os.environ["TESTS_TEMP_DIR"] = self.__tmp_dir
+			result = MyNoseTestProgram(
+				argv=[
+					"",
+					self.__tests_dir,
+					"--with-process-isolation",
+					"--with-process-isolation-individual"
+				],
+				exit=False,
+				stream=MyNoseTestLogStream(self.logger)
+			).success;
+			assert result, "Unit tests execution failed"
+		except:
+			self.logger.flush_verbose_messages()
+			raise
 
 	def clean(self):
 		self.safe_rmtree(self.__tmp_dir)
