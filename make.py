@@ -20,7 +20,8 @@ import os
 import json
 
 # prevent *.pyc-file generation
-os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
+sys.dont_write_bytecode = True # for current process
+os.environ["PYTHONDONTWRITEBYTECODE"] = "1" # for subprocesses
 
 from invoke import ctask as task, Program, Argument, Config, Collection
 from termcolor import colored
