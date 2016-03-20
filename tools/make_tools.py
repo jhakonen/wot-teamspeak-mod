@@ -98,32 +98,38 @@ class Logger(object):
 	def __init__(self, verbose):
 		self.__verbose = verbose
 		self.__on_empty_line = True
+		self.__stdout = sys.stdout
+		self.__stderr = sys.stderr
+
+	@property
+	def verbose(self):
+		return self.__verbose
 
 	def debug(self, *args, **kwargs):
 		if self.__verbose:
 			lb_end = kwargs.pop("lb_end", True)
 			lb_start = kwargs.pop("lb_start", True) and not self.__on_empty_line
-			self.__write(sys.stdout, self.__format_msg(None, lb_start, lb_end, *args, **kwargs))
+			self.__write(self.__stdout, self.__format_msg(None, lb_start, lb_end, *args, **kwargs))
 
 	def info(self, *args, **kwargs):
 		lb_end = kwargs.pop("lb_end", True)
 		lb_start = kwargs.pop("lb_start", True) and not self.__on_empty_line
-		self.__write(sys.stdout, self.__format_msg(None, lb_start, lb_end, *args, **kwargs))
+		self.__write(self.__stdout, self.__format_msg(None, lb_start, lb_end, *args, **kwargs))
 
 	def warning(self, *args, **kwargs):
 		lb_end = kwargs.pop("lb_end", True)
 		lb_start = kwargs.pop("lb_start", True) and not self.__on_empty_line
-		self.__write(sys.stderr, self.__format_msg("yellow", lb_start, lb_end, "Warning:", *args, **kwargs))
+		self.__write(self.__stderr, self.__format_msg("yellow", lb_start, lb_end, "Warning:", *args, **kwargs))
 
 	def error(self, *args, **kwargs):
 		lb_end = kwargs.pop("lb_end", True)
 		lb_start = kwargs.pop("lb_start", True) and not self.__on_empty_line
-		self.__write(sys.stderr, self.__format_msg("red", lb_start, lb_end, "Error:", *args, **kwargs))
+		self.__write(self.__stderr, self.__format_msg("red", lb_start, lb_end, "Error:", *args, **kwargs))
 
 	def exception(self, **kwargs):
 		lb_end = kwargs.pop("lb_end", True)
 		lb_start = kwargs.pop("lb_start", True) and not self.__on_empty_line
-		self.__write(sys.stderr, self.__format_msg("red", lb_start, lb_end, "Exception:", traceback.format_exc()))
+		self.__write(self.__stderr, self.__format_msg("red", lb_start, lb_end, "Exception:", traceback.format_exc()))
 
 	def __format_msg(self, color, lb_start, lb_end, *args, **kwargs):
 		msg = " ".join([str(arg) for arg in args])
@@ -531,19 +537,48 @@ class NoseTestsBuilder(AbstractBuilder):
 			"Tests directory doesn't exist, is '{}' correct?".format(self.config["tests_dir"])
 
 		os.environ["TESTS_TEMP_DIR"] = self.__tmp_dir
-		result = nose.run(
+		result = MyNoseTestProgram(
 			argv=[
 				"",
 				self.__tests_dir,
 				"--with-process-isolation",
 				"--with-process-isolation-individual"
-			]
-		);
+			],
+			exit=False,
+			stream=MyNoseTestLogStream(self.logger)
+		).success;
 		assert result, "Unit tests execution failed"
 
 	def clean(self):
 		self.safe_rmtree(self.__tmp_dir)
 		self.safe_remove_empty_dirpath(os.path.dirname(self.__tmp_dir))
+
+class MyNoseTestLogStream(object):
+
+	def __init__(self, logger):
+		self.__logger = logger
+		self.__data = ""
+
+	def flush(self):
+		pass
+
+	def write(self, data):
+		self.__logger.debug(data, lb_start=False, lb_end=False)
+
+	def writeln(self, data):
+		self.__logger.debug(data, lb_start=False)
+
+class MyNoseTestProgram(nose.core.TestProgram):
+
+	def __init__(self, stream, *args, **kwargs):
+		self.__stream = stream
+		super(MyNoseTestProgram, self).__init__(*args, **kwargs)
+
+	def makeConfig(self, env, plugins=None):
+		config = super(MyNoseTestProgram, self).makeConfig(env, plugins)
+		config.stream = self.__stream
+		config.verbosity = 2
+		return config
 
 class TailFileBuilder(AbstractBuilder):
 
