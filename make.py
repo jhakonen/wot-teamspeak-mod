@@ -26,7 +26,7 @@ os.environ["PYTHONDONTWRITEBYTECODE"] = "1" # for subprocesses
 from invoke import ctask as task, Program, Argument, Config, Collection
 from termcolor import colored
 
-from utils import make_tools
+from tools import make_tools
 
 root = os.path.dirname(os.path.realpath(__file__))
 
