@@ -30,6 +30,7 @@ import Queue
 import threading
 import warnings
 import codecs
+import tempfile
 from contextlib import contextmanager
 
 # 3rd party libs
@@ -47,6 +48,7 @@ def init():
 		"compress":    CompressBuilder,
 		"uncompress":  UncompressBuilder,
 		"qmake":       QMakeBuilder,
+		"mxmlc":       MXMLCBuilder,
 		"nosetests":   NoseTestsBuilder,
 		"tailfile":    TailFileBuilder
 	}
@@ -121,25 +123,25 @@ class Logger(object):
 		d = self.__stdout if self.__verbose else self.__cached
 		lb_end = kwargs.pop("lb_end", True)
 		lb_start = kwargs.pop("lb_start", True) and not d.on_new_line
-		self.__write(d, self.__format_msg(d.on_new_line, None, lb_start, lb_end, *args, **kwargs))
+		self.__write(d, self.__format_msg(d.on_new_line, None, lb_start, lb_end, *args))
 
 	def info(self, *args, **kwargs):
 		d = self.__stdout
 		lb_end = kwargs.pop("lb_end", True)
 		lb_start = kwargs.pop("lb_start", True) and not d.on_new_line
-		self.__write(d, self.__format_msg(d.on_new_line, None, lb_start, lb_end, *args, **kwargs))
+		self.__write(d, self.__format_msg(d.on_new_line, None, lb_start, lb_end, *args))
 
 	def warning(self, *args, **kwargs):
 		d = self.__stderr
 		lb_end = kwargs.pop("lb_end", True)
 		lb_start = kwargs.pop("lb_start", True) and not d.on_new_line
-		self.__write(d, self.__format_msg(d.on_new_line, "yellow", lb_start, lb_end, "Warning:", *args, **kwargs))
+		self.__write(d, self.__format_msg(d.on_new_line, "yellow", lb_start, lb_end, "Warning:", *args))
 
 	def error(self, *args, **kwargs):
 		d = self.__stderr
 		lb_end = kwargs.pop("lb_end", True)
 		lb_start = kwargs.pop("lb_start", True) and not d.on_new_line
-		self.__write(d, self.__format_msg(d.on_new_line, "red", lb_start, lb_end, "Error:", *args, **kwargs))
+		self.__write(d, self.__format_msg(d.on_new_line, "red", lb_start, lb_end, "Error:", *args))
 
 	def exception(self, **kwargs):
 		d = self.__stderr
@@ -154,12 +156,8 @@ class Logger(object):
 			self.__write(self.__stdout, line)
 		self.__cached.truncate(0)
 
-	def __format_msg(self, on_new_line, color, lb_start, lb_end, *args, **kwargs):
+	def __format_msg(self, on_new_line, color, lb_start, lb_end, *args):
 		msg = " ".join([to_unicode(arg) for arg in args])
-		try:
-			msg = msg.format(kwargs)
-		except KeyError:
-			pass
 		if color is not None:
 			msg = colored(msg, color)
 		if on_new_line or lb_start:
@@ -271,9 +269,9 @@ class InputFilesMixin(object):
 	def __init__(self):
 		super(InputFilesMixin, self).__init__()
 
-	def get_input_files(self):
+	def get_input_files(self, variable_name="input_files"):
 		output = []
-		for input_path in self.config["input_files"]:
+		for input_path in self.config[variable_name]:
 			input_path = self.expand_path(input_path)
 			for input_filepath in glob.glob(input_path):
 				output.append(input_filepath)
@@ -297,6 +295,59 @@ class DefinesMixin(object):
 		for name, value in self.config["defines"].iteritems():
 			output[name] = self.expand_value(value)
 		return output
+
+class ExecuteMixin(object):
+
+	def __init__(self):
+		super(ExecuteMixin, self).__init__()
+		self.__threads = []
+
+	def execute_batch_contents(self, contents, cwd=None):
+		proc = None
+		file = None
+		try:
+			self.logger.debug(contents)
+			file = tempfile.NamedTemporaryFile(suffix=".cmd", delete=False)
+			file.write(contents)
+			file.close()
+			proc = subprocess.Popen([file.name], cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			stdout_queue = self.__stream_to_queue(proc.stdout)
+			stderr_queue = self.__stream_to_queue(proc.stderr)
+			while proc.poll() is None or not stdout_queue.empty() or not stderr_queue.empty():
+				try:
+					self.logger.debug(to_unicode(stdout_queue.get(timeout=0.01)))
+				except Queue.Empty:
+					pass
+				try:
+					self.logger.debug(to_unicode(stderr_queue.get(timeout=0.01)))
+				except Queue.Empty:
+					pass
+		except KeyboardInterrupt:
+			pass
+		finally:
+			if proc:
+				proc.terminate()
+				for thread in self.__threads:
+					thread.join()
+				self.__threads[:]
+				proc.wait()
+			if file:
+				file.close()
+				os.unlink(file.name)
+		return proc.returncode
+
+	def __stream_to_queue(self, stream):
+		queue = Queue.Queue()
+		def run():
+			for line in stream:
+				try:
+					queue.put(line.strip(), block=False)
+				except Queue.Full:
+					pass
+		thread = threading.Thread(target=run)
+		self.__threads.append(thread)
+		thread.start()
+		return queue
 
 class InGenerateBuilder(AbstractBuilder, InputFilesMixin, TargetDirMixin, DefinesMixin):
 
@@ -457,7 +508,7 @@ class UncompressBuilder(AbstractBuilder, TargetDirMixin):
 				self.logger.debug("Extracting:", input_path, "to", self.get_target_dir())
 				package_file.extract(input_path, self.get_target_dir())
 
-class QMakeBuilder(AbstractBuilder, DefinesMixin):
+class QMakeBuilder(AbstractBuilder, DefinesMixin, ExecuteMixin):
 
 	def __init__(self):
 		super(QMakeBuilder, self).__init__()
@@ -470,8 +521,6 @@ class QMakeBuilder(AbstractBuilder, DefinesMixin):
 		self.__msvc_vars_path = self.expand_path(self.config["msvc_vars_path"])
 		self.__output_dll_path = self.expand_path(self.config["output_dll_path"])
 		self.__output_dbg_path = self.expand_path(self.config["output_dbg_path"])
-		self.__batch_path = os.path.join(self.__build_dir, "build.bat")
-		self.__threads = []
 
 	def execute(self):
 		self.logger.debug("Building:", self.__source_dir)
@@ -494,50 +543,19 @@ class QMakeBuilder(AbstractBuilder, DefinesMixin):
 		self.create_dirpath(self.__build_dir)
 		self.create_dirpath(os.path.dirname(self.__output_dbg_path))
 
-		# create build batch file
-		with open(self.__batch_path, "w") as file:
-			file.write("@echo off\r\n")
-			file.write("call \"{0}\" {1} \r\n".format(self.__msvc_vars_path, self.__architecture))
-			file.write("\"{qmake}\" \"{source_dir}\" -after {qmake_defs}\r\n".format(
-				qmake      = self.__qmake_path,
-				source_dir = self.__source_dir,
-				qmake_defs = " ".join("\"{0}{1}{2}\"".format(d, *qmake_defs[d]) for d in qmake_defs).replace("'", "\\'")
-			))
-			file.write("nmake\r\n")
-		# execute the batch file
-		proc = subprocess.Popen([self.__batch_path], cwd=self.__build_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-		stdout_queue = self.__stream_to_queue(proc.stdout)
-		stderr_queue = self.__stream_to_queue(proc.stderr)
-		try:
-			while proc.poll() is None or not stdout_queue.empty() or not stderr_queue.empty():
-				try:
-					self.logger.debug(to_unicode(stdout_queue.get(timeout=0.01)))
-				except Queue.Empty:
-					pass
-				try:
-					self.logger.debug(to_unicode(stderr_queue.get(timeout=0.01)))
-				except Queue.Empty:
-					pass
-		except KeyboardInterrupt:
-			proc.terminate()
-
-		for thread in self.__threads:
-			thread.join()
-		proc.wait()
-		assert proc.returncode == 0, "Compiling failed"
-
-	def __stream_to_queue(self, stream):
-		queue = Queue.Queue()
-		def run():
-			for line in stream:
-				try:
-					queue.put(line.strip(), block=False)
-				except Queue.Full:
-					pass
-
-		thread = threading.Thread(target=run)
-		thread.start()
-		return queue
+		result = self.execute_batch_contents(cwd=self.__build_dir, contents="""
+			@echo off
+			call "{msvc_vars_path}" {architecture}
+			"{qmake}" "{source_dir}" -after {qmake_defs}
+			nmake
+		""".format(
+			msvc_vars_path = self.__msvc_vars_path,
+			architecture = self.__architecture,
+			qmake      = self.__qmake_path,
+			source_dir = self.__source_dir,
+			qmake_defs = " ".join("\"{}{}{}\"".format(d, *qmake_defs[d]) for d in qmake_defs).replace("'", "\\'")
+		))
+		assert result == 0, "Compiling failed"
 
 	def clean(self):
 		self.safe_rmtree(self.__build_dir)
@@ -546,6 +564,48 @@ class QMakeBuilder(AbstractBuilder, DefinesMixin):
 		self.safe_file_remove(self.__output_dbg_path)
 		self.safe_remove_empty_dirpath(os.path.dirname(self.__output_dbg_path))
 		self.safe_remove_empty_dirpath(os.path.dirname(self.__build_dir))
+
+class MXMLCBuilder(AbstractBuilder, InputFilesMixin, ExecuteMixin):
+
+	def __init__(self):
+		super(MXMLCBuilder, self).__init__()
+
+	def initialize(self):
+		self.__show_warnings = self.config["show_warnings"]
+		self.__mxmlc_path = self.expand_path(self.config["mxmlc_path"])
+		self.__actionscripts = self.get_input_files("actionscripts")
+		self.__libraries = self.get_input_files("libraries")
+		self.__output_path = self.expand_path(self.config["output_path"])
+		self.__build_dir = self.expand_path(self.config["build_dir"])
+
+	def execute(self):
+		assert os.path.exists(self.__mxmlc_path), \
+			"mxmlc.exe executable doesn't exist, is '{}' correct?".format(self.__mxmlc_path)
+		for path in self.__actionscripts:
+			assert os.path.exists(path), \
+				"Actionscript file doesn't exist, is '{}' correct?".format(path)
+		for path in self.__libraries:
+			assert os.path.exists(path), \
+				"Library file doesn't exist, is '{}' correct?".format(path)
+
+		self.create_dirpath(self.__build_dir)
+		self.create_dirpath(os.path.dirname(self.__output_path))
+
+		args = [self.__mxmlc_path]
+		if self.__show_warnings:
+			args.extend(["-show-actionscript-warnings"])
+		if self.__libraries:
+			args.extend(["-external-library-path+="+path for path in self.__libraries])
+		if self.__actionscripts:
+			args.extend(["-file-specs"] + self.__actionscripts)
+		args.extend(["-output", self.__output_path])
+		command = " ".join(args)
+		result = self.execute_batch_contents(contents="@{}".format(command), cwd=self.__build_dir)
+		assert result == 0, "Compiling failed"
+
+	def clean(self):
+		self.safe_file_remove(self.__output_path)
+		self.safe_rmtree(self.__build_dir)
 
 class NoseTestsBuilder(AbstractBuilder):
 

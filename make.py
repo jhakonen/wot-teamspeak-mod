@@ -85,7 +85,7 @@ def log_task(title, verbose):
 		logger.info(colored("[ ok ]", "green"), lb_start=False)
 
 @task
-def configure(ctx, qmake_x86=None, qmake_x64=None, msvc_vars=None, wot_install=None):
+def configure(ctx, qmake_x86=None, qmake_x64=None, msvc_vars=None, wot_install=None, mxmlc=None):
 	with log_task("Configuring...", ctx.verbose):
 		config = {"vars": {}}
 		# read previous values
@@ -102,6 +102,8 @@ def configure(ctx, qmake_x86=None, qmake_x64=None, msvc_vars=None, wot_install=N
 				config["vars"]["msvc_vars_path"] = msvc_vars
 			if wot_install:
 				config["vars"]["wot_install_path"] = wot_install
+			if mxmlc:
+				config["vars"]["mxmlc_path"] = mxmlc
 			file.write(json.dumps(config))
 
 @task

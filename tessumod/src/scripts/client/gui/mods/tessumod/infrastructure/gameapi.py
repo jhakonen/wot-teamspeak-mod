@@ -16,8 +16,14 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 import BigWorld
-from gui import SystemMessages
+from gui import SystemMessages, InputHandler
+from gui.app_loader import g_appLoader
 from gui.shared.notifications import NotificationGuiSettings
+from gui.shared.utils.key_mapping import getBigworldNameFromKey
+from gui.Scaleform.daapi import LobbySubView
+from gui.Scaleform.daapi.view.meta.WindowViewMeta import WindowViewMeta
+from gui.Scaleform.framework import g_entitiesFactories, ViewSettings
+from gui.Scaleform.framework import ViewTypes, ScopeTemplates
 from messenger.proto.shared_find_criteria import FriendsFindCriteria
 from messenger.storage import storage_getter
 from notification import NotificationMVC
@@ -433,7 +439,6 @@ class MinimapMarkerAnimation(object):
 	def __updateMinimap(self):
 		if self.__timer.is_active():
 			try:
-				from gui.app_loader import g_appLoader
 				app = g_appLoader.getDefBattleApp()
 				if app:
 					app.minimap.showActionMarker(self.__vehicle_id, self.__action)
@@ -463,3 +468,38 @@ def patch_instance_method(instance, method_name, new_function):
 	original_method = getattr(instance, method_name)
 	new_method = types.MethodType(partial(new_function, original_method), instance)
 	setattr(instance, method_name, new_method)
+
+class SettingsUIWindow(LobbySubView, WindowViewMeta):
+
+	NAME = "SettingsUIWindow"
+
+	def __init__(self):
+		super(SettingsUIWindow, self).__init__()
+
+	def _populate(self):
+		super(SettingsUIWindow, self)._populate()
+
+	def onWindowClose(self):
+		self.destroy()
+
+	def onTryClosing(self):
+		return True
+
+g_entitiesFactories.addSettings(
+	ViewSettings(
+		SettingsUIWindow.NAME,
+		SettingsUIWindow,
+		'tessu_mod/SettingsUI.swf',
+		ViewTypes.WINDOW,
+		None,
+		ScopeTemplates.DEFAULT_SCOPE
+	)
+)
+
+# HACK: get the settings ui window open somehow
+def onhandleKeyEvent(event):
+	key = getBigworldNameFromKey(event.key)
+	if key == "KEY_F10":
+		g_appLoader.getApp().loadView(SettingsUIWindow.NAME, SettingsUIWindow.NAME)
+	return None
+InputHandler.g_instance.onKeyDown += onhandleKeyEvent

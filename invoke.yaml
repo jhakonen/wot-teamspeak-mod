@@ -14,6 +14,7 @@ vars:
   qmake_path_x64:
   msvc_vars_path:
   wot_install_path:
+  mxmlc_path:
 
 builders:
   - tailfile:
@@ -96,6 +97,29 @@ projects:
           tags: ['build', 'clean']
           contents_dir: "{symbols_dir}"
           archive_path: "{symbol_archive_path}"
+
+  settingsui:
+    tags: ['settingsui']
+    vars:
+      source_dir: "{root}/settingsui"
+      build_dir: "{root_build_dir}/settingsui"
+
+    builders:
+      - mxmlc:
+          tags: ['build', 'clean']
+          show_warnings: true
+          mxmlc_path: "{mxmlc_path}"
+          actionscripts:
+            - "{source_dir}/src/SettingsUI.as"
+          libraries:
+            - "{source_dir}/lib/wg.swc"
+          build_dir: "{build_dir}"
+          output_path: "{build_dir}/flash/SettingsUI.swf"
+      - compress:
+          tags: ['build', 'clean']
+          contents_dir: "{build_dir}/flash"
+          archive_path: "{release_archive_path}"
+          prefix: "res_mods/{game_version}/gui/flash/tessu_mod"
 
   tessumod:
     tags: ['tessumod']
