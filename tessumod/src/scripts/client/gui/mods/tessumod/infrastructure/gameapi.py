@@ -18,6 +18,7 @@
 import BigWorld
 from gui import SystemMessages, InputHandler
 from gui.app_loader import g_appLoader
+from gui.shared import g_eventBus, events
 from gui.shared.notifications import NotificationGuiSettings
 from gui.shared.utils.key_mapping import getBigworldNameFromKey
 from gui.Scaleform.daapi import LobbySubView
@@ -66,6 +67,15 @@ class Logger(object):
 	def error(msg, *args):
 		if log.CURRENT_LOG_LEVEL <= log.LOG_LEVEL.ERROR:
 			_doLog('ERROR', log.prefix_with_timestamp(msg), args)
+
+	@staticmethod
+	def gui(type, *args):
+		if type == "DEBUG" and log.CURRENT_LOG_LEVEL <= log.LOG_LEVEL.DEBUG:
+			_doLog("GUI", "{}.GUI".format(type), args)
+		elif type == "WARNING" and log.CURRENT_LOG_LEVEL <= log.LOG_LEVEL.WARNING:
+			_doLog("GUI", "{}.GUI".format(type), args)
+		elif type == "ERROR" and log.CURRENT_LOG_LEVEL <= log.LOG_LEVEL.ERROR:
+			_doLog("GUI", "{}.GUI".format(type), args)
 
 	@staticmethod
 	def exception():
@@ -503,3 +513,20 @@ def onhandleKeyEvent(event):
 		g_appLoader.getApp().loadView(SettingsUIWindow.NAME, SettingsUIWindow.NAME)
 	return None
 InputHandler.g_instance.onKeyDown += onhandleKeyEvent
+
+# HACK: get GUI debug messages to appear to python.log
+def onAppInitialized(event):
+	from gui.app_loader import g_appLoader
+	app = g_appLoader.getDefLobbyApp()
+	app.addExternalCallback('debug.LOG_GUI', on_log_gui)
+	app.addExternalCallback('debug.LOG_GUI_FORMAT', on_log_gui_format)
+
+def on_log_gui(type, msg, *args):
+	if "tessumod" in msg.lower():
+		log.LOG_GUI(str(type), msg, args)
+
+def on_log_gui_format(type, msg, *args):
+	if "tessumod" in msg.lower():
+		log.LOG_GUI(str(type), msg % args)
+
+g_eventBus.addListener(events.AppLifeCycleEvent.INITIALIZED, onAppInitialized)

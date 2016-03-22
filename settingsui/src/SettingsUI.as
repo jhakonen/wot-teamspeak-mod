@@ -8,10 +8,12 @@ package
 	public class SettingsUI extends AbstractWindowView {
 		public function SettingsUI() {
 			super();
+			DebugUtils.LOG_WARNING("TESSUMOD :: SettingsUI :: in constructor");
 		}
 
 		override protected function configUI(): void {
 			super.configUI();
+			DebugUtils.LOG_WARNING("TESSUMOD :: SettingsUI :: in configUI()");
 		}
 		
 		override protected function onPopulate(): void {
@@ -19,10 +21,12 @@ package
 			this.width = 600;
 			this.height = 400;
 			this.window.title = "Settings UI";
+			DebugUtils.LOG_WARNING("TESSUMOD :: SettingsUI :: in onPopulate()");
 		}
 		
 		override protected function onDispose(): void {
 			super.onDispose();
+			DebugUtils.LOG_WARNING("TESSUMOD :: SettingsUI :: in onDispose()");
 		}
 	}
 }

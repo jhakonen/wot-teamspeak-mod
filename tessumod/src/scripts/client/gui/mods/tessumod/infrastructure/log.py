@@ -27,11 +27,12 @@ class LOG_LEVEL(object):
 CURRENT_LOG_LEVEL = LOG_LEVEL.NOTE
 
 def install_logger_impl(impl):
-	global LOG_DEBUG, LOG_DEBUG, LOG_NOTE, LOG_WARNING, LOG_ERROR, LOG_CURRENT_EXCEPTION
+	global LOG_DEBUG, LOG_DEBUG, LOG_NOTE, LOG_WARNING, LOG_ERROR, LOG_GUI, LOG_CURRENT_EXCEPTION
 	LOG_DEBUG = impl.debug
 	LOG_NOTE = impl.note
 	LOG_WARNING = impl.warning
 	LOG_ERROR = impl.error
+	LOG_GUI = impl.gui
 	LOG_CURRENT_EXCEPTION = impl.exception
 
 def LOG_DEBUG(msg, *args):
@@ -45,6 +46,9 @@ def LOG_WARNING(msg, *args):
 
 def LOG_ERROR(msg, *args):
 	print msg
+
+def LOG_GUI(type, msg, *args):
+	print type, msg
 
 def LOG_CURRENT_EXCEPTION():
 	print traceback.format_exc()
