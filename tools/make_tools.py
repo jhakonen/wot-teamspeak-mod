@@ -497,7 +497,13 @@ class UncompressBuilder(AbstractBuilder, TargetDirMixin):
 		super(UncompressBuilder, self).__init__()
 
 	def initialize(self):
-		self.__archive_path = self.expand_path(self.config["archive_path"])
+		self.__archive_path, _, self.__contents_path = self.config["archive_path"].partition("|")
+		# path to archive file
+		self.__archive_path = self.expand_path(self.__archive_path)
+		# path inside the archive from where files are extracted
+		if self.__contents_path:
+			self.__contents_path = self.expand_path(self.__contents_path)
+			self.__contents_path = self.__contents_path.replace("\\", "/")
 
 	def execute(self):
 		assert os.path.exists(self.__archive_path), \
@@ -505,8 +511,18 @@ class UncompressBuilder(AbstractBuilder, TargetDirMixin):
 		self.create_dirpath(self.get_target_dir())
 		with zipfile.ZipFile(self.__archive_path, "r") as package_file:
 			for input_path in package_file.namelist():
-				self.logger.debug("Extracting:", input_path, "to", self.get_target_dir())
-				package_file.extract(input_path, self.get_target_dir())
+				# skip files not in desired archive contents dir
+				if not input_path.startswith(self.__contents_path):
+					continue
+				# build target path
+				target_path = input_path.replace(self.__contents_path, "", 1)
+				target_path = target_path.strip("/")
+				target_path = os.path.join(self.get_target_dir(), target_path)
+				self.logger.debug("Extracting:", input_path, "to", target_path)
+				# extract file to target location
+				self.create_dirpath(os.path.dirname(target_path))
+				with open(target_path, "wb") as target_file:
+					target_file.write(package_file.read(input_path))
 
 class QMakeBuilder(AbstractBuilder, DefinesMixin, ExecuteMixin):
 
