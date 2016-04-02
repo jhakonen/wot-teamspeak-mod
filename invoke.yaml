@@ -19,7 +19,8 @@ vars:
 builders:
   - tailfile:
       tags: ['tail']
-      filepath: "{wot_install_path}/python.log"
+      input_files:
+        - '{wot_install_path}/python.log'
 
 projects:
   tsplugin:

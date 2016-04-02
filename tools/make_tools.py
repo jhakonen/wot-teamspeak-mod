@@ -666,21 +666,37 @@ class MyNoseTestProgram(nose.core.TestProgram):
 		config.verbosity = 2
 		return config
 
-class TailFileBuilder(AbstractBuilder):
+class TailFileBuilder(AbstractBuilder, InputFilesMixin):
 
 	def __init__(self):
 		super(TailFileBuilder, self).__init__()
-
-	def initialize(self):
-		self.__filepath = self.expand_path(self.config["filepath"])
+		self.__queue = Queue.Queue()
 
 	def execute(self):
-		self.logger.info("Tailing '{}', press Ctrl+C to cancel".format(self.__filepath))
+		for filepath in self.get_input_files():
+			self.logger.info("Tailing '{}', press Ctrl+C to cancel".format(filepath))
+			self.__start_filepath_follow(filepath)
 		try:
-			with open(self.__filepath, "r") as file:
-				for line in tailer.follow(file):
-					self.logger.info(line)
+			while True:
+				try:
+					file, line = self.__queue.get(block=True, timeout=0.2)
+					self.logger.info(file + ": " + line)
+				except Queue.Empty:
+					pass
 		except KeyboardInterrupt:
 			pass
+
+	def __start_filepath_follow(self, filepath):
+		thread = threading.Thread(target=self.__in_thread, args=[filepath, self.__queue])
+		thread.daemon = True
+		thread.start()
+
+	def __in_thread(self, filepath, queue):
+		while True:
+			filename = os.path.basename(filepath)
+			with open(filepath, "r") as file:
+				for line in tailer.follow(file):
+					queue.put((filename, unicode(line, "utf8")))
+				queue.put((filename, "File has truncated"))
 
 init()

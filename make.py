@@ -156,7 +156,7 @@ def release(ctx):
 
 @task
 def tail(ctx):
-	with log_task("Tailing python.log...", ctx.verbose) as logger:
+	with log_task("Tailing log files:", ctx.verbose) as logger:
 		with make_tools.with_builders(logger, root, ctx.config, ctx["exclude-tags"]) as builders:
 			for builder in builders:
 				if "tail" in builder.tags:
