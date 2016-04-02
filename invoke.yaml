@@ -110,8 +110,7 @@ projects:
           tags: ['build', 'clean']
           show_warnings: true
           mxmlc_path: "{mxmlc_path}"
-          actionscripts:
-            - "{source_dir}/src/SettingsUI.as"
+          input: "{source_dir}/src/SettingsUI.as"
           libraries:
             - "{source_dir}/lib/wg.swc"
           build_dir: "{build_dir}"

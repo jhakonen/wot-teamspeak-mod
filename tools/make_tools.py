@@ -573,17 +573,19 @@ class MXMLCBuilder(AbstractBuilder, InputFilesMixin, ExecuteMixin):
 	def initialize(self):
 		self.__show_warnings = self.config["show_warnings"]
 		self.__mxmlc_path = self.expand_path(self.config["mxmlc_path"])
-		self.__actionscripts = self.get_input_files("actionscripts")
-		self.__libraries = self.get_input_files("libraries")
+		self.__input_path = self.expand_path(self.config["input"])
+		if "libraries" in self.config:
+			self.__libraries = self.get_input_files("libraries")
+		else:
+			self.__libraries = []
 		self.__output_path = self.expand_path(self.config["output_path"])
 		self.__build_dir = self.expand_path(self.config["build_dir"])
 
 	def execute(self):
 		assert os.path.exists(self.__mxmlc_path), \
 			"mxmlc.exe executable doesn't exist, is '{}' correct?".format(self.__mxmlc_path)
-		for path in self.__actionscripts:
-			assert os.path.exists(path), \
-				"Actionscript file doesn't exist, is '{}' correct?".format(path)
+		assert os.path.exists(self.__input_path), \
+			"Input file doesn't exist, is '{}' correct?".format(self.__input_path)
 		for path in self.__libraries:
 			assert os.path.exists(path), \
 				"Library file doesn't exist, is '{}' correct?".format(path)
@@ -596,8 +598,9 @@ class MXMLCBuilder(AbstractBuilder, InputFilesMixin, ExecuteMixin):
 			args.extend(["-show-actionscript-warnings"])
 		if self.__libraries:
 			args.extend(["-external-library-path+="+path for path in self.__libraries])
-		if self.__actionscripts:
-			args.extend(["-file-specs"] + self.__actionscripts)
+		args.extend(["-static-link-runtime-shared-libraries"])
+		args.extend(["-debug"])
+		args.extend(["-file-specs", self.__input_path])
 		args.extend(["-output", self.__output_path])
 		command = " ".join(args)
 		result = self.execute_batch_contents(contents="@{}".format(command), cwd=self.__build_dir)
