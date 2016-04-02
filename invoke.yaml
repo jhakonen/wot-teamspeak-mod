@@ -15,6 +15,7 @@ vars:
   msvc_vars_path:
   wot_install_path:
   mxmlc_path:
+  webbrowser_path:
 
 builders:
   - tailfile:
@@ -121,6 +122,13 @@ projects:
           contents_dir: "{build_dir}/flash"
           archive_path: "{release_archive_path}"
           prefix: "res_mods/{game_version}/gui/flash/tessu_mod"
+      - openbrowser:
+          tags: ['preview-settingsui']
+          exepath: '{webbrowser_path}'
+          url: '{root_build_dir}/tools/LobbyViewPreview/LobbyViewPreview.html'
+          query:
+            verbose: on
+            swfpath: '{build_dir}/flash/SettingsUI.swf'
 
   tessumod:
     tags: ['tessumod']

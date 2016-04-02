@@ -85,7 +85,7 @@ def log_task(title, verbose):
 		logger.info(colored("[ ok ]", "green"), lb_start=False)
 
 @task
-def configure(ctx, qmake_x86=None, qmake_x64=None, msvc_vars=None, wot_install=None, mxmlc=None):
+def configure(ctx, qmake_x86=None, qmake_x64=None, msvc_vars=None, wot_install=None, mxmlc=None, webbrowser=None):
 	with log_task("Configuring...", ctx.verbose):
 		config = {"vars": {}}
 		# read previous values
@@ -104,6 +104,8 @@ def configure(ctx, qmake_x86=None, qmake_x64=None, msvc_vars=None, wot_install=N
 				config["vars"]["wot_install_path"] = wot_install
 			if mxmlc:
 				config["vars"]["mxmlc_path"] = mxmlc
+			if webbrowser:
+				config["vars"]["webbrowser_path"] = webbrowser
 			file.write(json.dumps(config))
 
 @task
@@ -162,6 +164,14 @@ def tail(ctx):
 				if "tail" in builder.tags:
 					builder.execute()
 
+@task
+def preview_settingsui(ctx):
+	with log_task("Opening url(s) to browser...", ctx.verbose) as logger:
+		with make_tools.with_builders(logger, root, ctx.config, ctx["exclude-tags"]) as builders:
+			for builder in builders:
+				if "preview-settingsui" in builder.tags:
+					builder.execute()
+
 ns = Collection(loaded_from=root)
 ns.add_task(configure)
 ns.add_task(clean)
@@ -172,6 +182,7 @@ ns.add_task(unittests)
 ns.add_task(futes)
 ns.add_task(release)
 ns.add_task(tail)
+ns.add_task(preview_settingsui)
 
 program = Make(version="1.0.0", name="Make", binary="make.py", namespace=ns, config_class=MakeConfig)
 

@@ -17,6 +17,7 @@
 
 import io
 import os
+import re
 import sys
 import time
 import glob
@@ -31,6 +32,8 @@ import threading
 import warnings
 import codecs
 import tempfile
+import urllib
+import webbrowser
 from contextlib import contextmanager
 
 # 3rd party libs
@@ -50,7 +53,8 @@ def init():
 		"qmake":       QMakeBuilder,
 		"mxmlc":       MXMLCBuilder,
 		"nosetests":   NoseTestsBuilder,
-		"tailfile":    TailFileBuilder
+		"tailfile":    TailFileBuilder,
+		"openbrowser": OpenBrowserBuilder
 	}
 	colorama.init()
 
@@ -303,7 +307,7 @@ class ExecuteMixin(object):
 		super(ExecuteMixin, self).__init__()
 		self.__threads = []
 
-	def execute_batch_contents(self, contents, cwd=None):
+	def execute_batch_contents(self, contents, cwd=None, wait=True):
 		proc = None
 		file = None
 		try:
@@ -311,18 +315,24 @@ class ExecuteMixin(object):
 			file = tempfile.NamedTemporaryFile(suffix=".cmd", delete=False)
 			file.write(contents)
 			file.close()
-			proc = subprocess.Popen([file.name], cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-			stdout_queue = self.__stream_to_queue(proc.stdout)
-			stderr_queue = self.__stream_to_queue(proc.stderr)
-			while proc.poll() is None or not stdout_queue.empty() or not stderr_queue.empty():
-				try:
-					self.logger.debug(to_unicode(stdout_queue.get(timeout=0.01)))
-				except Queue.Empty:
-					pass
-				try:
-					self.logger.debug(to_unicode(stderr_queue.get(timeout=0.01)))
-				except Queue.Empty:
-					pass
+			command = [file.name]
+			if wait:
+				proc = subprocess.Popen(command, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+				stdout_queue = self.__stream_to_queue(proc.stdout)
+				stderr_queue = self.__stream_to_queue(proc.stderr)
+				while proc.poll() is None or not stdout_queue.empty() or not stderr_queue.empty():
+					try:
+						self.logger.debug(to_unicode(stdout_queue.get(timeout=0.01)))
+					except Queue.Empty:
+						pass
+					try:
+						self.logger.debug(to_unicode(stderr_queue.get(timeout=0.01)))
+					except Queue.Empty:
+						pass
+			else:
+				proc = subprocess.Popen(command, cwd=cwd)
+				# wait for process to startup before batch file is deleted
+				time.sleep(1)
 		except KeyboardInterrupt:
 			pass
 		finally:
@@ -718,5 +728,31 @@ class TailFileBuilder(AbstractBuilder, InputFilesMixin):
 				for line in tailer.follow(file):
 					queue.put((filename, unicode(line, "utf8")))
 				queue.put((filename, "File has truncated"))
+
+class OpenBrowserBuilder(AbstractBuilder, ExecuteMixin):
+
+	def __init__(self):
+		super(OpenBrowserBuilder, self).__init__()
+
+	def execute(self):
+		self.__url = self.expand_value(self.config["url"])
+		self.__exepath = self.expand_path(self.config["exepath"])
+		assert os.path.exists(self.__exepath), \
+			"web browser's executable doesn't exist, is '{}' correct?".format(self.__exepath)
+		# try to determine if we are opening a local file and transform the
+		# url appropiately if so
+		if not re.search("^[a-z0-9]+://", self.__url, re.IGNORECASE):
+			self.__url = urllib.pathname2url(self.__url)
+			self.__url = "file:" + self.__url
+		# build query part if any
+		if "query" in self.config:
+			query = {}
+			for name, value in self.config["query"].iteritems():
+				query[name] = self.expand_value(value)
+			query = urllib.urlencode(query)
+			self.__url += "?" + query
+		# open url to browser
+		url = self.__url.replace("%", "%%").replace("&", "^&")
+		self.execute_batch_contents(contents="@\"" + self.__exepath + "\" " + url, wait=False)
 
 init()
