@@ -207,3 +207,26 @@ projects:
           tags: ['install']
           archive_path: "{release_archive_path}"
           target_dir: "{wot_install_path}"
+
+  lobbyviewpreview:
+    tags: ['lobbyviewpreview']
+    vars:
+      source_dir: '{root}/tools/LobbyViewPreview'
+      build_dir: '{root_build_dir}/tools/LobbyViewPreview'
+    builders:
+      - mxmlc:
+          tags: ['build', 'clean']
+          show_warnings: true
+          mxmlc_path: '{mxmlc_path}'
+          input: '{source_dir}/src/LobbyViewPreview.as'
+          build_dir: '{build_dir}'
+          output_path: '{build_dir}/LobbyViewPreview.swf'
+      - uncompress:
+          tags: ['build', 'clean']
+          archive_path: '{wot_install_path}/res/packages/gui.pkg|gui/flash'
+          target_dir: '{build_dir}'
+      - copy:
+          tags: ['build', 'clean']
+          input_files:
+            - '{source_dir}/src/LobbyViewPreview.html'
+          target_dir: '{build_dir}'

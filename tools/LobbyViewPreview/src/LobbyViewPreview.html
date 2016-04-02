@@ -1,0 +1,85 @@
+<html>
+    <head>
+        <title>LobbyViewPreview</title>
+        <script language="JavaScript">
+            /**
+             * Called when the html page is fully loaded.
+             */
+            function onPageInit() {
+                document.getElementById("swfpath").value = getSWFPath();
+                document.getElementById("verbose").checked = isVerbose();
+            }
+
+            /**
+             * Functions called by WoT's DebugUtils.
+             */
+            debug = {
+                "LOG_GUI": function() {
+                    console.log(arguments);
+                },
+                "LOG_GUI_FORMAT": function() {
+                    console.log(arguments);
+                }
+            };
+
+            /**
+             * Called by LobbyViewPreview.swf when it it has loaded and is
+             * ready to accept commands.
+             */
+            function onPreviewSWFInit() {
+                preview = document.getElementById("preview");
+                preview.setVerbose(isVerbose());
+                preview.previewSWF(getSWFPath());
+            }
+
+            /**
+             * Returns SWF path to a view that should be loaded within the
+             * flash object.
+             */
+            function getSWFPath() {
+                swfpath = getParameterByName("swfpath");
+                return swfpath? swfpath: "SettingsUI.swf";
+            }
+
+            /**
+             * Returns true if verbose output is selected. False otherwise.
+             */
+            function isVerbose() {
+                return Boolean(getParameterByName("verbose"));
+            }
+
+            // function found from http://stackoverflow.com/questions/901115/how-can-i-get-query-string-values-in-javascript
+            function getParameterByName(name, url) {
+                if (!url) url = window.location.href;
+                name = name.replace(/[\[\]]/g, "\\$&").toLowerCase();// This is just to avoid case sensitiveness for query parameter name
+                var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+                    results = regex.exec(url);
+                if (!results) return null;
+                if (!results[2]) return '';
+                return decodeURIComponent(results[2].replace(/\+/g, " "));
+            }
+        </script>
+        <style type="text/css">
+            body {
+                background-color: gray
+            }
+        </style>
+    </head>
+    <body onload="onPageInit()">
+        <object id="preview" data="LobbyViewPreview.swf" type="application/x-shockwave-flash" width="700" height="500">
+            <param name="wmode" value="opaque" />
+            <param name="quality" value="high" />
+            <param name="allowScriptAccess" value="always"/>
+        </object>
+        <form>
+            <fieldset>
+                <legend>Settings</legend>
+                SWF file path:<br>
+                <input type="text" name="swfpath" id="swfpath" size="100"><br>
+                Verbose output:
+                <input type="checkbox" name="verbose" id="verbose"><br>
+                <input type="submit" value="Submit">
+            </fieldset>
+        </form>
+    </body>
+</html>
