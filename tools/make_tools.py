@@ -227,6 +227,7 @@ class AbstractBuilder(object):
 		prev_value = input
 		while True:
 			new_value = prev_value.format(**self.__variables)
+			new_value = os.path.expandvars(new_value) # expand env-variables, e.g: %FOO%
 			if prev_value == new_value:
 				return new_value
 			prev_value = new_value
