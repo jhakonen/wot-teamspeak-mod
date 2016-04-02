@@ -21,6 +21,7 @@ builders:
       tags: ['tail']
       input_files:
         - '{wot_install_path}/python.log'
+        - '%APPDATA%/Macromedia/Flash Player/Logs/flashlog.txt'
 
 projects:
   tsplugin:
