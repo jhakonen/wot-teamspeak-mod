@@ -41,6 +41,7 @@ from functools import partial
 from traceback import format_exception
 import sys
 import types
+import json
 
 import log
 
@@ -192,7 +193,7 @@ class Player(object):
 	def get_player_by_dbid(cls, dbid):
 		'''Extracts player information with matching account 'dbid' from
 		various locations.
-		''' 
+		'''
 		vehicle_id = Battle.find_vehicle_id(lambda v: v["accountDBID"] == dbid)
 		if vehicle_id is not None:
 			vehicle = Battle.get_vehicle(vehicle_id)
@@ -489,11 +490,32 @@ class SettingsUIWindow(LobbySubView, WindowViewMeta):
 	def _populate(self):
 		super(SettingsUIWindow, self)._populate()
 
+		# insert some example data to ActionScript window
+		self.as_setSettingsS(json.dumps({
+			"foo": "bar",
+			"baz": False
+		}, sort_keys=True, indent=4, separators=(",", ": ")))
+
+	def as_setSettingsS(self, data):
+		'''Sets given settings to window at ActionScript code.
+		The 'data' argument is expected to be a string.
+		'''
+		if self._isDAAPIInited():
+			self.flashObject.as_setSettings(data)
+
 	def onWindowClose(self):
 		self.destroy()
 
 	def onTryClosing(self):
 		return True
+
+	def onOkClicked(self):
+		'''Called from ActionScript by DAAPI when user clicks ok button.'''
+		log.LOG_NOTE("PYTHON: onOkClicked() called")
+
+	def onCancelClicked(self):
+		'''Called from ActionScript by DAAPI when user clicks cancel button.'''
+		log.LOG_NOTE("PYTHON: onCancelClicked() called")
 
 g_entitiesFactories.addSettings(
 	ViewSettings(
