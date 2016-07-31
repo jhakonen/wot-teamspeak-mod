@@ -15,6 +15,8 @@ vars:
   qmake_path_x64:
   msvc_vars_path:
   wot_install_path:
+  openal_x86:
+  openal_x64:
 
 builders:
   - tailfile:
@@ -77,12 +79,14 @@ projects:
               - "{source_dir}/audio/*"
               - "{source_dir}/etc/alsoft.ini"
               - "{source_dir}/etc/hrtfs/*"
-              - "{source_dir}/libs/OpenAL*.dll"
+              - "{openal_x86}/OpenAL32.dll"
+              - "{openal_x64}/OpenAL64.dll"
           target_dir: "{installer_dir}/plugins/tessumod_plugin"
       - copy:
           tags: ['build', 'clean']
           input_files:
-              - "{source_dir}/libs/OpenAL*.pdb"
+              - "{openal_x86}/OpenAL32.pdb"
+              - "{openal_x64}/OpenAL64.pdb"
           target_dir: "{symbols_dir}"
       - compress:
           tags: ['build', 'clean']
