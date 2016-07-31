@@ -18,7 +18,6 @@
 import subprocess
 import os
 import shutil
-import _winreg
 import argparse
 import zipfile
 import glob
@@ -28,6 +27,7 @@ BUILD_DIR  = os.getcwd()
 SOURCE_DIR = os.path.dirname(os.path.realpath(__file__))
 PLUGIN_INSTALLER_PATH  = os.path.join(BUILD_DIR, "tessumod.ts3_plugin")
 DEBUG_SYMBOL_FILE_PATH = os.path.join(BUILD_DIR, "debug-symbols.zip")
+MSVC_VARSALL_PATH = "C:\\Program Files (x86)\\Microsoft Visual Studio 12.0\\VC\\vcvarsall.bat"
 
 PACKAGE_INI_TEMPLATE = """
 Name = {name}\r
@@ -60,7 +60,7 @@ def build_ts_plugin_binary(qtdir, arch, name, description, author, version, **kw
 	# create build batch file
 	with open(batch_path, "w") as file:
 		file.write("@echo off\r\n")
-		file.write("call \"{0}\" {1} \r\n".format(get_vcvarsall_path(), arch_to_vcvars_arg(arch)))
+		file.write("call \"{0}\" {1} \r\n".format(MSVC_VARSALL_PATH, arch_to_vcvars_arg(arch)))
 		file.write("\"{qtdir}\\bin\qmake.exe\" {source_dir} -after {qmake_defs}\r\n".format(
 			qtdir      = qtdir,
 			source_dir = SOURCE_DIR,
@@ -85,11 +85,6 @@ def build_ts_plugin_binary(qtdir, arch, name, description, author, version, **kw
 	if not os.path.isfile(debug_file_path):
 		raise RuntimeError("Build debug file not found")
 	return binary_file_path, debug_file_path
-
-def get_vcvarsall_path():
-	key = _winreg.OpenKeyEx(_winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\VisualStudio\\12.0\\Setup\\VC")
-	path = _winreg.QueryValueEx(key, "ProductDir")[0]
-	return os.path.abspath(path + "\\" + "vcvarsall.bat")
 
 def arch_to_vcvars_arg(arch):
 	if arch == "x86":
@@ -123,10 +118,10 @@ if __name__ == "__main__":
 	parser.add_argument("--version", help="version of the TS plugin", required=True)
 	args = parser.parse_args()
 
-	if not os.getenv("QTDIR_X86"):
-		raise RuntimeError("QTDIR_X86 environment variable not defined!")
-	if not os.getenv("QTDIR_X64"):
-		raise RuntimeError("QTDIR_X64 environment variable not defined!")
+	if not os.getenv("QT32PATH"):
+		raise RuntimeError("QT32PATH environment variable not defined!")
+	if not os.getenv("QT64PATH"):
+		raise RuntimeError("QT64PATH environment variable not defined!")
 
 	info = dict(
 		name        = "TessuMod Plugin",
@@ -137,8 +132,8 @@ if __name__ == "__main__":
 		platforms   = ["win32", "win64"]
 	)
 
-	x86_bin_path, x86_dbg_path = build_ts_plugin_binary(os.getenv("QTDIR_X86"), "x86", **info)
-	x64_bin_path, x64_dbg_path = build_ts_plugin_binary(os.getenv("QTDIR_X64"), "x64", **info)
+	x86_bin_path, x86_dbg_path = build_ts_plugin_binary(os.getenv("QT32PATH"), "x86", **info)
+	x64_bin_path, x64_dbg_path = build_ts_plugin_binary(os.getenv("QT64PATH"), "x64", **info)
 
 	files = {
 		"plugins\\" + os.path.basename(x86_bin_path): x86_bin_path,
@@ -146,7 +141,8 @@ if __name__ == "__main__":
 		"plugins\\tessumod_plugin\\alsoft.ini": os.path.join(SOURCE_DIR, "etc", "alsoft.ini"),
 		"plugins\\tessumod_plugin\\testsound.wav": os.path.join(SOURCE_DIR, "audio", "testsound.wav")
 	}
-	files.update({ "plugins\\tessumod_plugin\\" + os.path.basename(filepath): filepath for filepath in glob.glob(os.path.join(SOURCE_DIR, "libs", "OpenAL*.dll")) })
+	files.update({ "plugins\\tessumod_plugin\\" + os.path.basename(filepath): filepath for filepath in glob.glob(os.path.join(os.getenv("OAL32PATH"), "OpenAL32.dll")) })
+	files.update({ "plugins\\tessumod_plugin\\" + os.path.basename(filepath): filepath for filepath in glob.glob(os.path.join(os.getenv("OAL64PATH"), "OpenAL64.dll")) })
 	files.update({ "plugins\\tessumod_plugin\\" + os.path.basename(filepath): filepath for filepath in glob.glob(os.path.join(SOURCE_DIR, "etc", "hrtfs", "*.mhr")) })
 
 	build_ts_installer(
@@ -160,7 +156,7 @@ if __name__ == "__main__":
 		files = {
 			os.path.basename(x86_dbg_path): x86_dbg_path,
 			os.path.basename(x64_dbg_path): x64_dbg_path,
-			"OpenAL32.pdb": os.path.join(SOURCE_DIR, "libs", "OpenAL32.pdb"),
-			"OpenAL64.pdb": os.path.join(SOURCE_DIR, "libs", "OpenAL64.pdb")
+			"OpenAL32.pdb": os.path.join(os.getenv("OAL32PATH"), "OpenAL32.pdb"),
+			"OpenAL64.pdb": os.path.join(os.getenv("OAL64PATH"), "OpenAL64.pdb")
 		}
 	)

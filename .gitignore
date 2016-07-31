@@ -60,3 +60,5 @@ coverage_report
 *.sdf
 *.pro.user
 _trial_marker
+.vagrant
+chocolatey-repo
