@@ -18,6 +18,8 @@
 import BigWorld
 from gui import SystemMessages
 from gui.shared.notifications import NotificationGuiSettings
+from gui.battle_control.battle_constants import FEEDBACK_EVENT_ID
+from gui.battle_control import g_sessionProvider
 from messenger.proto.shared_find_criteria import FriendsFindCriteria
 from messenger.storage import storage_getter
 from notification import NotificationMVC
@@ -176,7 +178,7 @@ class Player(object):
 	def get_player_by_dbid(cls, dbid):
 		'''Extracts player information with matching account 'dbid' from
 		various locations.
-		''' 
+		'''
 		vehicle_id = Battle.find_vehicle_id(lambda v: v["accountDBID"] == dbid)
 		if vehicle_id is not None:
 			vehicle = Battle.get_vehicle(vehicle_id)
@@ -433,10 +435,8 @@ class MinimapMarkerAnimation(object):
 	def __updateMinimap(self):
 		if self.__timer.is_active():
 			try:
-				from gui.app_loader import g_appLoader
-				app = g_appLoader.getDefBattleApp()
-				if app:
-					app.minimap.showActionMarker(self.__vehicle_id, self.__action)
+				g_sessionProvider.shared.feedback.onMinimapFeedbackReceived(
+					FEEDBACK_EVENT_ID.MINIMAP_SHOW_MARKER, self.__vehicle_id, self.__action)
 			except AttributeError:
 				log.LOG_CURRENT_EXCEPTION()
 		else:
