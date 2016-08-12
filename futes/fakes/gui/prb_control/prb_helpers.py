@@ -1,0 +1,2 @@
+class GlobalListener(object):
+	pass
