@@ -17,7 +17,12 @@
 
 import BigWorld
 import debug_utils
+from gui.battle_control.battle_constants import FEEDBACK_EVENT_ID
+from gui.battle_control import g_sessionProvider
+from gui.prb_control.dispatcher import _PrbControlLoader
+from gui.prb_control.prb_helpers import GlobalListener
 from messenger.storage import storage_getter
+from messenger.proto.events import g_messengerEvents
 from messenger.proto.shared_find_criteria import FriendsFindCriteria
 import ResMgr
 import Event
@@ -103,27 +108,24 @@ def find_prebattle_account_info(matcher):
 	desired info. Returns None if nothing found.
 	'''
 	try:
-		rosters = BigWorld.player().prebattle.rosters
-		for roster in rosters:
-			for id in rosters[roster]:
-				info = rosters[roster][id]
-				if matcher(info):
-					return info
-	except AttributeError:
-		pass
+		for player in g_prebattleListener.get_players():
+			if matcher(player):
+				return dict(player)
+	except AttributeError as error:
+		print error
 
 def get_player_info_by_dbid(dbid):
 	'''Extracts player information with matching account 'dbid' from
 	various locations. Returns 'player_name' and 'vehicle_id' in a dict if
 	available, returns empty dict if nothing found.
-	''' 
+	'''
 	vehicle_id = find_vehicle_id(lambda v: v["accountDBID"] == dbid)
 	if vehicle_id is not None:
 		return {
 			"player_name": get_vehicle(vehicle_id)["name"],
 			"vehicle_id": vehicle_id
 		}
-	info = find_prebattle_account_info(lambda i: i["dbID"] == dbid)
+	info = find_prebattle_account_info(lambda i: i["id"] == dbid)
 	if info:
 		return {
 			"player_name": info["name"]
@@ -243,28 +245,19 @@ def get_players(in_battle=False, in_prebattle=False, clanmembers=False, friends=
 				yield Player(vehicle["name"], vehicle["accountDBID"])
 		except AttributeError:
 			pass
+
 	if in_prebattle:
-		try:
-			# get players from Team Battle room
-			for unit in BigWorld.player().unitMgr.units.itervalues():
-				for id, player in unit.getPlayers().iteritems():
-					LOG_DEBUG("Found player from unit", player["nickName"])
-					yield Player(player["nickName"], id)
-		except AttributeError:
-			pass
-		try:
-			# get players from Training Room and the like
-			for roster in BigWorld.player().prebattle.rosters.itervalues():
-				for info in roster.itervalues():
-					LOG_DEBUG("Found player from rosters", info["name"])
-					yield Player(info["name"], info["dbID"])
-		except AttributeError:
-			pass
+		for player in g_prebattleListener.get_players():
+			LOG_DEBUG("Found player from prebattle", player["nickName"])
+			yield Player(player["name"], player["id"])
+
 	users_storage = storage_getter('users')()
+
 	if clanmembers:
 		for member in users_storage.getClanMembersIterator(False):
 			LOG_DEBUG("Found clan member", member.getName())
 			yield Player(member.getName(), member.getID())
+
 	if friends:
 		for friend in users_storage.getList(FriendsFindCriteria()):
 			LOG_DEBUG("Found friend", friend.getName())
@@ -344,10 +337,8 @@ class MinimapMarkerAnimation(object):
 
 	def _updateMinimap(self):
 		try:
-			from gui.app_loader import g_appLoader
-			app = g_appLoader.getDefBattleApp()
-			if app:
-				app.minimap.showActionMarker(self._vehicle_id, self._action)
+			g_sessionProvider.shared.feedback.onMinimapFeedbackReceived(
+				FEEDBACK_EVENT_ID.MINIMAP_SHOW_MARKER, self._vehicle_id, self._action)
 		except AttributeError:
 			LOG_CURRENT_EXCEPTION()
 
@@ -374,6 +365,41 @@ class RepeatTimer(object):
 		if not self._stopped:
 			self.on_timeout()
 			self._do_call()
+
+class PrebattleListener(GlobalListener):
+
+	def __init__(self):
+		self.__players = {}
+
+	def get_players(self):
+		return self.__players.values()
+
+	def onPrbFunctionalFinished(self):
+		self.__players.clear()
+
+	def onUnitFunctionalFinished(self):
+		self.__players.clear()
+
+	def onPlayerAdded(self, functional, info):
+		self.__add_player_info(info)
+
+	def onUnitPlayerAdded(self, info):
+		self.__add_player_info(info)
+
+	def onUnitPlayerInfoChanged(self, info):
+		self.__add_player_info(info)
+
+	def __add_player_info(self, info):
+		self.__players[info.dbID] = dict(id=info.dbID, name=info.name)
+
+g_prebattleListener = PrebattleListener()
+
+def PrbControlLoader_onAccountShowGUI(original):
+	def decorator(self, ctx):
+		original(self, ctx)
+		g_prebattleListener.startGlobalListening()
+	return decorator
+_PrbControlLoader.onAccountShowGUI = PrbControlLoader_onAccountShowGUI(_PrbControlLoader.onAccountShowGUI)
 
 class LOG_LEVEL(object):
 	DEBUG = 0
