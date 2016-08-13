@@ -14,16 +14,18 @@ class SpeakStatusChanges(TestCaseBase):
 	def setUp(self):
 		TestCaseBase.setUp(self)
 
-		import VOIP
-		from gui.app_loader import g_appLoader
-		self.VOIP_onPlayerSpeaking = VOIP.getVOIPManager().onPlayerSpeaking = mock.Mock()
-		self.Minimap_showActionMarker = g_appLoader.getDefBattleApp().minimap.showActionMarker = mock.Mock()
+		from messenger.proto.events import g_messengerEvents
+		from gui.battle_control import g_sessionProvider
+		self.VOIP_onPlayerSpeaking = g_messengerEvents.voip.onPlayerSpeaking = mock.Mock()
+		self.onMinimapFeedbackReceived = g_sessionProvider.shared.feedback.onMinimapFeedbackReceived = mock.Mock()
 
 	def __has_speaking_state_changed(self, name, speaking):
 		return mock_was_called_with(self.VOIP_onPlayerSpeaking, self.get_player_id(name), speaking)
 
 	def __has_minimap_feedback(self, name, action):
-		return mock_was_called_with(self.Minimap_showActionMarker, self.get_vehicle_id(name), action)
+		from gui.battle_control.battle_constants import FEEDBACK_EVENT_ID
+		return mock_was_called_with(self.onMinimapFeedbackReceived, FEEDBACK_EVENT_ID.MINIMAP_SHOW_MARKER,
+			self.get_vehicle_id(name), action)
 
 	@use_event_loop
 	def test_speak_feedback_starts_for_player_with_tessumod_installed(self):

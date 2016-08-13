@@ -60,7 +60,7 @@ class MakeConfig(Config):
 		configure_path = os.path.join(os.getcwd(), "config.json")
 		if os.path.exists(configure_path):
 			runtime_path = configure_path
-		
+
 		super(MakeConfig, self).__init__(
 			defaults=defaults,
 			overrides=overrides,
@@ -85,7 +85,7 @@ def log_task(title, verbose):
 		logger.info(colored("[ ok ]", "green"), lb_start=False)
 
 @task
-def configure(ctx, qmake_x86=None, qmake_x64=None, msvc_vars=None, wot_install=None, mxmlc=None, webbrowser=None):
+def configure(ctx, qmake_x86=None, qmake_x64=None, msvc_vars=None, wot_install=None, openal_x86=None, openal_x64=None, mxmlc=None, webbrowser=None):
 	with log_task("Configuring...", ctx.verbose):
 		config = {"vars": {}}
 		# read previous values
@@ -102,6 +102,10 @@ def configure(ctx, qmake_x86=None, qmake_x64=None, msvc_vars=None, wot_install=N
 				config["vars"]["msvc_vars_path"] = msvc_vars
 			if wot_install:
 				config["vars"]["wot_install_path"] = wot_install
+			if openal_x86:
+				config["vars"]["openal_x86"] = openal_x86
+			if openal_x64:
+				config["vars"]["openal_x64"] = openal_x64
 			if mxmlc:
 				config["vars"]["mxmlc_path"] = mxmlc
 			if webbrowser:

@@ -20,6 +20,11 @@ from gui import SystemMessages, InputHandler
 from gui.app_loader import g_appLoader
 from gui.shared import g_eventBus, events
 from gui.shared.notifications import NotificationGuiSettings
+from gui.battle_control.battle_constants import FEEDBACK_EVENT_ID
+from gui.battle_control import g_sessionProvider
+from gui.prb_control.dispatcher import _PrbControlLoader
+from gui.prb_control.prb_helpers import GlobalListener
+from messenger.proto.events import g_messengerEvents
 from gui.shared.utils.key_mapping import getBigworldNameFromKey
 from gui.Scaleform.daapi import LobbySubView
 from gui.Scaleform.daapi.view.meta.WindowViewMeta import WindowViewMeta
@@ -197,10 +202,10 @@ class Player(object):
 		vehicle_id = Battle.find_vehicle_id(lambda v: v["accountDBID"] == dbid)
 		if vehicle_id is not None:
 			vehicle = Battle.get_vehicle(vehicle_id)
-			return dict(id=dbid, name=vehicle["name"], vehicle_id=vehicle_id, is_alive=vehicle["isAlive"])
-		info = cls.find_prebattle_account_info(lambda i: i["dbID"] == dbid)
+			return dict(id=dbid, name=vehicle["name"], in_battle=True, vehicle_id=vehicle_id, is_alive=vehicle["isAlive"])
+		info = cls.find_prebattle_account_info(lambda i: i["id"] == dbid)
 		if info:
-			return dict(id=dbid, name=info["name"])
+			return dict(id=dbid, name=info["name"], in_battle=False)
 		return None
 
 	@classmethod
@@ -229,17 +234,16 @@ class Player(object):
 		desired info. Returns None if nothing found.
 		'''
 		try:
-			rosters = BigWorld.player().prebattle.rosters
-			for roster in rosters:
-				for id in rosters[roster]:
-					info = rosters[roster][id]
-					if matcher(info):
-						return info
-		except AttributeError:
-			pass
+			for player in g_prebattleListener.get_players():
+				if matcher(player):
+					return dict(player)
+		except AttributeError as error:
+			print error
 
 	@classmethod
 	def get_players(cls, in_battle=False, in_prebattle=False, clanmembers=False, friends=False):
+		yielded_names = []
+
 		if in_battle:
 			try:
 				vehicles = BigWorld.player().arena.vehicles
@@ -247,43 +251,40 @@ class Player(object):
 				for id in vehicles:
 					vehicle = vehicles[id]
 					names.append(vehicle["name"])
-					yield dict(name=vehicle["name"], id=vehicle["accountDBID"])
+					if vehicle["name"] not in yielded_names:
+						yield dict(name=vehicle["name"], id=vehicle["accountDBID"], in_battle=True)
+						yielded_names.append(vehicle["name"])
 				log.LOG_DEBUG("Found players from battle", names)
 			except AttributeError:
 				pass
+
 		if in_prebattle:
-			try:
-				# get players from Team Battle room
-				names = []
-				for unit in BigWorld.player().unitMgr.units.itervalues():
-					for id, player in unit.getPlayers().iteritems():
-						names.append(player["nickName"])
-						yield dict(name=player["nickName"], id=id)
-				log.LOG_DEBUG("Found players from units", names)
-			except AttributeError:
-				pass
-			try:
-				# get players from Training Room and the like
-				names = []
-				for roster in BigWorld.player().prebattle.rosters.itervalues():
-					for info in roster.itervalues():
-						names.append(info["name"])
-						yield dict(name=info["name"], id=info["dbID"])
-				log.LOG_DEBUG("Found players from rosters", names)
-			except AttributeError:
-				pass
+			names = []
+			for player in g_prebattleListener.get_players():
+				names.append(player["name"])
+				if player["name"] not in yielded_names:
+					yield dict(player, in_battle=False)
+					yielded_names.append(player["name"])
+			log.LOG_DEBUG("Found players from prebattle", names)
+
 		users_storage = storage_getter('users')()
+
 		if clanmembers:
 			names = []
 			for member in users_storage.getClanMembersIterator(False):
 				names.append(member.getName())
-				yield dict(name=member.getName(), id=member.getID())
+				if member.getName() not in yielded_names:
+					yield dict(name=member.getName(), id=member.getID(), in_battle=False)
+					yielded_names.append(member.getName())
 			log.LOG_DEBUG("Found clan members", names)
+
 		if friends:
 			names = []
 			for friend in users_storage.getList(FriendsFindCriteria()):
 				names.append(friend.getName())
-				yield dict(name=friend.getName(), id=friend.getID())
+				if friend.getName() not in yielded_names:
+					yield dict(name=friend.getName(), id=friend.getID(), in_battle=False)
+					yielded_names.append(friend.getName())
 			log.LOG_DEBUG("Found friends", names)
 
 class Notifications(object):
@@ -421,7 +422,7 @@ class VoiceChat(object):
 
 	@classmethod
 	def set_player_speaking(cls, player_id, speaking):
-		VOIP.getVOIPManager().onPlayerSpeaking(player_id, speaking)
+		g_messengerEvents.voip.onPlayerSpeaking(player_id, speaking)
 
 	@classmethod
 	def patch_is_participant_speaking(cls, patch_function):
@@ -450,9 +451,8 @@ class MinimapMarkerAnimation(object):
 	def __updateMinimap(self):
 		if self.__timer.is_active():
 			try:
-				app = g_appLoader.getDefBattleApp()
-				if app:
-					app.minimap.showActionMarker(self.__vehicle_id, self.__action)
+				g_sessionProvider.shared.feedback.onMinimapFeedbackReceived(
+					FEEDBACK_EVENT_ID.MINIMAP_SHOW_MARKER, self.__vehicle_id, self.__action)
 			except AttributeError:
 				log.LOG_CURRENT_EXCEPTION()
 		else:
@@ -479,6 +479,41 @@ def patch_instance_method(instance, method_name, new_function):
 	original_method = getattr(instance, method_name)
 	new_method = types.MethodType(partial(new_function, original_method), instance)
 	setattr(instance, method_name, new_method)
+
+class PrebattleListener(GlobalListener):
+
+	def __init__(self):
+		self.__players = {}
+
+	def get_players(self):
+		return self.__players.values()
+
+	def onPrbFunctionalFinished(self):
+		self.__players.clear()
+
+	def onUnitFunctionalFinished(self):
+		self.__players.clear()
+
+	def onPlayerAdded(self, functional, info):
+		self.__add_player_info(info)
+
+	def onUnitPlayerAdded(self, info):
+		self.__add_player_info(info)
+
+	def onUnitPlayerInfoChanged(self, info):
+		self.__add_player_info(info)
+
+	def __add_player_info(self, info):
+		self.__players[info.dbID] = dict(id=info.dbID, name=info.name)
+
+g_prebattleListener = PrebattleListener()
+
+def PrbControlLoader_onAccountShowGUI(original):
+	def decorator(self, ctx):
+		original(self, ctx)
+		g_prebattleListener.startGlobalListening()
+	return decorator
+_PrbControlLoader.onAccountShowGUI = PrbControlLoader_onAccountShowGUI(_PrbControlLoader.onAccountShowGUI)
 
 class SettingsUIWindow(LobbySubView, WindowViewMeta):
 

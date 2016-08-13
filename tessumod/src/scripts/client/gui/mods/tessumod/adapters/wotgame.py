@@ -139,6 +139,8 @@ class MinimapAdapter(object):
 		self.__interval = interval
 
 	def set_player_speaking(self, player, speaking):
+		if not player["in_battle"]:
+			return
 		vehicle_id = player["vehicle_id"]
 		if speaking:
 			if vehicle_id not in self.__running_animations:

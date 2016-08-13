@@ -486,7 +486,7 @@ class CompressBuilder(AbstractBuilder):
 							# form input file path
 							input_filepath = os.path.join(dirpath, filename)
 							# form output file path
-							in_archive_filepath = os.path.join(self.__prefix, 
+							in_archive_filepath = os.path.join(self.__prefix,
 								input_filepath.replace(self.__contents_dir, "").strip(os.sep)).strip(os.sep)
 							# compress to archive
 							self.logger.debug("Compressing:", os.path.relpath(input_filepath))

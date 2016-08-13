@@ -229,13 +229,14 @@ class UpdateChatUserSpeakState(timer.TimerMixin):
 				except:
 					log.LOG_CURRENT_EXCEPTION()
 
-				try:
-					self.minimap.set_player_speaking(
-						player=player,
-						speaking=user["speaking"] and player["is_alive"] and self.__is_minimap_speak_allowed(player["id"])
-					)
-				except:
-					log.LOG_CURRENT_EXCEPTION()
+				if player["in_battle"]:
+					try:
+						self.minimap.set_player_speaking(
+							player=player,
+							speaking=user["speaking"] and player["is_alive"] and self.__is_minimap_speak_allowed(player["id"])
+						)
+					except:
+						log.LOG_CURRENT_EXCEPTION()
 
 	def __is_minimap_speak_allowed(self, player_id):
 		if not self.settings.get(SettingConstants.MINIMAP_NOTIFY_ENABLED):

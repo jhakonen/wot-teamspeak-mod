@@ -154,7 +154,7 @@ action: attackSender
 ; Define repeat interval (in seconds) of the notification animation.
 ; Adjust this until the animation animates continuously while someone is
 ; speaking.
-repeat_interval: 3.5
+repeat_interval: 2
 """
 
 class SettingsAdapter(object):

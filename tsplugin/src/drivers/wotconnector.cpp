@@ -27,6 +27,7 @@
 #include <QDateTime>
 #include <iostream>
 #include <QIODevice>
+#include <QDataStream>
 
 namespace {
 

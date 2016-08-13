@@ -60,3 +60,5 @@ coverage_report
 *.pro.user
 _trial_marker
 config.json
+.vagrant
+chocolatey-repo
