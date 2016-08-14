@@ -20,7 +20,6 @@ Param([switch]$FromVagrant=$False)
 
 $REPOPATH               = "C:\vagrant"
 $LOCALCHOCOREPOPATH     = "$REPOPATH\chocolatey-repo"
-$ALTERNATIVEPROFILEPATH = "$HOME\PowerShell_profile.ps1"
 $PYTHONSCRIPTSPATH      = "C:\tools\python2\Scripts"
 $MSVCPATH               = "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC"
 
@@ -71,14 +70,17 @@ Set-MpPreference -DisableRealtimeMonitoring $true
 Stop-Service wuauserv
 Set-Service wuauserv -StartupType disabled
 
+# Install Chocolatey package manager
 if (-Not (Test-Command "choco")) {
     Write-Host "Installing Chocolatey package manager"
+    $env:chocolateyVersion = "0.10.0"
     iex ((new-object net.webclient).DownloadString($CHOCOLATEYURL))
-    # Hack for https://github.com/chocolatey/choco/issues/834
-    mv $profile $ALTERNATIVEPROFILEPATH
 }
 
-. $ALTERNATIVEPROFILEPATH
+# Load functions required for Update-SessionEnvironment.
+. C:\ProgramData\chocolatey\helpers\functions\Get-EnvironmentVariable.ps1
+. C:\ProgramData\chocolatey\helpers\functions\Get-EnvironmentVariableNames.ps1
+. C:\ProgramData\chocolatey\helpers\functions\Update-SessionEnvironment.ps1
 
 # Enable installing locally packaged Chocolatey packages
 Set-PathExists $LOCALCHOCOREPOPATH
@@ -86,9 +88,9 @@ choco source add --name=local --source=$LOCALCHOCOREPOPATH
 
 Write-Host "Installing packages with Chocolatey..."
 # See https://chocolatey.org/packages
-choco install visualstudioexpress2013windowsdesktop --version 12.0.21005.1 -y
+choco install visualstudioexpress2013windowsdesktop --version 12.0.21005.1 -y --allow-empty-checksums
 choco install jom --version 1.1.1 -y
-choco install 7zip --version 16.02 -y
+choco install 7zip --version 16.02 -y --allow-empty-checksums
 choco install python2 --version 2.7.11 -y
 choco install git --version 2.9.2 -y
 choco install cmake --version 3.6.0 -y
@@ -96,7 +98,7 @@ choco install cmake --version 3.6.0 -y
 # Add programs to PATH
 Add-EnvPath -path $PYTHONSCRIPTSPATH
 Add-EnvPath "C:\Program Files\CMake\bin"
-RefreshEnv
+Update-SessionEnvironment
 
 # Create Chocolatey package for Qt libraries
 if (-Not (Test-ChocoLocalPackageExists qt-everywhere-opensource)) {
