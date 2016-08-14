@@ -31,10 +31,10 @@ import threading
 import warnings
 import codecs
 from contextlib import contextmanager
+import msvcrt
 
 # 3rd party libs
 import nose
-import tailer
 import colorama
 from termcolor import colored
 
@@ -610,17 +610,73 @@ class TailFileBuilder(AbstractBuilder):
 
 	def __init__(self):
 		super(TailFileBuilder, self).__init__()
+		self.__files = []
 
 	def initialize(self):
 		self.__filepath = self.expand_path(self.config["filepath"])
+		self.__files.append(TailedFile(self.__filepath))
 
 	def execute(self):
-		self.logger.info("Tailing '{}', press Ctrl+C to cancel".format(self.__filepath))
-		try:
-			with open(self.__filepath, "r") as file:
-				for line in tailer.follow(file):
-					self.logger.info(line)
-		except KeyboardInterrupt:
-			pass
+		self.logger.info("Tailing {}, press any key to cancel (ctrl+c from remote Powershell connection)"
+			.format(", ".join([file.path for file in self.__files])))
+		input_thread = threading.Thread(target=msvcrt.getch)
+		input_thread.start()
+
+		while input_thread.isAlive():
+			for file in self.__files:
+				for line in file:
+					self.logger.info(file.name + ": " + line)
+			input_thread.join(1)
+
+class TailedFile(object):
+
+	def __init__(self, filepath):
+		self.__filepath = filepath
+		self.__pos = -1
+		self.__cached_lines = []
+
+	@property
+	def path(self):
+		return self.__filepath
+
+	@property
+	def name(self):
+		return os.path.basename(self.path)
+
+	def start(self):
+		pass
+
+	def __iter__(self):
+		return self
+
+	def next(self):
+		if self.__cached_lines:
+			return self.__cached_lines.pop()
+		if not os.path.exists(self.path):
+			raise StopIteration
+		with open(self.path, "rb") as file:
+			# get end position
+			file.seek(0, os.SEEK_END)
+			end_pos = file.tell()
+			if self.__pos == -1:
+				# start file tailing from end
+				self.__pos = end_pos
+			if self.__pos > end_pos:
+				# current pos is bigger then file's end pos
+				# --> file has truncated
+				#   --> restart from begining
+				self.__cached_lines.append("File truncated")
+				self.__pos = 0
+			if self.__pos == end_pos:
+				# no changes since last read, hop out
+				raise StopIteration
+			# read and cache more lines
+			file.seek(self.__pos, os.SEEK_SET)
+			for line in file:
+				self.__cached_lines.append(line.rstrip())
+			self.__pos = file.tell()
+			if self.__cached_lines:
+				return self.__cached_lines.pop()
+		raise StopIteration
 
 init()
