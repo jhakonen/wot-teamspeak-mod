@@ -35,6 +35,7 @@ import tempfile
 import urllib
 import webbrowser
 from contextlib import contextmanager
+import base64
 
 # 3rd party libs
 import nose
@@ -751,8 +752,19 @@ class OpenBrowserBuilder(AbstractBuilder, ExecuteMixin):
 				query[name] = self.expand_value(value)
 			query = urllib.urlencode(query)
 			self.__url += "?" + query
+
 		# open url to browser
-		url = self.__url.replace("%", "%%").replace("&", "^&")
-		self.execute_batch_contents(contents="@\"" + self.__exepath + "\" " + url, wait=False)
+		root = os.path.dirname(os.path.realpath(__file__))
+		command = " ".join([
+			"&", '"{}\\Start-GuiProcess.ps1"'.format(root),
+				"-Executable", '"{}"'.format(self.__exepath),
+				"-Argument", '"{}"'.format(self.__url)
+		])
+		os.system(" ".join([
+			"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+				"-NoProfile",
+				"-ExecutionPolicy", "Bypass",
+				"-EncodedCommand", base64.b64encode(command.encode("utf_16_le"))
+		]))
 
 init()

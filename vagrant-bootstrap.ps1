@@ -71,6 +71,12 @@ Set-MpPreference -DisableRealtimeMonitoring $true
 Stop-Service wuauserv
 Set-Service wuauserv -StartupType disabled
 
+# Enable auto logon
+# Required for opening GUI applications from remote powershell session
+Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name AutoAdminLogon -Value 1
+Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name DefaultUserName -Value "vagrant"
+Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name DefaultPassword -Value "vagrant"
+
 # Install Chocolatey package manager
 if (-Not (Test-Command "choco")) {
     Write-Host "Installing Chocolatey package manager"
@@ -95,6 +101,8 @@ choco install 7zip --version 16.02 -y --allow-empty-checksums
 choco install python2 --version 2.7.11 -y
 choco install git --version 2.9.2 -y
 choco install cmake --version 3.6.0 -y
+choco install firefox --version 48.0 -y
+choco install javaruntime --version 8.0.73 -y --allow-empty-checksums
 
 # Add programs to PATH
 Add-EnvPath -path $PYTHONSCRIPTSPATH
@@ -123,6 +131,32 @@ if (-Not (Test-ChocoLocalPackageExists openal-soft)) {
 # Install OpenAL Soft
 choco install openal-soft --version 1.16.0-fixes1 -y
 
+# Create Chocolatey package for Adobe Flex SDK
+if (-Not (Test-ChocoLocalPackageExists adobe-flex-sdk)) {
+    powershell -NoProfile -Command "& $REPOPATH\chocolatey\adobe-flex-sdk\tools\pack.ps1"
+    if (Test-ChocoIsPackageInstalled adobe-flex-sdk) {
+        choco uninstall adobe-flex-sdk
+    }
+}
+
+# Install Adobe Flex SDK
+choco install adobe-flex-sdk --version 4.6.0 -y
+
+# Create Chocolatey package for Adobe Flash Player Debug for Firefox
+if (-Not (Test-ChocoLocalPackageExists adobe-flash-player-debug-firefox)) {
+    powershell -NoProfile -Command "& $REPOPATH\chocolatey\adobe-flash-player-debug-firefox\tools\pack.ps1"
+    if (Test-ChocoIsPackageInstalled adobe-flash-player-debug-firefox) {
+        choco uninstall adobe-flash-player-debug-firefox
+    }
+}
+
+# Install Adobe Flash Player Debug for Firefox
+choco install adobe-flash-player-debug-firefox --version 22.0 -y
+
+# Add TessuMod to Flash Player's trusted content
+New-Item -Path "$env:appdata\Macromedia\Flash Player\#Security\FlashPlayerTrust\tessumod.cfg" -Type File -Force
+"C:\Vagrant" > "$env:appdata\Macromedia\Flash Player\#Security\FlashPlayerTrust\tessumod.cfg"
+
 Update-SessionEnvironment
 
 cd $REPOPATH
@@ -137,6 +171,8 @@ python make.py configure --openal-x86=$env:OAL32PATH
 python make.py configure --openal-x64=$env:OAL64PATH
 python make.py configure --msvc-vars="$MSVCPATH\vcvarsall.bat"
 python make.py configure --wot-install=$WOTPATH
+python make.py configure --mxmlc="$env:FLEXSDKPATH\bin\mxmlc.exe"
+python make.py configure --webbrowser="C:\Program Files\Mozilla Firefox\firefox.exe"
 
 $stopWatch.Stop()
 Write-Host ("Bootstrapping took {0:N0} minutes" -f $stopWatch.Elapsed.TotalMinutes)
