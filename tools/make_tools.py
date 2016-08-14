@@ -36,10 +36,10 @@ import urllib
 import webbrowser
 from contextlib import contextmanager
 import base64
+import msvcrt
 
 # 3rd party libs
 import nose
-import tailer
 import colorama
 from termcolor import colored
 
@@ -701,34 +701,75 @@ class TailFileBuilder(AbstractBuilder, InputFilesMixin):
 
 	def __init__(self):
 		super(TailFileBuilder, self).__init__()
-		self.__queue = Queue.Queue()
+		self.__files = []
+
+	def initialize(self):
+		for filepath in self.get_input_files():
+			self.__files.append(TailedFile(filepath))
 
 	def execute(self):
-		for filepath in self.get_input_files():
-			self.logger.info("Tailing '{}', press Ctrl+C to cancel".format(filepath))
-			self.__start_filepath_follow(filepath)
-		try:
-			while True:
-				try:
-					file, line = self.__queue.get(block=True, timeout=0.2)
-					self.logger.info(file + ": " + line)
-				except Queue.Empty:
-					pass
-		except KeyboardInterrupt:
-			pass
+		self.logger.info("Tailing {}, press any key to cancel (ctrl+c from remote Powershell connection)"
+			.format(", ".join([file.path for file in self.__files])))
+		input_thread = threading.Thread(target=msvcrt.getch)
+		input_thread.start()
 
-	def __start_filepath_follow(self, filepath):
-		thread = threading.Thread(target=self.__in_thread, args=[filepath, self.__queue])
-		thread.daemon = True
-		thread.start()
+		while input_thread.isAlive():
+			for file in self.__files:
+				for line in file:
+					self.logger.info(file.name + ": " + line)
+			input_thread.join(1)
 
-	def __in_thread(self, filepath, queue):
-		while True:
-			filename = os.path.basename(filepath)
-			with open(filepath, "r") as file:
-				for line in tailer.follow(file):
-					queue.put((filename, unicode(line, "utf8")))
-				queue.put((filename, "File has truncated"))
+class TailedFile(object):
+
+	def __init__(self, filepath):
+		self.__filepath = filepath
+		self.__pos = -1
+		self.__cached_lines = []
+
+	@property
+	def path(self):
+		return self.__filepath
+
+	@property
+	def name(self):
+		return os.path.basename(self.path)
+
+	def start(self):
+		pass
+
+	def __iter__(self):
+		return self
+
+	def next(self):
+		if self.__cached_lines:
+			return self.__cached_lines.pop()
+		if not os.path.exists(self.path):
+			raise StopIteration
+		with open(self.path, "rb") as file:
+			# get end position
+			file.seek(0, os.SEEK_END)
+			end_pos = file.tell()
+			if self.__pos == -1:
+				# start file tailing from end
+				self.__pos = end_pos
+			if self.__pos > end_pos:
+				# current pos is bigger then file's end pos
+				# --> file has truncated
+				#   --> restart from begining
+				self.__cached_lines.append("File truncated")
+				self.__pos = 0
+			if self.__pos == end_pos:
+				# no changes since last read, hop out
+				raise StopIteration
+			# read and cache more lines
+			file.seek(self.__pos, os.SEEK_SET)
+			for line in file:
+				self.__cached_lines.append(line.rstrip())
+			self.__pos = file.tell()
+			if self.__cached_lines:
+				return self.__cached_lines.pop()
+		raise StopIteration
+
 
 class OpenBrowserBuilder(AbstractBuilder, ExecuteMixin):
 
