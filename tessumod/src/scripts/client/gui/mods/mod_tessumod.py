@@ -79,8 +79,8 @@ def init():
 		g_ts.on_disconnected += on_disconnected_from_ts3
 		g_ts.on_connected_to_server += on_connected_to_ts3_server
 		g_ts.on_disconnected_from_server += on_disconnected_from_ts3_server
-		g_ts.on_speak_status_changed += on_speak_status_changed
 		g_ts.users_in_my_channel.on_added += on_ts3_user_in_my_channel_added
+		g_ts.users_in_my_channel.on_modified += on_ts3_user_in_my_channel_modified
 		utils.call_in_loop(settings().get_client_query_interval(), g_ts.check_events)
 
 		g_playerEvents.onAvatarReady           += g_positional_audio.enable
@@ -260,11 +260,10 @@ def on_disconnected_from_ts3_server():
 	clear_speak_statuses()
 
 def on_ts3_user_in_my_channel_added(client_id):
-	'''This function populates user cache with TeamSpeak users whenever they
-	enter our TeamSpeak channel.
-	'''
-	user = g_ts.users[client_id]
-	g_user_cache.add_ts_user(user.nick, user.unique_id)
+	on_speak_status_changed(g_ts.users[client_id])
+
+def on_ts3_user_in_my_channel_modified(client_id):
+	on_speak_status_changed(g_ts.users[client_id])
 
 def on_user_cache_read_error(message):
 	'''This function is called if user cache's reading fails.'''

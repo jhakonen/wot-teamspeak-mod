@@ -40,6 +40,7 @@ import re
 import asyncore
 import asynchat
 import functools
+import weakref
 import Event
 import BigWorld
 from utils import (
@@ -63,7 +64,7 @@ _API_INVALID_SCHANDLER_ID = 1799
 
 class TS3Client(object):
 	'''Main entry point for access to TeamSpeak's client query interface.'''
-	
+
 	HOST = "localhost"
 	PORT = 25639
 	NICK_META_PATTERN = "<wot_nickname_start>(.+)<wot_nickname_end>"
@@ -72,7 +73,6 @@ class TS3Client(object):
 		# public events
 		self.on_connected = Event.Event()
 		self.on_disconnected = Event.Event()
-		self.on_speak_status_changed = Event.Event()
 		self.on_connected_to_server = Event.Event()
 		self.on_disconnected_from_server = Event.Event()
 
@@ -206,12 +206,14 @@ class TS3Client(object):
 			def on_clientlist(err, entries):
 				if not err:
 					for entry in entries:
+						client_id = int(entry.get("clid"))
 						self.users.add(
-							client_id  = int(entry.get("clid")),
+							client_id  = client_id,
 							nick       = entry.get("client_nickname"),
 							unique_id  = entry.get("client_unique_identifier"),
 							channel_id = int(entry.get("cid"))
 						)
+						self.users[client_id].speaking = bool(int(entry.get("client_flag_talking")))
 				callback(err, entries)
 			self.get_clientlist(on_clientlist)
 		def update_wot_nickname(callback):
@@ -321,7 +323,7 @@ class TS3Client(object):
 				callback(err, None)
 			else:
 				callback(None, parse_client_query_parameters(lines[0]))
-		self._send_command("clientlist -uid", on_clientlist)
+		self._send_command("clientlist -uid -voice", on_clientlist)
 
 	def _get_server_name(self, callback=noop):
 		def on_finish(err, lines):
@@ -350,7 +352,6 @@ class TS3Client(object):
 		user = self.users[client_id]
 		if user.speaking != speaking:
 			user.speaking = speaking
-			self.on_speak_status_changed(user)
 
 	def on_notifyclientupdated_ts3_event(self, line):
 		[entry] = parse_client_query_parameters(line)
@@ -530,7 +531,7 @@ class _ClientQueryProtocol(asynchat.async_chat):
 		if first_word in self._event_handlers:
 			self._event_handlers[first_word](line)
 		# if not, then maybe a response to command?
-		else: 
+		else:
 			try:
 				self._commands[0].handle_line(line)
 			except IndexError:
@@ -603,21 +604,80 @@ class CommandIgnoredError(Exception):
 
 class User(object):
 
-	def __init__(self):
-		self.nick = None
-		self.wot_nick = None
-		self.client_id = None
-		self.unique_id = None
-		self.channel_id = None
-		self.speaking = False
+	def __init__(self, model):
+		self.__model = weakref.proxy(model)
+		self.__nick = None
+		self.__wot_nick = None
+		self.__client_id = None
+		self.__unique_id = None
+		self.__channel_id = None
+		self.__speaking = False
+
+	@property
+	def nick(self):
+		return self.__nick
+	@nick.setter
+	def nick(self, nick):
+		if nick is not None and self.__nick != nick:
+			self.__nick = nick
+			self.__notify_modified()
+
+	@property
+	def wot_nick(self):
+		return self.__wot_nick
+	@wot_nick.setter
+	def wot_nick(self, wot_nick):
+		if wot_nick is not None and self.__wot_nick != wot_nick:
+			self.__wot_nick = wot_nick
+			self.__notify_modified()
+
+	@property
+	def client_id(self):
+		return self.__client_id
+	@client_id.setter
+	def client_id(self, client_id):
+		if client_id is not None and self.__client_id != client_id:
+			self.__client_id = client_id
+			self.__notify_modified()
+
+	@property
+	def unique_id(self):
+		return self.__unique_id
+	@unique_id.setter
+	def unique_id(self, unique_id):
+		if unique_id is not None and self.__unique_id != unique_id:
+			self.__unique_id = unique_id
+			self.__notify_modified()
+
+	@property
+	def channel_id(self):
+		return self.__channel_id
+	@channel_id.setter
+	def channel_id(self, channel_id):
+		if channel_id is not None and self.__channel_id != channel_id:
+			self.__channel_id = channel_id
+			self.__notify_modified()
+
+	@property
+	def speaking(self):
+		return self.__speaking
+	@speaking.setter
+	def speaking(self, speaking):
+		if speaking is not None and self.__speaking != speaking:
+			self.__speaking = speaking
+			self.__notify_modified()
+
+	def __notify_modified(self):
+		if self.__client_id is not None and self.__client_id in self.__model:
+			self.__model.on_modified(self.__client_id)
 
 	def __hash__(self):
 		return (
-			hash(self.client_id) ^
-			hash(self.nick) ^
-			hash(self.wot_nick) ^
-			hash(self.unique_id) ^
-			hash(self.channel_id)
+			hash(self.__client_id) ^
+			hash(self.__nick) ^
+			hash(self.__wot_nick) ^
+			hash(self.__unique_id) ^
+			hash(self.__channel_id)
 		)
 
 	def __eq__(self, other):
@@ -625,12 +685,12 @@ class User(object):
 
 	def __repr__(self):
 		return "User (client_id={0}, nick={1}, wot_nick={2}, unique_id={3}, channel_id={4}, speaking={5})".format(
-			repr(self.client_id),
-			repr(self.nick),
-			repr(self.wot_nick),
-			repr(self.unique_id),
-			repr(self.channel_id),
-			repr(self.speaking)
+			repr(self.__client_id),
+			repr(self.__nick),
+			repr(self.__wot_nick),
+			repr(self.__unique_id),
+			repr(self.__channel_id),
+			repr(self.__speaking)
 		)
 
 class UserModel(object):
@@ -645,28 +705,19 @@ class UserModel(object):
 		if client_id is None:
 			return
 
-		is_new = client_id not in self._users
-		if is_new:
-			self._users[client_id] = User()
-		user = self._users[client_id]
-		old_hash = hash(user)
-
+		user = self._users.get(client_id, User(self))
 		user.client_id = client_id
-		if nick is not None:
-			user.nick = nick
-		if wot_nick is not None:
-			user.wot_nick = wot_nick
-		if unique_id is not None:
-			user.unique_id = unique_id
-		if channel_id is not None:
-			user.channel_id = channel_id
+		user.nick = nick
+		user.wot_nick = wot_nick
+		user.unique_id = unique_id
+		user.channel_id = channel_id
 
-		if is_new:
+		if client_id not in self._users:
+			self._users[client_id] = user
 			self.on_added(client_id)
-		elif old_hash != hash(user):
-			self.on_modified(client_id)
 
 	def remove(self, client_id):
+		self._users[client_id].speaking = False
 		del self._users[client_id]
 		self.on_removed(client_id)
 
@@ -675,6 +726,9 @@ class UserModel(object):
 		self._users.clear()
 		for client_id in client_ids:
 			self.on_removed(client_id)
+
+	def __contains__(self, client_id):
+		return client_id in self._users
 
 	def __getitem__(self, client_id):
 		return self._users[client_id]
