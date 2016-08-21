@@ -27,7 +27,7 @@ try:
 	from tessumod.keyvaluestorage import KeyValueStorage
 	import tessumod.positional_audio as positional_audio
 	import BigWorld
-	import VOIP
+	from VOIP.VOIPManager import VOIPManager
 	import BattleReplay
 	from messenger.proto.events import g_messengerEvents
 	from PlayerEvents import g_playerEvents
@@ -95,7 +95,7 @@ def init():
 
 		# if nothing broke so far then it should be safe to patch the needed
 		# functions (modified functions have dependencies to g_* global variables)
-		VOIP.VOIPManager.isParticipantTalking = VOIPManager_isParticipantTalking(VOIP.VOIPManager.isParticipantTalking)
+		VOIPManager.isParticipantTalking = VOIPManager_isParticipantTalking(VOIPManager.isParticipantTalking)
 		BattleReplay.BattleReplay.play = BattleReplay_play(BattleReplay.BattleReplay.play)
 
 		g_messengerEvents.users.onUsersListReceived += on_users_list_received
