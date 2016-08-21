@@ -248,7 +248,7 @@ def get_players(in_battle=False, in_prebattle=False, clanmembers=False, friends=
 
 	if in_prebattle:
 		for player in g_prebattleListener.get_players():
-			LOG_DEBUG("Found player from prebattle", player["nickName"])
+			LOG_DEBUG("Found player from prebattle", player["name"])
 			yield Player(player["name"], player["id"])
 
 	users_storage = storage_getter('users')()
