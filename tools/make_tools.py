@@ -160,6 +160,8 @@ class Logger(object):
 			msg = msg.format(kwargs)
 		except KeyError:
 			pass
+		except ValueError:
+			pass
 		if color is not None:
 			msg = colored(msg, color)
 		if on_new_line or lb_start:
@@ -651,7 +653,7 @@ class TailedFile(object):
 
 	def next(self):
 		if self.__cached_lines:
-			return self.__cached_lines.pop()
+			return self.__cached_lines.pop(0)
 		if not os.path.exists(self.path):
 			raise StopIteration
 		with open(self.path, "rb") as file:
@@ -676,7 +678,7 @@ class TailedFile(object):
 				self.__cached_lines.append(line.rstrip())
 			self.__pos = file.tell()
 			if self.__cached_lines:
-				return self.__cached_lines.pop()
+				return self.__cached_lines.pop(0)
 		raise StopIteration
 
 init()
