@@ -1,0 +1,3 @@
+[Core]
+Name = Settings Plugin
+Module = settings

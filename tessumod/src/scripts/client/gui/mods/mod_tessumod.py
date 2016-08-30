@@ -28,6 +28,10 @@ from tessumod.interactors import (Initialize, LoadSettings, CacheChatUser, PairC
 	ShowChatClientPluginInfoUrl, NotifyConnectedToChatServer, PublishGameNickToChatServer, ShowCacheErrorMessage,
 	EnablePositionalDataToChatClient, ProvidePositionalDataToChatClient, BattleReplayStart,
 	PopulateUserCacheWithPlayers)
+from tessumod.pluginmanager import ModPluginManager
+import logging
+
+plugin_manager = None
 
 def init():
 	'''Mod's main entry point. Called by WoT's built-in mod loader.'''
@@ -82,8 +86,24 @@ def init():
 
 		app["initialize"]()
 
+		logging.getLogger("yapsy").setLevel("WARN")
+		#logging.getLogger("yapsy").setLevel(logging.DEBUG)
+
+		plugin_manager = ModPluginManager()
+		plugin_manager.collectPlugins()
+		for plugin_info in plugin_manager.getAllPlugins():
+			plugin_manager.activatePluginByName(plugin_info.name)
+			plugin_info.plugin_object.plugin_manager = plugin_manager
+			plugin_info.plugin_object.initialize()
+
 	except:
 		log.LOG_CURRENT_EXCEPTION()
+
+def fini():
+	'''Mod's destructor entry point. Called by WoT's built-in mod loader.'''
+	if plugin_manager is not None:
+		for plugin_info in plugin_manager.getAllPlugins():
+			plugin_info.plugin_object.deinitialize()
 
 def create_executable(cls):
 	def execute(*args, **kwargs):

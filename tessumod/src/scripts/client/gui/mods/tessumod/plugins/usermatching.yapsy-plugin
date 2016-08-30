@@ -1,0 +1,3 @@
+[Core]
+Name = User Matching Plugin
+Module = usermatching
