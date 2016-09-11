@@ -15,14 +15,13 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes, logutils, models
+from gui.mods.tessumod import plugintypes, logutils, models, pluginutils
 import re
 from operator import or_
 
-logger = logutils.logger.getChild("pairing")
+logger = logutils.logger.getChild("usermatching")
 
-class UserMatching(plugintypes.ModPlugin, plugintypes.PlayerNotificationsMixin,
-	plugintypes.SettingsMixin, plugintypes.VoiceUserNotificationsMixin):
+class UserMatching(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 	"""
 	This plugin ...
 	"""
@@ -33,13 +32,8 @@ class UserMatching(plugintypes.ModPlugin, plugintypes.PlayerNotificationsMixin,
 		self.__ts_nick_search_enabled = True
 		self.__nick_extract_patterns = []
 		self.__name_mappings = {}
-		self.__source_to_model = {
-			"battle": models.PlayerModel(),
-			"prebattle": models.PlayerModel()
-		}
-		self.__all_player_model = models.CompositeModel(self.__source_to_model.values())
-		self.__all_player_model.on("added", self.__on_all_player_model_added)
-		self.__voice_user_model = models.PlayerModel()
+		self.__user_model = None
+		self.__all_player_model = None
 
 		self.__matchers = [
 			self.__find_matching_with_metadata,
@@ -51,7 +45,14 @@ class UserMatching(plugintypes.ModPlugin, plugintypes.PlayerNotificationsMixin,
 
 	@logutils.trace_call(logger)
 	def initialize(self):
-		pass
+		self.__all_player_model = models.CompositeModel(
+			pluginutils.get_player_models(self.plugin_manager, ["battle", "prebattle"]))
+		self.__all_player_model.on("added", self.__on_all_player_model_added)
+		for plugin_info in self.plugin_manager.getPluginsOfCategory("UserModelProvider"):
+			if plugin_info.plugin_object.has_user_model():
+				self.__user_model = plugin_info.plugin_object.get_user_model()
+		self.__user_model.on("added", self.__on_user_added)
+		self.__user_model.on("modified", self.__on_user_modified)
 
 	@logutils.trace_call(logger)
 	def deinitialize(self):
@@ -71,7 +72,7 @@ class UserMatching(plugintypes.ModPlugin, plugintypes.PlayerNotificationsMixin,
 				self.__nick_extract_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in value]
 		if section == "NameMappings":
 			self.__name_mappings = {k.lower(): v.lower() for k, v in value.iteritems()}
-		self.__match_users_to_players(self.__voice_user_model.values(), self.__all_player_model.values())
+		self.__match_users_to_players(self.__user_model.values(), self.__all_player_model.values())
 
 	@logutils.trace_call(logger)
 	def get_settings_content(self):
@@ -153,60 +154,15 @@ class UserMatching(plugintypes.ModPlugin, plugintypes.PlayerNotificationsMixin,
 			}
 		}
 
-	@logutils.trace_call(logger)
-	def on_player_added(self, source, player):
-		"""
-		Implemented from PlayerNotificationsMixin.
-		"""
-		if source in self.__source_to_model:
-			self.__source_to_model[source].set(dict(player, name_low=player["name"].lower()))
-
-	@logutils.trace_call(logger)
-	def on_player_modified(self, source, player):
-		"""
-		Implemented from PlayerNotificationsMixin.
-		"""
-		if source in self.__source_to_model:
-			self.__source_to_model[source].set(dict(player, name_low=player["name"].lower()))
-
-	@logutils.trace_call(logger)
-	def on_player_removed(self, source, player):
-		"""
-		Implemented from PlayerNotificationsMixin.
-		"""
-		if source in self.__source_to_model:
-			self.__source_to_model[source].remove(player["id"])
-
 	def __on_all_player_model_added(self, new_player):
-		self.__match_users_to_players(self.__voice_user_model.values(), [new_player])
+		self.__match_users_to_players(self.__user_model.values(), [new_player])
 
-	@logutils.trace_call(logger)
-	def on_voice_user_added(self, new_user):
-		"""
-		Implemented from VoiceUserNotificationsMixin.
-		"""
-		self.__voice_user_model.set(dict(new_user, name_low=new_user["name"].lower(),
-			game_name_low=new_user["game_name"].lower()) )
-
+	def __on_user_added(self, new_user):
 		self.__match_users_to_players([new_user], self.__all_player_model.values())
 
-	@logutils.trace_call(logger)
-	def on_voice_user_modified(self, old_user, new_user):
-		"""
-		Implemented from VoiceUserNotificationsMixin.
-		"""
-		self.__voice_user_model.set(dict(new_user, name_low=new_user["name"].lower(),
-			game_name_low=new_user["game_name"].lower()))
-
+	def __on_user_modified(self, old_user, new_user):
 		if old_user["name"] != new_user["name"] or old_user["game_name"] != new_user["game_name"]:
 			self.__match_users_to_players([new_user], self.__all_player_model.values())
-
-	@logutils.trace_call(logger)
-	def on_voice_user_removed(self, old_user):
-		"""
-		Implemented from VoiceUserNotificationsMixin.
-		"""
-		self.__voice_user_model.remove(old_user["id"])
 
 	def __match_users_to_players(self, users, players):
 		for user, matching_players in self.__find_matching_candidates(users, players):
@@ -230,9 +186,9 @@ class UserMatching(plugintypes.ModPlugin, plugintypes.PlayerNotificationsMixin,
 		results = []
 		if not self.__get_wot_nick_from_ts_metadata:
 			return results
-		usergamename = user["game_name_low"]
+		usergamename = user["game_name"].lower()
 		for player in players:
-			playername = player["name_low"]
+			playername = player["name"].lower()
 			if usergamename == playername:
 				results.append(player)
 		return results
@@ -243,24 +199,24 @@ class UserMatching(plugintypes.ModPlugin, plugintypes.PlayerNotificationsMixin,
 			return results
 
 		for pattern in self.__nick_extract_patterns:
-			matches = pattern.match(user["name_low"])
+			matches = pattern.match(user["name"].lower())
 			if matches is None or not matches.groups():
 				continue
 			extracted_playername = matches.group(1).strip()
 			# find extracted playername from players
 			for player in players:
-				playername = player["name_low"]
+				playername = player["name"].lower()
 				if playername == extracted_playername:
 					results.append(player)
 		return results
 
 	def __find_matching_with_mappings(self, user, players):
 		results = []
-		if user["name_low"] not in self.__name_mappings:
+		if user["name"].lower() not in self.__name_mappings:
 			return results
-		playername = self.__name_mappings[user["name_low"]]
+		playername = self.__name_mappings[user["name"].lower()]
 		for player in players:
-			if player["name_low"] == playername:
+			if player["name"].lower() == playername:
 				return [player]
 		return results
 
@@ -268,10 +224,10 @@ class UserMatching(plugintypes.ModPlugin, plugintypes.PlayerNotificationsMixin,
 		results = []
 		if self.__ts_nick_search_enabled:
 			for player in players:
-				if player["name_low"] in user["name_low"]:
+				if player["name"].lower() in user["name"].lower():
 					results.append(player)
 		else:
 			for player in players:
-				if player["name_low"] == user["name_low"]:
+				if player["name"].lower() == user["name"].lower():
 					results.append(player)
 		return results

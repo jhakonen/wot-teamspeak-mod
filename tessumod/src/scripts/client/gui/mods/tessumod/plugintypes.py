@@ -36,43 +36,74 @@ class ModPlugin(IPlugin.IPlugin):
 	def deinitialize(self):
 		pass
 
-class PlayerNotificationsMixin(object):
+class PlayerModelProvider(object):
 	"""
-	Has notification callbacks which are called when players are found, changed or lost.
+	This class is an interface for getting player models from other plugins.
+	Each player is stored into the model with a key which is same as player's "id" value.
 
-	Arguments:
-		source - can be one of following: voice, battle, prebattle, friends, clanmembers
-		player - a dict object which must have at least following key/values:
-			"id": [int] <player id>
-			"name": [string] <player name>
-			"is_me": [bool] <is self player>
+	Possible model names include:
+	 * battle
+	 * prebattle
+	 * friends
+	 * clanmembers
+	 * voice
 
-			With source 'battle' the dict must have following entries:
-				"vehicle_id": [int] <vehicle id in battle>
-				"is_alive": [bool] <is player alive in battle>
+	Each player in the model is dict object which must have at least following key/values:
+	 * "id": [int] <player id>
+	 * "name": [string] <player name>
+	 * "is_me": [bool] <is self player>
 
-			With source 'teamspeak' the dict must have entry:
-				"speaking": [bool] <is player speaking>
+	With source 'battle' the dict must have following entries:
+	 * "vehicle_id": [int] <vehicle id in battle>
+	 * "is_alive": [bool] <is player alive in battle>
+
+	With source 'voice' the dict must have entry:
+	 * "speaking": [bool] <is player speaking>
 	"""
 
 	def __init__(self):
-		super(PlayerNotificationsMixin, self).__init__()
+		super(PlayerModelProvider, self).__init__()
 
-	def on_player_added(self, source, player):
+	def has_player_model(self, name):
 		"""
-		Called when a 'player' is added to a 'source'.
+		Returns true if this plugin has a player model matching given 'name'.
+		False otherwise.
 		"""
 		pass
 
-	def on_player_modified(self, source, player):
+	def get_player_model(self, name):
 		"""
-		Called when a 'player' has changed in 'source'.
+		Returns player model object matching to given 'name'.
 		"""
 		pass
 
-	def on_player_removed(self, source, player):
+class UserModelProvider(object):
+	"""
+	This class is an interface for getting voice chat user models from other plugins.
+	Each user is stored into the model with a key which is same as user's "id" value.
+
+	Each user in the model is a dict object which must have following key/values:
+	 * "id": [int] <user id, e.g server id + client id in case of teamspeak>
+	 * "identity": [string] <id which identifies user, multiple users may have same identity>
+	 * "name": [string] <user name>
+	 * "game_name": [string] <name in game if available, empty string if not>
+	 * "is_speaking": [bool] <is user speaking or not>
+	 * "is_me": [bool] <is self user>
+	"""
+
+	def __init__(self):
+		super(UserModelProvider, self).__init__()
+
+	def has_user_model(self):
 		"""
-		Called when a 'player' has been removed from 'source'.
+		Returns true if this plugin has a user model.
+		False otherwise.
+		"""
+		pass
+
+	def get_user_model(self):
+		"""
+		Returns user model object.
 		"""
 		pass
 
@@ -87,42 +118,6 @@ class SettingsMixin(object):
 	def get_settings_content(self):
 		pass
 
-class VoiceUserNotificationsMixin(object):
-	"""
-	Has notification callbacks which are called when voice users are found, changed or lost.
-
-	Arguments:
-		user - a dict object which must have following key/values:
-			"id": [int] <user id, e.g server id + client id in case of teamspeak>
-			"identity": [string] <id which identifies user, multiple users may have same identity>
-			"name": [string] <user name>
-			"game_name": [string] <name in game if available, empty string if not>
-			"is_speaking": [bool] <is user speaking or not>
-			"is_me": [bool] <is self user>
-
-	"""
-
-	def __init__(self):
-		super(PlayerNotificationsMixin, self).__init__()
-
-	def on_voice_user_added(self, user):
-		"""
-		Called when a 'user' has been added.
-		"""
-		pass
-
-	def on_voice_user_modified(self, user):
-		"""
-		Called when a 'user' has changed.
-		"""
-		pass
-
-	def on_voice_user_removed(self, user):
-		"""
-		Called when a 'user' has been removed.
-		"""
-		pass
-
 class UserMatchingMixin(object):
 	"""
 	"""
@@ -133,4 +128,23 @@ class UserMatchingMixin(object):
 	def on_user_matched(self, user_identity, player_id):
 		"""
 		"""
+		pass
+
+class VoiceClientListener(object):
+	"""
+	"""
+
+	def __init__(self):
+		super(VoiceClientListener, self).__init__()
+
+	def on_voice_client_connected(self):
+		pass
+
+	def on_voice_client_disconnected(self):
+		pass
+
+	def on_voice_server_connected(self):
+		pass
+
+	def on_voice_server_disconnected(self):
 		pass

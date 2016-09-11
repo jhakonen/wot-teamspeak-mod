@@ -15,12 +15,12 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes, logutils, models
+from gui.mods.tessumod import plugintypes, logutils, models, pluginutils
 from gui.mods.tessumod.adapters.wotgame import MinimapAdapter
 
 logger = logutils.logger.getChild("minimap")
 
-class MinimapPlugin(plugintypes.ModPlugin, plugintypes.PlayerNotificationsMixin, plugintypes.SettingsMixin):
+class MinimapPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 	"""
 	This plugin renders speech notifications to minimap in battle when a player
 	who is in battle speaks in voice chat.
@@ -32,13 +32,12 @@ class MinimapPlugin(plugintypes.ModPlugin, plugintypes.PlayerNotificationsMixin,
 		self.__players = {}
 		self.__enabled = False
 		self.__self_enabled = False
+		self.__filter_model = None
 
-		self.__source_to_model = {
-			"voice": models.PlayerModel(),
-			"battle": models.PlayerModel()
-		}
-
-		self.__filter_model = models.FilterModel(models.CompositeModel(self.__source_to_model.values()))
+	@logutils.trace_call(logger)
+	def initialize(self):
+		self.__filter_model = models.FilterModel(models.CompositeModel(
+			pluginutils.get_player_models(self.plugin_manager, ["battle", "voice"])))
 		self.__filter_model.add_filter(lambda item: self.__enabled)
 		self.__filter_model.add_filter(lambda item: item.get("speaking", False))
 		self.__filter_model.add_filter(lambda item: item.get("is_alive", False))
@@ -47,10 +46,6 @@ class MinimapPlugin(plugintypes.ModPlugin, plugintypes.PlayerNotificationsMixin,
 
 		self.__filter_model.on("added", self.__on_model_added)
 		self.__filter_model.on("removed", self.__on_model_removed)
-
-	@logutils.trace_call(logger)
-	def initialize(self):
-		pass
 
 	@logutils.trace_call(logger)
 	def on_settings_changed(self, section, name, value):
@@ -132,32 +127,8 @@ class MinimapPlugin(plugintypes.ModPlugin, plugintypes.PlayerNotificationsMixin,
 			}
 		}
 
-	@logutils.trace_call(logger)
-	def on_player_added(self, source, player):
-		"""
-		Implemented from PlayerNotificationsMixin.
-		"""
-		if source in self.__source_to_model:
-			self.__source_to_model[source].set(player)
-
-	@logutils.trace_call(logger)
-	def on_player_modified(self, source, player):
-		"""
-		Implemented from PlayerNotificationsMixin.
-		"""
-		if source in self.__source_to_model:
-			self.__source_to_model[source].set(player)
-
-	@logutils.trace_call(logger)
-	def on_player_removed(self, source, player):
-		"""
-		Implemented from PlayerNotificationsMixin.
-		"""
-		if source in self.__source_to_model:
-			self.__source_to_model[source].remove(player["id"])
-
 	def __on_model_added(self, new_player):
 		self.__adapter.set_player_speaking(dict(new_player, in_battle=True), True)
 
 	def __on_model_removed(self, old_player):
-		self.__adapter.set_player_speaking(dict(new_player, in_battle=True), False)
+		self.__adapter.set_player_speaking(dict(old_player, in_battle=True), False)

@@ -33,7 +33,7 @@ class Error(Exception):
 	'''General exception class which wraps anything that might be thrown or
 	returned as error callback argument back to caller.
 	'''
-	
+
 	def __init__(self, message, id=None):
 		self.__message = message
 		self.__id = id
@@ -50,7 +50,7 @@ class Error(Exception):
 	def __str__(self):
 		stack_str = "".join(self.__stack_lines)
 		if self.__id is None:
-			return "{0}TeamSpeak Error: {1}".format(stack_str, self.__message) 
+			return "{0}TeamSpeak Error: {1}".format(stack_str, self.__message)
 		else:
 			return "{0}TeamSpeak Error: {1} ({2})".format(stack_str, self.__message, self.__id)
 
@@ -631,6 +631,7 @@ class ClientQueryServerUsersMixin(object):
 			log.LOG_ERROR("clientlist command failed", error)
 		else:
 			for client in result["clients"]:
+				client["talking"] = client["client_flag_talking"]
 				self.__set_server_user(schandlerid=result["schandlerid"], **client)
 				self.command_clientvariable(
 					schandlerid=result["schandlerid"],
@@ -682,7 +683,7 @@ class ClientQueryServerUsersMixin(object):
 				"client-nickname": None,
 				"client-unique-identifier": None,
 				"client-meta-data": None,
-				"talking": None,
+				"talking": False,
 				"my-channel": None,
 				"is-me": None
 			}
@@ -777,19 +778,16 @@ class ClientQueryCommandsImplMixin(object):
 		def on_success(result):
 			clients = []
 			for item in result["args"]:
-				clients.append({
-					"clid": int(item["clid"]),
-					"cid": int(item["cid"]),
-					"client_nickname": item["client_nickname"],
-					"client_unique_identifier": item["client_unique_identifier"]
-				})
+				item["clid"] = int(item["clid"])
+				item["cid"] = int(item["cid"])
+				clients.append(item)
 			callback(None, {
 				"schandlerid": schandlerid,
 				"clients": clients
 			})
 		def on_error(error):
 			callback(error, None)
-		self.send_command("clientlist", [{"-uid": None}], schandlerid=schandlerid).on("result", on_success).on("error", on_error)
+		self.send_command("clientlist", [{"-uid": None}, {"-voice": None}], schandlerid=schandlerid).on("result", on_success).on("error", on_error)
 
 class ClientQuery(ClientQueryConnectionMixin, EventEmitterMixin, TimerMixin, ClientQuerySendCommandMixin,
 	ClientQueryCommandsImplMixin, ClientQueryEventsMixin, ClientQueryServerConnectionMixin,

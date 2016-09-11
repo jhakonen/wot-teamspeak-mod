@@ -1,0 +1,3 @@
+[Core]
+Name = TeamSpeak ClientQuery Plugin
+Module = tsclientquery

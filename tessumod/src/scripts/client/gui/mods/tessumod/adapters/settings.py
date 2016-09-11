@@ -195,4 +195,4 @@ class SettingsAdapter(object):
 			SettingConstants.MINIMAP_NOTIFY_ACTION          : self.__inifile.get_string("MinimapNotifications", "action", default="attackSender"),
 			SettingConstants.MINIMAP_NOTIFY_REPEAT_INTERVAL : self.__inifile.get_float("MinimapNotifications", "repeat_interval", default=3.5)
 		}
-		self.__app["load-settings"](self.__loaded_values)
+		#self.__app["load-settings"](self.__loaded_values)

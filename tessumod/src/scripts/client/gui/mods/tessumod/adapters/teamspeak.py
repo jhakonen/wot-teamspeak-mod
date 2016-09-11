@@ -47,7 +47,7 @@ class TeamSpeakChatClientAdapter(object):
 
 	def init(self, plugin_filepath):
 		self.__plugin_filepath = os.path.normpath(plugin_filepath)
-		self.__ts.connect()
+		#self.__ts.connect()
 
 	def set_host(self, host):
 		self.__ts.set_host(host)

@@ -162,6 +162,8 @@ class Logger(object):
 			pass
 		except ValueError:
 			pass
+		except IndexError:
+			pass
 		if color is not None:
 			msg = colored(msg, color)
 		if on_new_line or lb_start:

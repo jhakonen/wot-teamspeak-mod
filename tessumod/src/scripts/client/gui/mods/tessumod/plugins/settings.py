@@ -21,6 +21,8 @@ from gui.mods.tessumod.constants import SettingConstants
 from gui.mods.tessumod.infrastructure.inifile import INIFile
 from gui.mods.tessumod.infrastructure.gameapi import Environment
 import os
+import copy
+import BigWorld
 
 logger = logutils.logger.getChild("settings")
 
@@ -55,7 +57,7 @@ class SettingsPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 
 	@logutils.trace_call(logger)
 	def initialize(self):
-		self.__inifile.init()
+		BigWorld.callback(0, self.__inifile.init)
 
 	@logutils.trace_call(logger)
 	def on_settings_changed(self, section, name, value):
@@ -85,22 +87,23 @@ class SettingsPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 		}
 
 	def __on_file_loaded(self):
+		new_values = {}
 		for plugin_info in self.plugin_manager.getPluginsOfCategory("Settings"):
 			content = plugin_info.plugin_object.get_settings_content()
 			for section in content:
 				variables = content[section]["variables"]
 				if variables == "any":
-					value = self.__inifile.get_dict(section, self.__type_to_getter[content[section]["variable_type"]], default={})
-					previous_value = self.__previous_values.get(section)
-					if value != previous_value:
-						plugin_info.plugin_object.on_settings_changed(section, section, value)
-						self.__previous_values[section] = value
+					new_values[(section, section)] = self.__inifile.get_dict(section, self.__type_to_getter[content[section]["variable_type"]], default={})
 				else:
 					for variable in variables:
 						name = variable["name"]
 						default = variable["default"]
-						value = self.__type_to_getter[type(default)](section, name, default=default)
-						previous_value = self.__previous_values.get(section+name)
-						if value != previous_value:
-							plugin_info.plugin_object.on_settings_changed(section, name, value)
-							self.__previous_values[section+name] = value
+						new_values[(section, name)] = self.__type_to_getter[type(default)](section, name, default=default)
+
+		for plugin_info in self.plugin_manager.getPluginsOfCategory("Settings"):
+			for key, value in new_values.iteritems():
+				if value != self.__previous_values.get(key, None):
+					section, name = key
+					plugin_info.plugin_object.on_settings_changed(section, name, value)
+
+		self.__previous_values = new_values

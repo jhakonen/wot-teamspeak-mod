@@ -41,10 +41,11 @@ class ModPluginManager(PluginManager):
 		super(ModPluginManager, self).__init__(
 			categories_filter = {
 				"Plugin": plugintypes.ModPlugin,
-				"PlayerNotifications": plugintypes.PlayerNotificationsMixin,
-				"VoiceUserNotifications": plugintypes.VoiceUserNotificationsMixin,
+				"PlayerModelProvider": plugintypes.PlayerModelProvider,
+				"UserModelProvider": plugintypes.UserModelProvider,
 				"Settings": plugintypes.SettingsMixin,
-				"UserMatching": plugintypes.UserMatchingMixin
+				"UserMatching": plugintypes.UserMatchingMixin,
+				"VoiceClientListener": plugintypes.VoiceClientListener
 			},
 			directories_list = [plugins_dir_path],
 			plugin_locator = ModPluginFileLocator()

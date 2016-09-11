@@ -15,32 +15,25 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes, logutils, models
+from gui.mods.tessumod import plugintypes, logutils, models, gameutils
 from gui.mods.tessumod.infrastructure import gameapi
 from PlayerEvents import g_playerEvents
 import BigWorld
 
 logger = logutils.logger.getChild("playersinbattle")
 
-class PlayersInBattlePlugin(plugintypes.ModPlugin):
+class PlayersInBattlePlugin(plugintypes.ModPlugin, plugintypes.PlayerModelProvider):
 	"""
-	This plugin sends player added/modified/removed events to other plugins
-	while in battle.
-
-	Calls following methods from "PlayerNotifications" category:
-	 * on_player_added:    At start of battle, and when enemies pop out from
-	                       fog of war (e.g. CW)
-	 * on_player_modified: When someone dies
-	 * on_player_removed:  At end of battle
+	This plugin provides a model for other plugins which contains players in battle.
 	"""
 
 	def __init__(self):
 		super(PlayersInBattlePlugin, self).__init__()
-		self.__battle_model = models.PlayerModel()
-		self.__battle_model.on("added", self.__on_model_added)
-		self.__battle_model.on("modified", self.__on_model_modified)
-		self.__battle_model.on("removed", self.__on_model_removed)
+		self.__model = models.Model()
+		self.__model_proxy = models.ImmutableModelProxy(self.__model)
+		self.__killed_vehicles = set()
 		self.__players = {}
+		self.__my_vehicle_id = None
 
 	@property
 	def arena(self):
@@ -51,53 +44,61 @@ class PlayersInBattlePlugin(plugintypes.ModPlugin):
 
 	@logutils.trace_call(logger)
 	def initialize(self):
-		g_playerEvents.onAvatarBecomePlayer += self.on_avatar_become_player
-		g_playerEvents.onAvatarBecomeNonPlayer += self.on_avatar_become_non_player
+		g_playerEvents.onAvatarBecomePlayer += self.__on_avatar_become_player
+		g_playerEvents.onAvatarBecomeNonPlayer += self.__on_avatar_become_non_player
+		g_playerEvents.onAvatarReady += self.__on_avatar_ready
 
 	@logutils.trace_call(logger)
 	def deinitialize(self):
-		g_playerEvents.onAvatarBecomePlayer -= self.on_avatar_become_player
-		g_playerEvents.onAvatarBecomeNonPlayer -= self.on_avatar_become_non_player
+		g_playerEvents.onAvatarBecomePlayer -= self.__on_avatar_become_player
+		g_playerEvents.onAvatarBecomeNonPlayer -= self.__on_avatar_become_non_player
+		g_playerEvents.onAvatarReady -= self.__on_avatar_ready
 
-	def on_avatar_become_player(self):
-		self.arena.onNewVehicleListReceived += self.on_new_vehicle_list_received
-		self.arena.onVehicleAdded += self.on_vehicle_added
-		self.arena.onVehicleKilled += self.on_vehicle_killed
+	@logutils.trace_call(logger)
+	def has_player_model(self, name):
+		"""
+		Implemented from PlayerModelProvider.
+		"""
+		return name == "battle"
 
-	def on_avatar_become_non_player(self):
-		for id in self.__battle_model.keys():
-			self.__battle_model.remove(id)
+	@logutils.trace_call(logger)
+	def get_player_model(self, name):
+		"""
+		Implemented from PlayerModelProvider.
+		"""
+		if self.has_player_model(name):
+			return self.__model_proxy
 
-	def on_new_vehicle_list_received(self):
-		for id in self.__battle_model:
-			self.__battle_model.remove(id)
+	def __on_avatar_become_player(self):
+		self.arena.onNewVehicleListReceived += self.__on_new_vehicle_list_received
+		self.arena.onVehicleAdded += self.__on_vehicle_added
+		self.arena.onVehicleKilled += self.__on_vehicle_killed
+
+	def __on_avatar_become_non_player(self):
+		self.__model.clear()
+
+	def __on_avatar_ready(self):
+		self.__my_vehicle_id = int(BigWorld.player().playerVehicleID)
 		for vehicle_id, vehicle in self.arena.vehicles.iteritems():
-			self.__battle_model.set(self.__vehicle_to_player(vehicle_id, vehicle))
+			self.__model.set(self.__vehicle_to_player(vehicle_id, vehicle))
 
-	def on_vehicle_added(self, vehicle_id):
-		self.__battle_model.set(self.__vehicle_to_player(vehicle_id, self.arena.vehicles[vehicle_id]))
+	def __on_new_vehicle_list_received(self):
+		self.__model.clear()
+		for vehicle_id, vehicle in self.arena.vehicles.iteritems():
+			self.__model.set(self.__vehicle_to_player(vehicle_id, vehicle))
 
-	def on_vehicle_killed(self, vehicle_id, *args, **kwargs):
-		id = int(self.arena.vehicles[vehicle_id]["accountDBID"])
-		self.__battle_model.set(dict(self.__battle_model[id], is_alive=False))
+	def __on_vehicle_added(self, vehicle_id):
+		self.__model.set(self.__vehicle_to_player(vehicle_id, self.arena.vehicles[vehicle_id]))
+
+	def __on_vehicle_killed(self, vehicle_id, *args, **kwargs):
+		self.__killed_vehicles.add(int(vehicle_id))
+		self.__model.set(self.__vehicle_to_player(vehicle_id, self.arena.vehicles[vehicle_id]))
 
 	def __vehicle_to_player(self, vehicle_id, vehicle):
 		return dict(
 			name       = str(vehicle["name"]),
 			id         = int(vehicle["accountDBID"]),
 			vehicle_id = int(vehicle_id),
-			is_alive   = True,
-			is_me      = int(vehicle["accountDBID"]) == int(gameapi.Player.get_my_dbid())
+			is_alive   = int(vehicle_id) not in self.__killed_vehicles,
+			is_me      = int(vehicle_id) == self.__my_vehicle_id
 		)
-
-	def __on_model_added(self, new_item):
-		for plugin_info in self.plugin_manager.getPluginsOfCategory("PlayerNotifications"):
-			plugin_info.plugin_object.on_player_added("battle", dict(new_item))
-
-	def __on_model_modified(self, old_item, new_item):
-		for plugin_info in self.plugin_manager.getPluginsOfCategory("PlayerNotifications"):
-			plugin_info.plugin_object.on_player_modified("battle", dict(new_item))
-
-	def __on_model_removed(self, old_item):
-		for plugin_info in self.plugin_manager.getPluginsOfCategory("PlayerNotifications"):
-			plugin_info.plugin_object.on_player_removed("battle", dict(old_item))

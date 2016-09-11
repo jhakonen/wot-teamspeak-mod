@@ -15,83 +15,59 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes, logutils, models
+from gui.mods.tessumod import plugintypes, logutils, models, pluginutils
 import re
 from operator import or_
 
-logger = logutils.logger.getChild("pairing")
+logger = logutils.logger.getChild("playerspeaking")
 
-class PlayerSpeaking(plugintypes.ModPlugin, plugintypes.PlayerNotificationsMixin,
-	plugintypes.VoiceUserNotificationsMixin, plugintypes.UserMatchingMixin):
+class PlayerSpeaking(plugintypes.ModPlugin, plugintypes.UserMatchingMixin,
+	plugintypes.PlayerModelProvider):
 	"""
 	This plugin ...
 	"""
 
 	def __init__(self):
 		super(PlayerSpeaking, self).__init__()
-		self.__source_to_model = {
-			"battle": models.PlayerModel(),
-			"prebattle": models.PlayerModel()
-		}
-		self.__all_player_model = models.CompositeModel(self.__source_to_model.values())
-		self.__voice_user_model = models.PlayerModel()
-		self.__voice_player_model = models.PlayerModel()
+		self.__model = models.Model()
+		self.__model_proxy = models.ImmutableModelProxy(self.__model)
 		self.__matches = {}
+		self.__all_player_model = None
+		self.__user_model = None
 
 	@logutils.trace_call(logger)
 	def initialize(self):
-		pass
+		self.__all_player_model = models.CompositeModel(
+			pluginutils.get_player_models(self.plugin_manager, ["battle", "prebattle"]))
+		self.__all_player_model.on('added', self.__on_player_added)
+		self.__all_player_model.on('removed', self.__on_player_removed)
+
+		for plugin_info in self.plugin_manager.getPluginsOfCategory("UserModelProvider"):
+			if plugin_info.plugin_object.has_user_model():
+				self.__user_model = plugin_info.plugin_object.get_user_model()
+
+		self.__user_model.on("added", self.__on_user_added)
+		self.__user_model.on("modified", self.__on_user_modified)
+		self.__user_model.on("removed", self.__on_user_removed)
 
 	@logutils.trace_call(logger)
 	def deinitialize(self):
 		pass
 
 	@logutils.trace_call(logger)
-	def on_player_added(self, source, player):
+	def has_player_model(self, name):
 		"""
-		Implemented from PlayerNotificationsMixin.
+		Implemented from PlayerModelProvider.
 		"""
-		if source in self.__source_to_model:
-			self.__source_to_model[source].set(player)
+		return name == "voice"
 
 	@logutils.trace_call(logger)
-	def on_player_modified(self, source, player):
+	def get_player_model(self, name):
 		"""
-		Implemented from PlayerNotificationsMixin.
+		Implemented from PlayerModelProvider.
 		"""
-		if source in self.__source_to_model:
-			self.__source_to_model[source].set(player)
-
-	@logutils.trace_call(logger)
-	def on_player_removed(self, source, player):
-		"""
-		Implemented from PlayerNotificationsMixin.
-		"""
-		if source in self.__source_to_model:
-			self.__source_to_model[source].remove(player["id"])
-
-	@logutils.trace_call(logger)
-	def on_voice_user_added(self, new_user):
-		"""
-		Implemented from VoiceUserNotificationsMixin.
-		"""
-		self.__voice_user_model.set(new_user)
-
-	@logutils.trace_call(logger)
-	def on_voice_user_modified(self, old_user, new_user):
-		"""
-		Implemented from VoiceUserNotificationsMixin.
-		"""
-		self.__voice_user_model.set(new_user)
-		if old_user["speaking"] != new_user["speaking"] and new_user["identity"] in self.__matches:
-			self.__repopulate_voice_players()
-
-	@logutils.trace_call(logger)
-	def on_voice_user_removed(self, old_user):
-		"""
-		Implemented from VoiceUserNotificationsMixin.
-		"""
-		self.__voice_user_model.remove(old_user["id"])
+		if self.has_player_model(name):
+			return self.__model_proxy
 
 	@logutils.trace_call(logger)
 	def on_user_matched(self, user_identity, player_id):
@@ -101,30 +77,55 @@ class PlayerSpeaking(plugintypes.ModPlugin, plugintypes.PlayerNotificationsMixin
 		self.__matches.setdefault(user_identity, set()).add(player_id)
 		self.__repopulate_voice_players()
 
+	@logutils.trace_call(logger)
+	def __on_player_added(self, player):
+		self.__repopulate_voice_players()
+
+	@logutils.trace_call(logger)
+	def __on_player_removed(self, player):
+		self.__repopulate_voice_players()
+
+	@logutils.trace_call(logger)
+	def __on_user_added(self, user):
+		self.__repopulate_voice_players()
+
+	@logutils.trace_call(logger)
+	def __on_user_modified(self, old_user, new_user):
+		if old_user["is_speaking"] != new_user["is_speaking"] and new_user["identity"] in self.__matches:
+			self.__repopulate_voice_players()
+
+	@logutils.trace_call(logger)
+	def __on_user_removed(self, user):
+		self.__repopulate_voice_players()
+
 	def __repopulate_voice_players(self):
 		pairs = reduce(self.__matches_to_pairs, self.__matches.iteritems(), [])
 		pairs = reduce(self.__add_model_data_to_pairs, pairs, [])
 		players = reduce(self.__combine_pairs, pairs, {})
-		self.__voice_player_model.set_all(players.itervalues())
+		logger.debug("PLAYERS: %s", repr(players.values()))
+		self.__model.set_all(players.values())
 
-	def __matches_to_pairs(results, match):
+	def __matches_to_pairs(self, results, match):
 		identity, player_ids = match
 		for player_id in player_ids:
 			results.append((identity, player_id))
+		return results
 
-	def __add_model_data_to_pairs(results, pair):
+	def __add_model_data_to_pairs(self, results, pair):
 		player = self.__all_player_model.get(pair[1])
 		if player:
-			for user in self.__user_model:
+			for user in self.__user_model.itervalues():
 				if user["identity"] == pair[0]:
 					results.append((user, player))
+		return results
 
-	def __combine_pairs(players, pair):
+	def __combine_pairs(self, players, pair):
 		user, player = pair
 		players.setdefault(player["id"], {
 			"id": player["id"],
 			"name": player["name"],
 			"speaking": False
 		})
-		players[player["id"]]["speaking"] |= user["speaking"]
+		players[player["id"]]["speaking"] |= user["is_speaking"]
+		return players
 

@@ -30,6 +30,9 @@ from tessumod.interactors import (Initialize, LoadSettings, CacheChatUser, PairC
 	PopulateUserCacheWithPlayers)
 from tessumod.pluginmanager import ModPluginManager
 import logging
+import logging.config
+import os
+from tessumod import logutils
 
 plugin_manager = None
 
@@ -38,6 +41,9 @@ def init():
 
 	try:
 		log.install_logger_impl(gameapi.Logger)
+		logutils.init(os.path.join(gameapi.Environment.find_res_mods_version_path(),
+			"..", "configs", "tessu_mod", "logging.ini"))
+
 		timer.set_eventloop(gameapi.EventLoop)
 
 		app = {
@@ -65,7 +71,8 @@ def init():
 		[di.install_provider(interactor) for interactor in app.itervalues()]
 
 		for name, cls in app.iteritems():
-			app[name] = create_executable(cls)
+			#app[name] = create_executable(cls)
+			app[name] = noop
 
 		di.provide("settings",      SettingsAdapter(app))
 		di.provide("minimap",       MinimapAdapter())
@@ -85,9 +92,6 @@ def init():
 			print "TessuMod development version"
 
 		app["initialize"]()
-
-		logging.getLogger("yapsy").setLevel("WARN")
-		#logging.getLogger("yapsy").setLevel(logging.DEBUG)
 
 		plugin_manager = ModPluginManager()
 		plugin_manager.collectPlugins()
@@ -109,3 +113,6 @@ def create_executable(cls):
 	def execute(*args, **kwargs):
 		return cls().execute(*args, **kwargs)
 	return execute
+
+def noop(*args, **kwargs):
+	pass
