@@ -20,6 +20,17 @@ import BigWorld
 
 logger = logutils.logger.getChild("settingsui")
 
+# =============================================================================
+#                          IMPLEMENTATION MISSING
+#  - Passing content description to flash
+#  - Passing user cache data to flash
+#  - Passing ignored message info to flash
+#  - Showing the settings ui
+#  - Showing button in ui for opening the settings ui
+#  - Handling events from flash (ok, apply, cancel, changes in controls)
+#  - Creating, restoring and deleting snapshots
+# =============================================================================
+
 class SettingsUIPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 	"""
 	This plugin...

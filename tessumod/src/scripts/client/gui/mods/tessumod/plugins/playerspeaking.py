@@ -23,6 +23,12 @@ import BigWorld
 
 logger = logutils.logger.getChild("playerspeaking")
 
+# =============================================================================
+#                          IMPLEMENTATION MISSING
+#  - Add ability to remove matches (called from settingsui)
+#  - snapshot interface
+# =============================================================================
+
 class PlayerSpeaking(plugintypes.ModPlugin, plugintypes.SettingsMixin,
 	plugintypes.SettingsUIProvider, plugintypes.UserMatchingMixin,
 	plugintypes.PlayerModelProvider):

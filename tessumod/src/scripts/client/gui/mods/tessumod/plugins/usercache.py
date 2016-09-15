@@ -22,6 +22,13 @@ from BattleReplay import BattleReplay
 
 logger = logutils.logger.getChild("usercache")
 
+# =============================================================================
+#                          IMPLEMENTATION MISSING
+#  - Finish reading & writing into file
+#  - Create and expose "cached" player and user model
+#  - Snapshot interface
+# =============================================================================
+
 DEFAULT_INI = """
 ; This file stores paired TeamSpeak users and WOT players. When TessuMod
 ; manages to match a TeamSpeak user to a WOT player ingame it stores the match

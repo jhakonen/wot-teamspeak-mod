@@ -26,6 +26,13 @@ import BigWorld
 
 logger = logutils.logger.getChild("settings")
 
+# =============================================================================
+#                          IMPLEMENTATION MISSING
+#  - Add writing into file
+#  - Add creation of default file
+#  - Snapshot interface
+# =============================================================================
+
 class SettingsPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintypes.SettingsUIProvider):
 	"""
 	This plugin loads settings from tessu_mod.ini file and writes a default
