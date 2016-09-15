@@ -20,7 +20,7 @@ from gui.mods.tessumod.adapters.wotgame import MinimapAdapter
 
 logger = logutils.logger.getChild("minimap")
 
-class MinimapPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
+class MinimapPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintypes.SettingsUIProvider):
 	"""
 	This plugin renders speech notifications to minimap in battle when a player
 	who is in battle speaks in voice chat.
@@ -115,7 +115,7 @@ class MinimapPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 					},
 					{
 						"name": "repeat_interval",
-						"default": 2,
+						"default": 2.0,
 						"help": """
 							Define repeat interval (in seconds) of the notification animation.
 							Adjust this until the animation animates continuously while someone is
@@ -125,6 +125,49 @@ class MinimapPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 
 				]
 			}
+		}
+
+	def get_settingsui_content(self):
+		"""
+		Implemented from SettingsUIProvider.
+		"""
+		return {
+			"Minimap Settings": [
+				{
+					"label": "Enabled",
+					"help": "Enable or disable speak notifications in minimap",
+					"type": "checkbox",
+					"variable": ("MinimapNotifications", "enabled")
+				},
+				{
+					"label": "Enabled for self",
+					"help": "Enable or disable notifications when you're speaking",
+					"type": "checkbox",
+					"variable": ("MinimapNotifications", "self_enabled")
+				},
+				{
+					"label": "Notification animation",
+					"help": """Select an animation type which is used in minimap
+					to display the speak notification""",
+					"type": "dropdown",
+					"variable": ("MinimapNotifications", "action"),
+					"choices": [
+						"attack", "attackSPG", "attackSender", "attackSenderSPG",
+						"enemySPG", "firstEnemy", "follow_me", "follow_meSPG", "help_me",
+						"help_meSPG", "help_me_ex", "help_me_exSPG", "negative",
+						"negativeSPG", "positive", "positiveSPG", "reloading_gun",
+						"reloading_gunSPG", "stop", "stopSPG", "turn_back", "turn_backSPG"
+					]
+				},
+				{
+					"label": "Enabled for self",
+					"help": """Defines repeat interval (in seconds) of the notification
+						animation. Adjust this until the animation animates continuously
+						while someone is speaking.""",
+					"type": "combobox",
+					"variable": ("MinimapNotifications", "repeat_interval")
+				}
+			]
 		}
 
 	def __on_model_added(self, new_player):

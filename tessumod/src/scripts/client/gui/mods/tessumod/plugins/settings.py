@@ -26,7 +26,7 @@ import BigWorld
 
 logger = logutils.logger.getChild("settings")
 
-class SettingsPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
+class SettingsPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintypes.SettingsUIProvider):
 	"""
 	This plugin loads settings from tessu_mod.ini file and writes a default
 	file when the config file is missing.
@@ -84,6 +84,22 @@ class SettingsPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 					}
 				]
 			}
+		}
+
+	def get_settingsui_content(self):
+		"""
+		Implemented from SettingsUIProvider.
+		"""
+		return {
+			"General Settings": [
+				{
+					"label": "Config poll interval",
+					"help": """Interval (as seconds) that this ini-file is checked
+						for modifications, and reloaded if modified.""",
+					"type": "combobox",
+					"variable": ("General", "ini_check_interval")
+				}
+			]
 		}
 
 	def __on_file_loaded(self):
