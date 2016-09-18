@@ -337,8 +337,9 @@ class MinimapMarkerAnimation(object):
 
 	def _updateMinimap(self):
 		try:
-			g_sessionProvider.shared.feedback.onMinimapFeedbackReceived(
-				FEEDBACK_EVENT_ID.MINIMAP_SHOW_MARKER, self._vehicle_id, self._action)
+			if g_sessionProvider.shared.feedback:
+				g_sessionProvider.shared.feedback.onMinimapFeedbackReceived(
+					FEEDBACK_EVENT_ID.MINIMAP_SHOW_MARKER, self._vehicle_id, self._action)
 		except AttributeError:
 			LOG_CURRENT_EXCEPTION()
 
