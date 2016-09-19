@@ -39,7 +39,6 @@
 
 #include <AL/al.h>
 #include <AL/alc.h>
-#include <public_definitions.h>
 #include <QString>
 
 #ifndef ALC_HRTF_SOFT

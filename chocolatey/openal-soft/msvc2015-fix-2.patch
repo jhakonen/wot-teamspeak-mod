@@ -1,0 +1,25 @@
+From ed3f32b087b346340eab4747e7dd9284b76437c4 Mon Sep 17 00:00:00 2001
+From: Chris Robinson <chris.kcat@gmail.com>
+Date: Sun, 7 Jun 2015 12:01:15 -0700
+Subject: [PATCH] Don't define struct timespec with VS2015
+
+---
+ include/threads.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/threads.h b/include/threads.h
+index 75eeb13..a11405f 100644
+--- a/include/threads.h
++++ b/include/threads.h
+@@ -33,7 +33,7 @@ typedef void (*altss_dtor_t)(void*);
+ #include <windows.h>
+ 
+ 
+-#ifndef _TIMESPEC_DEFINED
++#if !defined(_TIMESPEC_DEFINED) && !(defined(_MSC_VER) && (_MSC_VER >= 1900))
+ #define _TIMESPEC_DEFINED
+ struct timespec {
+     time_t tv_sec;
+-- 
+2.5.3.windows.1
+

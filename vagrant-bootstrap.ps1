@@ -22,7 +22,7 @@ $REPOPATH               = "C:\vagrant"
 $WOTPATH                = "C:\world_of_tanks"
 $LOCALCHOCOREPOPATH     = "$REPOPATH\chocolatey-repo"
 $PYTHONSCRIPTSPATH      = "C:\tools\python2\Scripts"
-$MSVCPATH               = "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC"
+$MSVCPATH               = "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC"
 $TSCLIENTPATH           = "C:\Program Files\TeamSpeak 3 Client\ts3client_win64.exe"
 $TSCLIENTDBPATH         = "$env:appdata\TS3Client\settings.db"
 $IDENTITYPATH           = "$env:appdata\TS3Client\ts3clientui_qt.secrets.conf"
@@ -102,7 +102,8 @@ choco source add --name=local --source=$LOCALCHOCOREPOPATH
 
 Write-Host "Installing packages with Chocolatey..."
 # See https://chocolatey.org/packages
-choco install visualstudioexpress2013windowsdesktop --version 12.0.21005.1 -y --allow-empty-checksums
+choco install visualstudio2015community --version 2015.03.02 -y -packageParameters `
+    "--AdminFile $REPOPATH\chocolatey\VisualStudio2015AdminDeployment.xml" --execution-timeout 5400
 choco install jom --version 1.1.1 -y
 choco install 7zip --version 16.02 -y --allow-empty-checksums
 choco install python2 --version 2.7.11 -y
@@ -126,7 +127,7 @@ if (-Not (Test-ChocoLocalPackageExists qt-everywhere-opensource)) {
 }
 
 # Install Qt libraries
-choco install qt-everywhere-opensource --version 5.5.1 -y
+choco install qt-everywhere-opensource --version 5.6.1 -y
 
 # Create Chocolatey package for OpenAL Soft
 if (-Not (Test-ChocoLocalPackageExists openal-soft)) {

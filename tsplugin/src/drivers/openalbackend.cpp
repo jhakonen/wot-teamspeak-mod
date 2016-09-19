@@ -36,6 +36,7 @@
 #include <QPointer>
 #include <QSet>
 #include <QFileSystemWatcher>
+#include <QMutex>
 
 #include <iostream>
 

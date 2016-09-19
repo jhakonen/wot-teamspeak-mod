@@ -1,0 +1,26 @@
+From 5543000c5b15eb14217e9f9e817377da6d786c2e Mon Sep 17 00:00:00 2001
+From: Chris Robinson <chris.kcat@gmail.com>
+Date: Sun, 7 Jun 2015 11:14:03 -0700
+Subject: [PATCH] Check for snprintf in stdio.h
+
+This works better for VS2015, which adds support for the function.
+---
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 80bcadb..58582f8 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -421,7 +421,7 @@ IF(NOT HAVE_STRNCASECMP)
+     ADD_DEFINITIONS(-Dstrncasecmp=_strnicmp)
+ ENDIF()
+ 
+-CHECK_FUNCTION_EXISTS(snprintf HAVE_SNPRINTF)
++CHECK_SYMBOL_EXISTS(snprintf stdio.h HAVE_SNPRINTF)
+ IF(NOT HAVE_SNPRINTF)
+     CHECK_FUNCTION_EXISTS(_snprintf HAVE__SNPRINTF)
+     IF(NOT HAVE__SNPRINTF)
+-- 
+2.5.3.windows.1
+
