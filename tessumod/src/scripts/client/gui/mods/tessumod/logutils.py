@@ -23,7 +23,7 @@ import sys
 import traceback
 import BWLogging
 
-logger = None
+logger = logging.getLogger("tessumod")
 
 def trace_call(logger, level=logging.DEBUG):
 	"""
@@ -58,7 +58,6 @@ class LogRedirectionHandler(logging.Handler):
 
 def init(config_path):
 	global logger
-	logger = logging.getLogger("tessumod")
 	yapsy_logger = logging.getLogger("yapsy")
 	if os.path.exists(config_path):
 		logging.config.fileConfig(config_path, disable_existing_loggers=False)

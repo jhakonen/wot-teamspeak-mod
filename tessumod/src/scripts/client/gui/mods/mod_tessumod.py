@@ -32,7 +32,7 @@ from tessumod.pluginmanager import ModPluginManager
 import logging
 import logging.config
 import os
-from tessumod import logutils
+from tessumod import logutils, migrate
 
 plugin_manager = None
 
@@ -93,6 +93,8 @@ def init():
 
 		app["initialize"]()
 
+		migrate.migrate()
+
 		plugin_manager = ModPluginManager()
 		plugin_manager.collectPlugins()
 		for plugin_info in plugin_manager.getAllPlugins():
@@ -100,8 +102,6 @@ def init():
 			plugin_info.plugin_object.plugin_manager = plugin_manager
 		for plugin_info in plugin_manager.getAllPlugins():
 			plugin_info.plugin_object.initialize()
-		for plugin_info in plugin_manager.getAllPlugins():
-			plugin_info.plugin_object.migrate()
 
 	except:
 		log.LOG_CURRENT_EXCEPTION()

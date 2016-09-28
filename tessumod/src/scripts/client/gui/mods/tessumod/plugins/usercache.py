@@ -65,41 +65,6 @@ class UserCachePlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin,
 		if self.__has_cache_file():
 			self.__import_cache_structure(self.__load_cache_file())
 
-	def migrate(self):
-		"""
-		Migrates old tessu_mod_cache.ini to a new format. Removes file if migration is successful.
-		"""
-		old_ini_filepath = os.path.join(Environment.find_res_mods_version_path(), "..", "configs", "tessu_mod", "tessu_mod_cache.ini")
-		if os.path.isfile(old_ini_filepath):
-			logger.info("Migrating old cache file: {0}".format(old_ini_filepath))
-			with open(old_ini_filepath, "rb") as file:
-				parser = ConfigParser.ConfigParser()
-				parser.readfp(file)
-				for name, id in parser.items("TeamSpeakUsers"):
-					if id not in self.__cached_user_model:
-						self.__cached_user_model.set({
-							"id": id,
-							"names": [name]
-						})
-				for name, id in parser.items("GamePlayers"):
-					id = int(id)
-					if id not in self.__cached_player_model:
-						self.__cached_player_model.set({
-							"id": id,
-							"name": name
-						})
-				for user_name, player_names in parser.items("UserPlayerPairings"):
-					for player_name in list(csv.reader([player_names]))[0]:
-						for plugin_info in self.plugin_manager.getPluginsOfCategory("UserCache"):
-							plugin_info.plugin_object.add_pairing(
-								parser.get("TeamSpeakUsers", user_name),
-								parser.getint("GamePlayers", player_name)
-							)
-			if self.__save_cache_file(self.__export_cache_structure()):
-				# TODO: enable
-				# os.remove(old_ini_filepath)
-				pass
-
 	@logutils.trace_call(logger)
 	def deinitialize(self):
 		# write to cache file

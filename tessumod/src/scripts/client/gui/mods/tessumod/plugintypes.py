@@ -36,9 +36,6 @@ class ModPlugin(IPlugin.IPlugin):
 	def deinitialize(self):
 		pass
 
-	def migrate(self):
-		pass
-
 class PlayerModelProvider(object):
 	"""
 	This class is an interface for getting player models from other plugins.
