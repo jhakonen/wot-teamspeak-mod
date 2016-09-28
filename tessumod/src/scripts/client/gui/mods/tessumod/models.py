@@ -106,8 +106,9 @@ class ImmutableDict(collections.Mapping):
 
 class CompositeModel(collections.Mapping, EventEmitterMixin):
 
-	def __init__(self, source_models):
+	def __init__(self, combiner, source_models):
 		super(CompositeModel, self).__init__()
+		self.__combiner = combiner
 		self.__source_models = source_models
 		self.__composite_items = {}
 		for model in source_models:
@@ -119,7 +120,7 @@ class CompositeModel(collections.Mapping, EventEmitterMixin):
 		id = new_item["id"]
 		if id in self.__composite_items:
 			old_composite_item = dict(self.__composite_items[id])
-			self.__composite_items[id].update(new_item)
+			self.__composite_items[id] = self.__combiner(self.__composite_items[id], new_item)
 			if old_composite_item != self.__composite_items[id]:
 				self.emit("modified", ImmutableDict(old_composite_item), ImmutableDict(self.__composite_items[id]))
 		else:
@@ -129,7 +130,7 @@ class CompositeModel(collections.Mapping, EventEmitterMixin):
 	def __on_source_model_modified(self, old_item, new_item):
 		id = old_item["id"]
 		old_composite_item = dict(self.__composite_items[id])
-		self.__composite_items[id].update(new_item)
+		self.__composite_items[id] = self.__combiner(self.__composite_items[id], new_item)
 		if old_composite_item != self.__composite_items[id]:
 			self.emit("modified", ImmutableDict(old_composite_item), ImmutableDict(self.__composite_items[id]))
 
@@ -139,7 +140,7 @@ class CompositeModel(collections.Mapping, EventEmitterMixin):
 			return
 		new_composite_item = {}
 		for model in self.__source_models:
-			new_composite_item.update(model.get(id, {}))
+			new_composite_item = self.__combiner(new_composite_item, model.get(id, {}))
 		if new_composite_item:
 			if new_composite_item != self.__composite_items[id]:
 				old_composite_item = self.__composite_items[id]

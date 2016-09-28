@@ -44,8 +44,10 @@ class ModPluginManager(PluginManager):
 				"PlayerModelProvider": plugintypes.PlayerModelProvider,
 				"UserModelProvider": plugintypes.UserModelProvider,
 				"Settings": plugintypes.SettingsMixin,
-				"UserMatching": plugintypes.UserMatchingMixin,
-				"VoiceClientListener": plugintypes.VoiceClientListener
+				"SettingsUIProvider": plugintypes.SettingsUIProvider,
+				"UserCache": plugintypes.UserCache,
+				"VoiceClientListener": plugintypes.VoiceClientListener,
+				"SnapshotProvider": plugintypes.SnapshotProvider
 			},
 			directories_list = [plugins_dir_path],
 			plugin_locator = ModPluginFileLocator()

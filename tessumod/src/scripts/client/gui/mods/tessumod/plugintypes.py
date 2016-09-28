@@ -36,6 +36,9 @@ class ModPlugin(IPlugin.IPlugin):
 	def deinitialize(self):
 		pass
 
+	def migrate(self):
+		pass
+
 class PlayerModelProvider(object):
 	"""
 	This class is an interface for getting player models from other plugins.
@@ -47,6 +50,7 @@ class PlayerModelProvider(object):
 	 * friends
 	 * clanmembers
 	 * voice
+	 * cache
 
 	Each player in the model is dict object which must have at least following key/values:
 	 * "id": [int] <player id>
@@ -82,11 +86,16 @@ class UserModelProvider(object):
 	This class is an interface for getting voice chat user models from other plugins.
 	Each user is stored into the model with a key which is same as user's "id" value.
 
+	Possible model names include:
+	 * voice
+	 * cache
+
 	Each user in the model is a dict object which must have following key/values:
-	 * "id": [int] <user id, e.g server id + client id in case of teamspeak>
-	 * "identity": [string] <id which identifies user, multiple users may have same identity>
-	 * "name": [string] <user name>
-	 * "game_name": [string] <name in game if available, empty string if not>
+	 * "id": [string] <id which identifies user, multiple users may have same identity>
+	 * "names": [list of strings] <user names>
+
+	With source 'voice' the dict must have following entries:
+	 * "game_name": [list of strings] <names in game if available, empty list if not>
 	 * "is_speaking": [bool] <is user speaking or not>
 	 * "is_me": [bool] <is self user>
 	"""
@@ -94,16 +103,16 @@ class UserModelProvider(object):
 	def __init__(self):
 		super(UserModelProvider, self).__init__()
 
-	def has_user_model(self):
+	def has_user_model(self, name):
 		"""
-		Returns true if this plugin has a user model.
+		Returns true if this plugin has a user model matching given 'name'.
 		False otherwise.
 		"""
 		pass
 
-	def get_user_model(self):
+	def get_user_model(self, name):
 		"""
-		Returns user model object.
+		Returns user model object matching to given 'name'.
 		"""
 		pass
 
@@ -118,14 +127,39 @@ class SettingsMixin(object):
 	def get_settings_content(self):
 		pass
 
-class UserMatchingMixin(object):
+class SettingsUIProvider(object):
+
+	def __init__(self):
+		super(SettingsUIProvider, self).__init__()
+
+	def get_settingsui_content(self):
+		"""
+		"""
+		pass
+
+class UserCache(object):
 	"""
 	"""
 
 	def __init__(self):
-		super(UserMatchingMixin, self).__init__()
+		super(UserCache, self).__init__()
 
-	def on_user_matched(self, user_identity, player_id):
+	def add_pairing(self, user_id, player_id):
+		"""
+		"""
+		pass
+
+	def remove_pairing(self, user_id, player_id):
+		"""
+		"""
+		pass
+
+	def reset_pairings(self, pairings):
+		"""
+		"""
+		pass
+
+	def get_pairing_model(self):
 		"""
 		"""
 		pass
@@ -147,4 +181,20 @@ class VoiceClientListener(object):
 		pass
 
 	def on_voice_server_disconnected(self):
+		pass
+
+class SnapshotProvider(object):
+	"""
+	"""
+
+	def __init__(self):
+		super(SnapshotProvider, self).__init__()
+
+	def create_snapshot(self):
+		return "interface-invalid_snapshot"
+
+	def release_snaphot(self, snapshot_name):
+		pass
+
+	def restore_snapshot(self, snapshot_name):
 		pass

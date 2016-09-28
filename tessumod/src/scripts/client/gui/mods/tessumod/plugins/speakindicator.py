@@ -41,8 +41,7 @@ class SpeakIndicatorPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 
 	@logutils.trace_call(logger)
 	def initialize(self):
-		self.__filter_model = models.FilterModel(models.CompositeModel(
-			pluginutils.get_player_models(self.plugin_manager, ["battle", "prebattle", "voice"])))
+		self.__filter_model = models.FilterModel(pluginutils.get_player_model(self.plugin_manager, ["battle", "prebattle", "voice"]))
 		self.__filter_model.add_filter(lambda item: self.__enabled)
 		self.__filter_model.add_filter(lambda item: "speaking" in item)
 		self.__filter_model.add_filter(lambda item: self.__self_enabled or not item["is_me"])
@@ -98,7 +97,7 @@ class SpeakIndicatorPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 	def is_player_id_speaking(self, id):
 		player = self.__filter_model.get(int(id), {})
 		if player:
-			logger.info("User %s is %s", player["name"], "speaking" if player["speaking"] else "not speaking")
+			logger.debug("is_player_id_speaking: User %s is %s", player["name"], "speaking" if player["speaking"] else "not speaking")
 			return player["speaking"]
 		return None
 

@@ -98,7 +98,10 @@ def init():
 		for plugin_info in plugin_manager.getAllPlugins():
 			plugin_manager.activatePluginByName(plugin_info.name)
 			plugin_info.plugin_object.plugin_manager = plugin_manager
+		for plugin_info in plugin_manager.getAllPlugins():
 			plugin_info.plugin_object.initialize()
+		for plugin_info in plugin_manager.getAllPlugins():
+			plugin_info.plugin_object.migrate()
 
 	except:
 		log.LOG_CURRENT_EXCEPTION()

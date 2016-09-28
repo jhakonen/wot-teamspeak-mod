@@ -30,8 +30,7 @@ logger = logutils.logger.getChild("playerspeaking")
 # =============================================================================
 
 class PlayerSpeaking(plugintypes.ModPlugin, plugintypes.SettingsMixin,
-	plugintypes.SettingsUIProvider, plugintypes.UserMatchingMixin,
-	plugintypes.PlayerModelProvider):
+	plugintypes.SettingsUIProvider, plugintypes.PlayerModelProvider):
 	"""
 	This plugin ...
 	"""
@@ -40,28 +39,27 @@ class PlayerSpeaking(plugintypes.ModPlugin, plugintypes.SettingsMixin,
 		super(PlayerSpeaking, self).__init__()
 		self.__model = models.Model()
 		self.__model_proxy = models.ImmutableModelProxy(self.__model)
-		self.__matches = {}
 		self.__all_player_model = None
 		self.__user_model = None
 		self.__speak_stop_delay = 0
-		self.__user_identities = {}
 		self.__user_speak_state_timers = {}
 		self.__delayed_user_speak_states = {}
 
 	@logutils.trace_call(logger)
 	def initialize(self):
-		self.__all_player_model = models.CompositeModel(
-			pluginutils.get_player_models(self.plugin_manager, ["battle", "prebattle"]))
-		self.__all_player_model.on('added', self.__on_all_player_added)
-		self.__all_player_model.on('removed', self.__on_all_player_removed)
+		self.__all_player_model = pluginutils.get_player_model(self.plugin_manager, ["battle", "prebattle"])
+		self.__all_player_model.on('added', self.__repopulate_voice_players)
+		self.__all_player_model.on('removed', self.__repopulate_voice_players)
 
-		for plugin_info in self.plugin_manager.getPluginsOfCategory("UserModelProvider"):
-			if plugin_info.plugin_object.has_user_model():
-				self.__user_model = plugin_info.plugin_object.get_user_model()
-
+		self.__user_model = pluginutils.get_user_model(self.plugin_manager, ["voice"])
 		self.__user_model.on("added", self.__on_user_added)
 		self.__user_model.on("modified", self.__on_user_modified)
 		self.__user_model.on("removed", self.__on_user_removed)
+
+		self.__pairing_model = self.plugin_manager.getPluginsOfCategory("UserCache")[0].plugin_object.get_pairing_model()
+		self.__pairing_model.on('added', self.__repopulate_voice_players)
+		self.__pairing_model.on("modified", self.__repopulate_voice_players)
+		self.__pairing_model.on('removed', self.__repopulate_voice_players)
 
 	@logutils.trace_call(logger)
 	def deinitialize(self):
@@ -129,34 +127,16 @@ class PlayerSpeaking(plugintypes.ModPlugin, plugintypes.SettingsMixin,
 			return self.__model_proxy
 
 	@logutils.trace_call(logger)
-	def on_user_matched(self, user_identity, player_id):
-		"""
-		Implemented from UserMatchingMixin.
-		"""
-		self.__matches.setdefault(user_identity, set()).add(player_id)
-		self.__repopulate_voice_players()
-
-	@logutils.trace_call(logger)
-	def __on_all_player_added(self, player):
-		self.__repopulate_voice_players()
-
-	@logutils.trace_call(logger)
-	def __on_all_player_removed(self, player):
-		self.__repopulate_voice_players()
-
-	@logutils.trace_call(logger)
 	def __on_user_added(self, user):
-		id = user["id"]
-		self.__user_identities.setdefault(user["identity"], set()).add(id)
-		self.__delayed_user_speak_states[id] = user["is_speaking"]
+		self.__delayed_user_speak_states[user["id"]] = user["is_speaking"]
 		self.__repopulate_voice_players()
 
 	@logutils.trace_call(logger)
 	def __on_user_modified(self, old_user, new_user):
 		id = new_user["id"]
-		if old_user["is_speaking"] != new_user["is_speaking"] and new_user["identity"] in self.__matches:
+		if old_user["is_speaking"] != new_user["is_speaking"] and id in self.__pairing_model:
 			if id in self.__user_speak_state_timers:
-				BigWorld.cancelTimeout(self.__user_speak_state_timers.pop(id))
+				BigWorld.cancelCallback(self.__user_speak_state_timers.pop(id))
 			if new_user["is_speaking"]:
 				self.__delayed_user_speak_states[id] = True
 			else:
@@ -167,35 +147,30 @@ class PlayerSpeaking(plugintypes.ModPlugin, plugintypes.SettingsMixin,
 	def __on_delayed_speak_stop(self, id):
 		if id in self.__delayed_user_speak_states:
 			self.__delayed_user_speak_states[id] = False
-		self.__user_speak_state_timers.pop(id)
+		self.__user_speak_state_timers.pop(id, None)
 		self.__repopulate_voice_players()
 
 	@logutils.trace_call(logger)
 	def __on_user_removed(self, user):
-		self.__user_identities[user["identity"]].discard(user["id"])
-		self.__delayed_user_speak_states.pop(id)
-		self.__user_speak_state_timers.pop(id)
+		self.__delayed_user_speak_states.pop(user["id"], None)
+		self.__user_speak_state_timers.pop(user["id"], None)
 		self.__repopulate_voice_players()
 
-	def __repopulate_voice_players(self):
-		pairs = reduce(self.__matches_to_pairs, self.__matches.iteritems(), [])
+	@logutils.trace_call(logger)
+	def __repopulate_voice_players(self, *args, **kwargs):
+		pairs = reduce(self.__pairings_to_pairs, self.__pairing_model.itervalues(), [])
 		pairs = reduce(self.__add_model_data_to_pairs, pairs, [])
 		players = reduce(self.__combine_pairs, pairs, {})
-		logger.debug("PLAYERS: %s", repr(players.values()))
 		self.__model.set_all(players.values())
 
-	def __matches_to_pairs(self, results, match):
-		identity, player_ids = match
-		for player_id in player_ids:
-			results.append((identity, player_id))
-		return results
+	def __pairings_to_pairs(self, results, pairing):
+		return results + [(pairing["id"], player_id) for player_id in pairing["player_ids"]]
 
 	def __add_model_data_to_pairs(self, results, pair):
 		player = self.__all_player_model.get(pair[1])
 		if player:
-			for user_id in self.__user_identities.get(pair[0], []):
-				speaking = self.__delayed_user_speak_states.get(user_id, False)
-				results.append((speaking, player))
+			speaking = self.__delayed_user_speak_states.get(pair[0], False)
+			results.append((speaking, player))
 		return results
 
 	def __combine_pairs(self, players, pair):

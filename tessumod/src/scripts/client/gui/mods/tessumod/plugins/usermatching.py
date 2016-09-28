@@ -17,11 +17,15 @@
 
 from gui.mods.tessumod import plugintypes, logutils, models, pluginutils
 import re
-from operator import or_
 
 logger = logutils.logger.getChild("usermatching")
 
-class UserMatching(plugintypes.ModPlugin, plugintypes.SettingsMixin):
+# =============================================================================
+#                          IMPLEMENTATION MISSING
+#  - Snapshot interface
+# =============================================================================
+
+class UserMatching(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintypes.UserCache):
 	"""
 	This plugin ...
 	"""
@@ -34,6 +38,8 @@ class UserMatching(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 		self.__name_mappings = {}
 		self.__user_model = None
 		self.__all_player_model = None
+		self.__pairing_model = models.Model()
+		self.__pairing_model_proxy = models.ImmutableModelProxy(self.__pairing_model)
 
 		self.__matchers = [
 			self.__find_matching_with_metadata,
@@ -45,12 +51,9 @@ class UserMatching(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 
 	@logutils.trace_call(logger)
 	def initialize(self):
-		self.__all_player_model = models.CompositeModel(
-			pluginutils.get_player_models(self.plugin_manager, ["battle", "prebattle"]))
+		self.__all_player_model = pluginutils.get_player_model(self.plugin_manager, ["battle", "prebattle"])
 		self.__all_player_model.on("added", self.__on_all_player_model_added)
-		for plugin_info in self.plugin_manager.getPluginsOfCategory("UserModelProvider"):
-			if plugin_info.plugin_object.has_user_model():
-				self.__user_model = plugin_info.plugin_object.get_user_model()
+		self.__user_model = pluginutils.get_user_model(self.plugin_manager, ["voice"])
 		self.__user_model.on("added", self.__on_user_added)
 		self.__user_model.on("modified", self.__on_user_modified)
 
@@ -154,6 +157,46 @@ class UserMatching(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 			}
 		}
 
+	@logutils.trace_call(logger)
+	def add_pairing(self, user_id, player_id):
+		"""
+		Implemented from UserCache.
+		"""
+		if user_id not in self.__pairing_model:
+			self.__pairing_model.set({ "id": user_id, "player_ids": set([player_id]) })
+		else:
+			pairing = dict(self.__pairing_model[user_id])
+			pairing["player_ids"] |= set([player_id])
+			self.__pairing_model.set(pairing)
+
+	@logutils.trace_call(logger)
+	def remove_pairing(self, user_id, player_id):
+		"""
+		Implemented from UserCache.
+		"""
+		if user_id in self.__pairing_model:
+			pairing = dict(self.__pairing_model[user_id])
+			pairing["player_ids"] -= set([player_id])
+			self.__pairing_model.set(pairing)
+
+	def reset_pairings(self, pairings):
+		"""
+		Implemented from UserCache.
+		"""
+		model_pairings_data = {}
+		for pair in pairings:
+			if pair[0] not in model_pairings_data:
+				model_pairings_data[pair[0]] = {"id": pair[0], "player_ids": set()}
+			model_pairings_data[pair[0]]["player_ids"].add(int(pair[1]))
+		self.__pairing_model.set_all(model_pairings_data.values())
+
+	@logutils.trace_call(logger)
+	def get_pairing_model(self):
+		"""
+		Implemented from UserCache.
+		"""
+		return self.__pairing_model_proxy
+
 	def __on_all_player_model_added(self, new_player):
 		self.__match_users_to_players(self.__user_model.values(), [new_player])
 
@@ -161,16 +204,14 @@ class UserMatching(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 		self.__match_users_to_players([new_user], self.__all_player_model.values())
 
 	def __on_user_modified(self, old_user, new_user):
-		if old_user["name"] != new_user["name"] or old_user["game_name"] != new_user["game_name"]:
+		if old_user["names"] != new_user["names"] or old_user["game_names"] != new_user["game_names"]:
 			self.__match_users_to_players([new_user], self.__all_player_model.values())
 
 	def __match_users_to_players(self, users, players):
 		for user, matching_players in self.__find_matching_candidates(users, players):
-			identity = user["identity"]
+			id = user["id"]
 			for player in matching_players:
-				playerid = player["id"]
-				for plugin_info in self.plugin_manager.getPluginsOfCategory("UserMatching"):
-					plugin_info.plugin_object.on_user_matched(identity, playerid)
+				self.add_pairing(id, player["id"])
 
 	def __find_matching_candidates(self, users, players):
 		results = []
@@ -186,11 +227,12 @@ class UserMatching(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 		results = []
 		if not self.__get_wot_nick_from_ts_metadata:
 			return results
-		usergamename = user["game_name"].lower()
-		for player in players:
-			playername = player["name"].lower()
-			if usergamename == playername:
-				results.append(player)
+		for usergamename in user["game_names"]:
+			usergamename = usergamename.lower()
+			for player in players:
+				playername = player["name"].lower()
+				if usergamename == playername:
+					results.append(player)
 		return results
 
 	def __find_matching_with_patterns(self, user, players):
@@ -199,35 +241,40 @@ class UserMatching(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 			return results
 
 		for pattern in self.__nick_extract_patterns:
-			matches = pattern.match(user["name"].lower())
-			if matches is None or not matches.groups():
-				continue
-			extracted_playername = matches.group(1).strip()
-			# find extracted playername from players
-			for player in players:
-				playername = player["name"].lower()
-				if playername == extracted_playername:
-					results.append(player)
+			for username in user["names"]:
+				matches = pattern.match(username.lower())
+				if matches is None or not matches.groups():
+					continue
+				extracted_playername = matches.group(1).strip()
+				# find extracted playername from players
+				for player in players:
+					playername = player["name"].lower()
+					if playername == extracted_playername:
+						results.append(player)
 		return results
 
 	def __find_matching_with_mappings(self, user, players):
 		results = []
-		if user["name"].lower() not in self.__name_mappings:
-			return results
-		playername = self.__name_mappings[user["name"].lower()]
-		for player in players:
-			if player["name"].lower() == playername:
-				return [player]
+		for username in user["names"]:
+			username = username.lower()
+			if username not in self.__name_mappings:
+				return results
+			playername = self.__name_mappings[username]
+			for player in players:
+				if player["name"].lower() == playername:
+					return [player]
 		return results
 
 	def __find_matching_with_name_comparison(self, user, players):
 		results = []
-		if self.__ts_nick_search_enabled:
-			for player in players:
-				if player["name"].lower() in user["name"].lower():
-					results.append(player)
-		else:
-			for player in players:
-				if player["name"].lower() == user["name"].lower():
-					results.append(player)
+		for username in user["names"]:
+			username = username.lower()
+			if self.__ts_nick_search_enabled:
+				for player in players:
+					if player["name"].lower() in username:
+						results.append(player)
+			else:
+				for player in players:
+					if player["name"].lower() == username:
+						results.append(player)
 		return results

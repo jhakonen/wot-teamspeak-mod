@@ -38,6 +38,7 @@ class SettingsUIPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 
 	def __init__(self):
 		super(SettingsUIPlugin, self).__init__()
+		self.__snapshots = []
 
 	@logutils.trace_call(logger)
 	def initialize(self):
@@ -56,6 +57,23 @@ class SettingsUIPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 		Implemented from SettingsMixin.
 		"""
 		return {}
+
+	@logutils.trace_call(logger)
+	def open_ui(self):
+		for plugin_info in self.plugin_manager.getPluginsOfCategory("SnapshotProvider"):
+			self.__snapshots.append(plugin_info.plugin_object.create_snapshot())
+
+	@logutils.trace_call(logger)
+	def on_accepted(self):
+		for plugin_info in self.plugin_manager.getPluginsOfCategory("SnapshotProvider"):
+			for snapshot in self.__snapshots:
+				plugin_info.plugin_object.release_snaphot(snapshot)
+
+	@logutils.trace_call(logger)
+	def on_cancelled(self):
+		for plugin_info in self.plugin_manager.getPluginsOfCategory("SnapshotProvider"):
+			for snapshot in self.__snapshots:
+				plugin_info.plugin_object.restore_snapshot(snapshot)
 
 	def __load_descriptions(self):
 		for plugin_info in self.plugin_manager.getPluginsOfCategory("SettingsUIProvider"):

@@ -36,8 +36,7 @@ class MinimapPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintype
 
 	@logutils.trace_call(logger)
 	def initialize(self):
-		self.__filter_model = models.FilterModel(models.CompositeModel(
-			pluginutils.get_player_models(self.plugin_manager, ["battle", "voice"])))
+		self.__filter_model = models.FilterModel(pluginutils.get_player_model(self.plugin_manager, ["battle", "voice"]))
 		self.__filter_model.add_filter(lambda item: self.__enabled)
 		self.__filter_model.add_filter(lambda item: item.get("speaking", False))
 		self.__filter_model.add_filter(lambda item: item.get("is_alive", False))

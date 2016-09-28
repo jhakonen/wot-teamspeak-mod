@@ -15,110 +15,95 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes, logutils, models
+from gui.mods.tessumod import plugintypes, logutils, pluginutils, models
 from gui.mods.tessumod.infrastructure.inifile import INIFile
 from gui.mods.tessumod.infrastructure.gameapi import Environment
 from BattleReplay import BattleReplay
 
+import os
+import json
+import ConfigParser
+import csv
+import uuid
+import itertools
+
 logger = logutils.logger.getChild("usercache")
 
-# =============================================================================
-#                          IMPLEMENTATION MISSING
-#  - Finish reading & writing into file
-#  - Create and expose "cached" player and user model
-#  - Snapshot interface
-# =============================================================================
-
-DEFAULT_INI = """
-; This file stores paired TeamSpeak users and WOT players. When TessuMod
-; manages to match a TeamSpeak user to a WOT player ingame it stores the match
-; into this file. This allows TessuMod to match users in future even if the
-; player's name changes in TeamSpeak or in game.
-;
-; This file can be modified and changes are automatically loaded even when game
-; is running. The frequency of checks is determined by 'ini_check_interval'
-; option in tessu_mod.ini.
-;
-; This file will not update with new users, players or pairings when playing
-; replays. Although, if modified by user the done changes are still loaded
-; automatically. To enable updates with replays toggle 'update_cache_in_replays'
-; option in tessu_mod.ini to 'on'.
-;
-; All nick names in this cache are stored in lower case, no matter how they are
-; written in WOT or in TeamSpeak. Also, any ini-syntax's reserved characters
-; are replaced with '*'.
-
-
-; TessuMod will populate this section with TeamSpeak users who are in the same
-; TeamSpeak channel with you.
-;
-; The users are stored as key/value pairs where key is user's nick name and
-; value is user's unique id. The nick doesn't have to be the real user nick
-; name, it can be anything. If you modify the nick name, make sure you also
-; update names used in UserPlayerPairings.
-[TeamSpeakUsers]
-
-
-; TessuMod will populate this section with players from your friend and clan
-; member lists. Players are also added when someone speaks in your TeamSpeak
-; channel and TessuMod manages to match the user to player which isn't yet in
-; the cache.
-;
-; The players are stored as key/value pairs where key is player's nick name and
-; value is player's id. The nick doesn't have to be the real player nick name,
-; it can be anything. If you modify the nick name, make sure you also update
-; names used in UserPlayerPairings.
-[GamePlayers]
-
-
-; This section is updated when TessuMod, using nick matching rules, manages to
-; match TeamSpeak user to a WOT player.
-;
-; The pairings are stored as key/value pairs where key is TeamSpeak nick name
-; and value is a list of WOT nick names that the TeamSpeak user will match
-; against. The WOT nick list is a comma-separated-value.
-[UserPlayerPairings]
-"""
-
 class UserCachePlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin,
-	plugintypes.SettingsUIProvider, plugintypes.UserMatchingMixin):
+	plugintypes.SettingsUIProvider,	plugintypes.PlayerModelProvider,
+	plugintypes.UserModelProvider, plugintypes.SnapshotProvider):
 	"""
 	This plugin ...
 	"""
 
-	singleton = None
-
 	def __init__(self):
 		super(UserCachePlugin, self).__init__()
-		UserCachePlugin.singleton = self
+		self.__cached_player_model = models.Model()
+		self.__cached_user_model = models.Model()
+		self.__cached_player_model_proxy = models.ImmutableModelProxy(self.__cached_player_model)
+		self.__cached_user_model_proxy = models.ImmutableModelProxy(self.__cached_user_model)
 		self.__enabled_in_replays = False
 		self.__in_replay = False
-		self.__inifile = INIFile(DEFAULT_INI)
-		self.__inifile.on("file-loaded", self.__on_file_loaded)
-		self.__pairings = {}
-		self.__reserved_player_ids = []
+		self.__read_error = False
+		self.__config_dirpath = os.path.join(Environment.find_res_mods_version_path(), "..", "configs", "tessumod")
+		self.__cache_filepath = os.path.join(self.__config_dirpath, "usercache.json")
+		self.__snapshots = {}
+		BattleReplay.play = self.__hook_battlereplay_play(BattleReplay.play)
 
 	@logutils.trace_call(logger)
 	def initialize(self):
-		self.__player_model = models.CompositeModel(
-			pluginutils.get_player_models(self.plugin_manager, ["battle", "prebattle", "clanmembers", "friends"]))
-		self.__player_model.on('added', self.__on_player_added)
-		self.__player_model.on('removed', self.__on_player_removed)
+		self.__player_model = pluginutils.get_player_model(self.plugin_manager, ["battle", "prebattle", "clanmembers", "friends"])
+		self.__user_model = pluginutils.get_user_model(self.plugin_manager, ["voice"])
+		self.__pairing_model = self.plugin_manager.getPluginsOfCategory("UserCache")[0].plugin_object.get_pairing_model()
+		self.__pairing_model.on("added", self.__on_pairings_changed)
+		self.__pairing_model.on("modified", self.__on_pairings_changed)
+		self.__pairing_model.on("removed", self.__on_pairings_changed)
+		# create cache directory if it doesn't exist yet
+		if not os.path.isdir(self.__config_dirpath):
+			os.makedirs(self.__config_dirpath)
+		# read cache file if it exists
+		if self.__has_cache_file():
+			self.__import_cache_structure(self.__load_cache_file())
 
-		for plugin_info in self.plugin_manager.getPluginsOfCategory("UserModelProvider"):
-			if plugin_info.plugin_object.has_user_model():
-				self.__user_model = plugin_info.plugin_object.get_user_model()
-		self.__user_model.on('added', self.__on_user_added)
-		self.__user_model.on('removed', self.__on_user_removed)
-
-		self.__inifile.set_filepath(os.path.join(Environment.find_res_mods_version_path(),
-			"..", "configs", "tessu_mod", "tessu_mod_cache.ini"))
-		self.__inifile.init()
+	def migrate(self):
+		"""
+		Migrates old tessu_mod_cache.ini to a new format. Removes file if migration is successful.
+		"""
+		old_ini_filepath = os.path.join(Environment.find_res_mods_version_path(), "..", "configs", "tessu_mod", "tessu_mod_cache.ini")
+		if os.path.isfile(old_ini_filepath):
+			logger.info("Migrating old cache file: {0}".format(old_ini_filepath))
+			with open(old_ini_filepath, "rb") as file:
+				parser = ConfigParser.ConfigParser()
+				parser.readfp(file)
+				for name, id in parser.items("TeamSpeakUsers"):
+					if id not in self.__cached_user_model:
+						self.__cached_user_model.set({
+							"id": id,
+							"names": [name]
+						})
+				for name, id in parser.items("GamePlayers"):
+					id = int(id)
+					if id not in self.__cached_player_model:
+						self.__cached_player_model.set({
+							"id": id,
+							"name": name
+						})
+				for user_name, player_names in parser.items("UserPlayerPairings"):
+					for player_name in list(csv.reader([player_names]))[0]:
+						for plugin_info in self.plugin_manager.getPluginsOfCategory("UserCache"):
+							plugin_info.plugin_object.add_pairing(
+								parser.get("TeamSpeakUsers", user_name),
+								parser.getint("GamePlayers", player_name)
+							)
+			if self.__save_cache_file(self.__export_cache_structure()):
+				# TODO: enable
+				# os.remove(old_ini_filepath)
+				pass
 
 	@logutils.trace_call(logger)
 	def deinitialize(self):
-		# TODO: clean non-paired players and users from ini-file
-		pass
+		# write to cache file
+		self.__save_cache_file(self.__export_cache_structure())
 
 	@logutils.trace_call(logger)
 	def on_settings_changed(self, section, name, value):
@@ -128,9 +113,6 @@ class UserCachePlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin,
 		if section == "General":
 			if name == "update_cache_in_replays":
 				self.__enabled_in_replays = value
-				self.__update_write_allowed()
-			elif name == "ini_check_interval":
-				self.__inifile.set_file_check_interval(value)
 
 	@logutils.trace_call(logger)
 	def get_settings_content(self):
@@ -179,49 +161,142 @@ class UserCachePlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin,
 		}
 
 	@logutils.trace_call(logger)
-	def on_user_matched(self, user_identity, player_id):
+	def has_player_model(self, name):
 		"""
-		Implemented from UserMatchingMixin.
+		Implemented from PlayerModelProvider.
 		"""
-		self.__pairings.setdefault(str(user_identity), set()).add(str(player_id))
-		self.__reserved_player_ids = reduce(lambda players, player_set: players + list(player_set), self.__pairings.values(), [])
+		return name == "cache"
+
+	@logutils.trace_call(logger)
+	def get_player_model(self, name):
+		"""
+		Implemented from PlayerModelProvider.
+		"""
+		assert name == "cache", "Plugin does not offer such model"
+		return self.__cached_player_model_proxy
+
+	@logutils.trace_call(logger)
+	def has_user_model(self, name):
+		"""
+		Implemented from UserModelProvider.
+		"""
+		return name == "cache"
+
+	@logutils.trace_call(logger)
+	def get_user_model(self, name):
+		"""
+		Implemented from UserModelProvider.
+		"""
+		assert name == "cache", "Plugin does not offer such model"
+		return self.__cached_user_model_proxy
+
+	@logutils.trace_call(logger)
+	def create_snapshot(self):
+		"""
+		Implemented from SnapshotProvider.
+		"""
+		snapshot_name = uuid.uuid4()
+		self.__snapshots[snapshot_name] = self.__export_cache_structure()
+		return snapshot_name
+
+	@logutils.trace_call(logger)
+	def release_snaphot(self, snapshot_name):
+		"""
+		Implemented from SnapshotProvider.
+		"""
+		if snapshot_name in self.__snapshots:
+			del self.__snapshots[snapshot_name]
+
+	@logutils.trace_call(logger)
+	def restore_snapshot(self, snapshot_name):
+		"""
+		Implemented from SnapshotProvider.
+		"""
+		if snapshot_name in self.__snapshots:
+			self.__import_cache_structure(self.__snapshots[snapshot_name])
+			del self.__snapshots[snapshot_name]
+
+	def __hook_battlereplay_play(self, orig_method):
+		def wrapper(battlereplay_self, fileName=None):
+			self.on_battle_replay()
+			return orig_method(battlereplay_self, fileName)
+		return wrapper
 
 	@logutils.trace_call(logger)
 	def on_battle_replay(self):
 		self.__in_replay = True
-		self.__update_write_allowed()
 
-	@logutils.trace_call(logger)
-	def __on_player_added(self, player):
-		self.__inifile.set("GamePlayers", player["name"].lower(), str(player["id"]))
+	def __on_pairings_changed(self, *args, **kwargs):
+		for pairing in self.__pairing_model.itervalues():
+			self.__cache_user_id(pairing["id"])
+			for player_id in pairing["player_ids"]:
+				self.__cache_player_id(player_id)
 
-	@logutils.trace_call(logger)
-	def __on_player_removed(self, player):
-		if str(player["id"]) not in self.__reserved_player_ids:
-			self.__inifile.remove("GamePlayers", player["name"].lower())
+	def __cache_user_id(self, user_id):
+		if user_id in self.__user_model:
+			self.__cached_user_model.set({
+				"id": user_id,
+				"names": self.__user_model[user_id]["names"][:1]
+			})
 
-	@logutils.trace_call(logger)
-	def __on_user_added(self, user):
-		self.__inifile.set("TeamSpeakUsers", user["name"].lower(), str(user["identity"]))
+	def __cache_player_id(self, player_id):
+		if player_id in self.__player_model:
+			self.__cached_player_model.set({
+				"id": player_id,
+				"names": self.__player_model[user_id]["name"]
+			})
 
-	@logutils.trace_call(logger)
-	def __on_user_removed(self, user):
-		if user["identity"] not in self.__pairings.keys():
-			self.__inifile.remove("TeamSpeakUsers", user["name"].lower())
+	def __has_cache_file(self):
+		return os.path.isfile(self.__cache_filepath)
 
-	@logutils.trace_call(logger)
-	def __on_file_loaded(self):
-		pass
+	def __load_cache_file(self):
+		"""
+		Reads cache file if it exists, returns loaded contents as object.
+		"""
+		try:
+			with open(self.__cache_filepath, "rb") as file:
+				return json.loads(file.read())
+		except:
+			self.__read_error = True
+			raise
 
-	def __update_write_allowed(self):
-		enabled = not self.__read_error
-		if self.__in_replay:
-			enabled = enabled and self.__enabled_in_replays
-		self.__inifile.set_writing_enabled(enabled)
+	def __save_cache_file(self, contents_obj):
+		"""
+		Writes current cache configuration to a file. Returns True on success, False on failure.
+		"""
+		if not self.__read_error and (not self.__in_replay or self.__enabled_in_replays):
+			with open(self.__cache_filepath, "wb") as file:
+				file.write(json.dumps(contents_obj, indent=4))
+				return True
+		return False
 
-def BattleReplay_play(orig_method):
-	def wrapper(self, fileName=None):
-		UserCachePlugin.singleton.on_battle_replay()
-		return orig_method(self, fileName)
-	return wrapper
-BattleReplay.play = BattleReplay_play(BattleReplay.play)
+	def __import_cache_structure(self, cache_structure):
+		assert cache_structure, "Cache content invalid"
+		assert cache_structure.get("version") == 1, "Cache contents version mismatch"
+		users = [{ "id": pairing[0]["id"], "names": set(pairing[0]["name"]) } for pairing in cache_structure["pairings"]]
+		self.__cached_user_model.set_all(users)
+		players = [{ "id": int(pairing[1]["id"]), "name": pairing[0]["name"] } for pairing in cache_structure["pairings"]]
+		self.__cached_player_model.set_all(players)
+		pairings = [(pairing[0]["id"], int(pairing[1]["id"])) for pairing in cache_structure["pairings"]]
+		for plugin_info in self.plugin_manager.getPluginsOfCategory("UserCache"):
+			plugin_info.plugin_object.reset_pairings(pairings)
+
+	def __export_cache_structure(self):
+		return {
+			"version": 1,
+			"pairings": list(itertools.chain(reduce(self.__reduce_pairing, self.__pairing_model.itervalues(), [])))
+		}
+
+	def __reduce_pairing(self, pairings, user):
+		result = []
+		user_name = list(self.__cached_user_model.get(user["id"], {}).get("names", [None]))[0]
+		for player_id in user["player_ids"]:
+			player_name = self.__cached_player_model.get(player_id, {}).get("name", None)
+			result.append(({
+				"id": user["id"],
+				"name": user_name
+			}, {
+				"id": player_id,
+				"name": player_name
+			}))
+		return pairings + result
