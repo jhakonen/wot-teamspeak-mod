@@ -32,7 +32,7 @@ from tessumod.pluginmanager import ModPluginManager
 import logging
 import logging.config
 import os
-from tessumod import logutils, migrate
+from tessumod import logutils, migrate, plugintypes
 
 plugin_manager = None
 
@@ -95,7 +95,7 @@ def init():
 
 		migrate.migrate()
 
-		plugin_manager = ModPluginManager()
+		plugin_manager = ModPluginManager(plugintypes.ModPlugin)
 		plugin_manager.collectPlugins()
 		for plugin_info in plugin_manager.getAllPlugins():
 			plugin_manager.activatePluginByName(plugin_info.name)

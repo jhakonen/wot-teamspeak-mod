@@ -160,11 +160,6 @@ projects:
             - "{src_dir}/scripts/client/gui/mods/tessumod/plugins/*.py"
           target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/plugins"
           dbg_dir: "scripts/client/gui/mods/tessumod/plugins"
-      - copy:
-          tags: ['build', 'clean']
-          input_files:
-            - "{src_dir}/scripts/client/gui/mods/tessumod/plugins/*.yapsy-plugin"
-          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/plugins"
       - py_compile:
           tags: ['build', 'clean']
           input_files:
@@ -177,17 +172,16 @@ projects:
             - "{src_dir}/scripts/client/gui/mods/tessumod/thirdparty/iniparse/*.py"
           target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/thirdparty/iniparse"
           dbg_dir: "scripts/client/gui/mods/tessumod/thirdparty/iniparse"
-      - py_compile:
-          tags: ['build', 'clean']
-          input_files:
-            - "{src_dir}/scripts/client/gui/mods/tessumod/thirdparty/yapsy/*.py"
-          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/thirdparty/yapsy"
-          dbg_dir: "scripts/client/gui/mods/tessumod/thirdparty/yapsy"
       - copy:
           tags: ['build', 'clean']
           input_files:
             - "{src_dir}/gui/tessu_mod/*"
           target_dir: "{archive_dir}/gui/tessu_mod"
+      - copy:
+          tags: ['build', 'clean']
+          input_files:
+            - "{src_dir}//scripts/client/gui/mods/tessumod/config.json"
+          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod"
       - compress:
           tags: ['build', 'clean']
           contents_dir: "{archive_dir}"

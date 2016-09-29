@@ -15,180 +15,82 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-import os
-script_dir_path = os.path.dirname(os.path.realpath(__file__))
-
-import sys
-sys.path.append(u"scripts/client/gui/mods/tessumod/thirdparty")
-from thirdparty.yapsy import log
-from thirdparty.yapsy import NormalizePluginNameForModuleName
-from thirdparty.yapsy.PluginFileLocator import PluginFileLocator
-from thirdparty.yapsy.PluginManager import PluginManager
-sys.path.remove(u"scripts/client/gui/mods/tessumod/thirdparty")
-
-import plugintypes
 from infrastructure.gameapi import Environment
+import logutils
+import plugintypes
 
 import os
+import json
 import imp
-import traceback
 
+logger = logutils.logger.getChild("pluginmanager")
 
-class ModPluginManager(PluginManager):
+class ModPluginManager(object):
 
-	def __init__(self):
-		plugins_dir_path = os.path.join(Environment.find_res_mods_version_path(), "scripts/client/gui/mods/tessumod/plugins")
-		super(ModPluginManager, self).__init__(
-			categories_filter = {
-				"Plugin": plugintypes.ModPlugin,
-				"PlayerModelProvider": plugintypes.PlayerModelProvider,
-				"UserModelProvider": plugintypes.UserModelProvider,
-				"Settings": plugintypes.SettingsMixin,
-				"SettingsUIProvider": plugintypes.SettingsUIProvider,
-				"UserCache": plugintypes.UserCache,
-				"VoiceClientListener": plugintypes.VoiceClientListener,
-				"SnapshotProvider": plugintypes.SnapshotProvider
-			},
-			directories_list = [plugins_dir_path],
-			plugin_locator = ModPluginFileLocator()
-		)
+	def __init__(self, plugin_base_class):
+		self.__plugin_base_class = plugin_base_class
+		self.__mods_dirpath = os.path.join(Environment.find_res_mods_version_path(), "scripts/client/gui/mods")
+		with open(os.path.join(self.__mods_dirpath, "tessumod/config.json"), "rb") as file:
+			self.__plugins_list = json.loads(file.read())["plugins"]
 
-	def loadPlugins(self, callback=None):
-		"""
-		Load the candidate plugins that have been identified through a
-		previous call to locatePlugins.  For each plugin candidate
-		look for its category, load it and store it in the appropriate
-		slot of the ``category_mapping``.
+		self.__plugins_dir_path = os.path.join(self.__mods_dirpath, "tessumod/plugins")
+		self.__categories_filter = {
+			"Plugin": plugintypes.ModPlugin,
+			"PlayerModelProvider": plugintypes.PlayerModelProvider,
+			"UserModelProvider": plugintypes.UserModelProvider,
+			"Settings": plugintypes.SettingsMixin,
+			"SettingsUIProvider": plugintypes.SettingsUIProvider,
+			"UserCache": plugintypes.UserCache,
+			"VoiceClientListener": plugintypes.VoiceClientListener,
+			"SnapshotProvider": plugintypes.SnapshotProvider
+		}
+		self.__plugin_infos_by_category = {name: [] for name in self.__categories_filter.iterkeys()}
+		self.__plugin_infos_all = []
 
-		If a callback function is specified, call it before every load
-		attempt.  The ``plugin_info`` instance is passed as an argument to
-		the callback.
-		"""
-# 		print "%s.loadPlugins" % self.__class__
-		if not hasattr(self, '_candidates'):
-			raise ValueError("locatePlugins must be called before loadPlugins")
-
-		processed_plugins = []
-		for candidate_infofile, candidate_filepath, plugin_info in self._candidates:
-			# make sure to attribute a unique module name to the one
-			# that is about to be loaded
-			plugin_module_name_template = NormalizePluginNameForModuleName("yapsy_loaded_plugin_" + plugin_info.name) + "_%d"
-			for plugin_name_suffix in range(len(sys.modules)):
-				plugin_module_name =  plugin_module_name_template % plugin_name_suffix
-				if plugin_module_name not in sys.modules:
+	def collectPlugins(self):
+		for plugin_name in self.__plugins_list:
+			plugin_path = os.path.join(self.__plugins_dir_path, plugin_name)
+			plugin_module = None
+			plugin_info = None
+			for imp_type in [imp.PY_SOURCE, imp.PY_COMPILED]:
+				ext = "py" if imp_type == imp.PY_SOURCE else "pyc"
+				full_plugin_path = plugin_path + "." + ext
+				if os.path.isfile(full_plugin_path):
+					with open(full_plugin_path, "rb") as file:
+						plugin_module = imp.load_module("plugin_" + plugin_name, file, full_plugin_path, (ext, "rb", imp_type))
+			if not plugin_module:
+				logger.error("No such plugin '{}'".format(plugin_name))
+				continue
+			elements = [getattr(plugin_module, element_name) for element_name in dir(plugin_module)]
+			for element in elements:
+				is_plugin = False
+				try:
+					is_plugin = issubclass(element, self.__plugin_base_class)
+				except Exception:
+					pass
+				if is_plugin:
+					plugin_info = PluginInfo(element, plugin_name)
 					break
-
-			# if a callback exists, call it before attempting to load
-			# the plugin so that a message can be displayed to the
-			# user
-			if callback is not None:
-				callback(plugin_info)
-			try:
-				if os.path.isfile(candidate_filepath+".py"):
-					with open(candidate_filepath+".py","r") as plugin_file:
-						candidate_module = imp.load_module(plugin_module_name,plugin_file,candidate_filepath+".py",("py","r",imp.PY_SOURCE))
-				elif os.path.isfile(candidate_filepath+".pyc"):
-					with open(candidate_filepath+".pyc","rb") as plugin_file:
-						candidate_module = imp.load_module(plugin_module_name,plugin_file,candidate_filepath+".pyc",("pyc","rb",imp.PY_COMPILED))
-				else:
-					raise RuntimeError("No matching module file found")
-			except Exception:
-				log.error("Unable to import plugin: %s\n%s" % (candidate_filepath, traceback.format_exc()))
-				plugin_info.error = sys.exc_info()
-				processed_plugins.append(plugin_info)
+			if not plugin_info:
+				logger.error("Plugin '{}' has no valid plugin classes".format(plugin_name))
 				continue
-			processed_plugins.append(plugin_info)
-			# now try to find and initialise the first subclass of the correct plugin interface
-			for element in (getattr(candidate_module,name) for name in dir(candidate_module)):
-				plugin_info_reference = None
-				for category_name in self.categories_interfaces:
-					try:
-						is_correct_subclass = issubclass(element, self.categories_interfaces[category_name])
-					except Exception:
-						continue
-					if is_correct_subclass and element is not self.categories_interfaces[category_name]:
-							current_category = category_name
-							if candidate_infofile not in self._category_file_mapping[current_category]:
-								# we found a new plugin: initialise it and search for the next one
-								if not plugin_info_reference:
-									try:
-										plugin_info.plugin_object = self.instanciateElement(element)
-										plugin_info_reference = plugin_info
-									except Exception:
-										log.error("Unable to create plugin object: %s\n%s" % (candidate_filepath, traceback.format_exc()))
-										plugin_info.error = sys.exc_info()
-										break # If it didn't work once it wont again
-								plugin_info.categories.append(current_category)
-								self.category_mapping[current_category].append(plugin_info_reference)
-								self._category_file_mapping[current_category].append(candidate_infofile)
-		# Remove candidates list since we don't need them any more and
-		# don't need to take up the space
-		delattr(self, '_candidates')
-		return processed_plugins
+			self.__plugin_infos_all.append(plugin_info)
+			for category_name, category_cls in self.__categories_filter.iteritems():
+				if issubclass(plugin_info.plugin_cls, category_cls):
+					self.__plugin_infos_by_category[category_name].append(plugin_info)
+			logger.info("Plugin '{}' loaded".format(plugin_name))
 
-class ModPluginFileLocator(PluginFileLocator):
+	def getAllPlugins(self):
+		return list(self.__plugin_infos_all)
 
-	def locatePlugins(self):
-		"""
-		Walk through the plugins' places and look for plugins.
+	def activatePluginByName(self, name):
+		pass # DONE
 
-		Return the candidates and number of plugins found.
-		"""
-# 		print "%s.locatePlugins" % self.__class__
-		_candidates = []
-		_discovered = {}
-		self.recursive = False
-		for directory in map(os.path.abspath, self.plugins_places):
-			# first of all, is it a directory :)
-			if not os.path.isdir(directory):
-				log.debug("%s skips %s (not a directory)" % (self.__class__.__name__, directory))
-				continue
-			if self.recursive:
-				debug_txt_mode = "recursively"
-				walk_iter = os.walk(directory, followlinks=True)
-			else:
-				debug_txt_mode = "non-recursively"
-				walk_iter = [(directory,[],os.listdir(directory))]
-			# iteratively walks through the directory
-			log.debug("%s walks (%s) into directory: %s" % (self.__class__.__name__, debug_txt_mode, directory))
-			for item in walk_iter:
-				dirpath = item[0]
-				for filename in item[2]:
-					#print "testing candidate file %s" % filename
-					for analyzer in self._analyzers:
-						# print("... with analyzer %s" % analyzer.name)
-						# eliminate the obvious non plugin files
-						if not analyzer.isValidPlugin(filename):
-							log.debug("%s is not a valid plugin for strategy %s" % (filename, analyzer.name))
-							continue
-						candidate_infofile = os.path.join(dirpath, filename)
-						if candidate_infofile in _discovered:
-							log.debug("%s (with strategy %s) rejected because already discovered" % (candidate_infofile, analyzer.name))
-							continue
-						log.debug("%s found a candidate:\n    %s" % (self.__class__.__name__, candidate_infofile))
-#						print candidate_infofile
-						plugin_info = self._getInfoForPluginFromAnalyzer(analyzer, dirpath, filename)
-						if plugin_info is None:
-							log.debug("Plugin candidate '%s'  rejected by strategy '%s'" % (candidate_infofile, analyzer.name))
-							break # we consider this was the good strategy to use for: it failed -> not a plugin -> don't try another strategy
-						# now determine the path of the file to execute,
-						# depending on wether the path indicated is a
-						# directory or a file
-#					print plugin_info.path
-						# Remember all the files belonging to a discovered
-						# plugin, so that strategies (if several in use) won't
-						# collide
-						if any(os.path.isfile(plugin_info.path + "." + ext) for ext in ("py", "pyc")):
-							candidate_filepath = plugin_info.path
-							# it is a file, adds it
-							self._discovered_plugins[plugin_info.path] = candidate_filepath
-						else:
-							log.error("Plugin candidate rejected: cannot find the file module for '%s'" % (candidate_infofile))
-							break
-#					print candidate_filepath
-						_candidates.append((candidate_infofile, candidate_filepath, plugin_info))
-						# finally the candidate_infofile must not be discovered again
-						_discovered[candidate_infofile] = candidate_filepath
-						self._discovered_plugins[candidate_infofile] = candidate_filepath
-#						print "%s found by strategy %s" % (candidate_filepath, analyzer.name)
-		return _candidates, len(_candidates)
+	def getPluginsOfCategory(self, name):
+		return list(self.__plugin_infos_by_category[name])
+
+class PluginInfo(object):
+	def __init__(self, plugin_cls, name):
+		self.plugin_cls = plugin_cls
+		self.name = name
+		self.plugin_object = plugin_cls()

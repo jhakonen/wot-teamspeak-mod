@@ -15,9 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from thirdparty.yapsy import IPlugin
-
-class ModPlugin(IPlugin.IPlugin):
+class ModPlugin(object):
 
 	def __init__(self):
 		super(ModPlugin, self).__init__()
