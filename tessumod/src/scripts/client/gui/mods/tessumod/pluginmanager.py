@@ -36,8 +36,6 @@ class ModPluginManager(object):
 		self.__plugins_dir_path = os.path.join(self.__mods_dirpath, "tessumod/plugins")
 		self.__categories_filter = {
 			"Plugin": plugintypes.ModPlugin,
-			"PlayerModelProvider": plugintypes.PlayerModelProvider,
-			"UserModelProvider": plugintypes.UserModelProvider,
 			"Settings": plugintypes.SettingsMixin,
 			"SettingsUIProvider": plugintypes.SettingsUIProvider,
 			"UserCache": plugintypes.UserCache,

@@ -15,9 +15,10 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes, logutils, pluginutils, models
-from gui.mods.tessumod.infrastructure.inifile import INIFile
+from gui.mods.tessumod import plugintypes, logutils, models
 from gui.mods.tessumod.infrastructure.gameapi import Environment
+from gui.mods.tessumod.models import g_player_model, g_user_model, g_pairing_model, PlayerItem, UserItem
+
 from BattleReplay import BattleReplay
 
 import os
@@ -30,18 +31,17 @@ import itertools
 logger = logutils.logger.getChild("usercache")
 
 class UserCachePlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin,
-	plugintypes.SettingsUIProvider,	plugintypes.PlayerModelProvider,
-	plugintypes.UserModelProvider, plugintypes.SnapshotProvider):
+	plugintypes.SettingsUIProvider, plugintypes.SnapshotProvider):
 	"""
 	This plugin ...
 	"""
 
+	NS = "cache"
+
 	def __init__(self):
 		super(UserCachePlugin, self).__init__()
-		self.__cached_player_model = models.Model()
-		self.__cached_user_model = models.Model()
-		self.__cached_player_model_proxy = models.ImmutableModelProxy(self.__cached_player_model)
-		self.__cached_user_model_proxy = models.ImmutableModelProxy(self.__cached_user_model)
+		g_player_model.add_namespace(self.NS, models.Priority.LOW)
+		g_user_model.add_namespace(self.NS, models.Priority.LOW)
 		self.__enabled_in_replays = False
 		self.__in_replay = False
 		self.__read_error = False
@@ -52,12 +52,9 @@ class UserCachePlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin,
 
 	@logutils.trace_call(logger)
 	def initialize(self):
-		self.__player_model = pluginutils.get_player_model(self.plugin_manager, ["battle", "prebattle", "clanmembers", "friends"])
-		self.__user_model = pluginutils.get_user_model(self.plugin_manager, ["voice"])
-		self.__pairing_model = self.plugin_manager.getPluginsOfCategory("UserCache")[0].plugin_object.get_pairing_model()
-		self.__pairing_model.on("added", self.__on_pairings_changed)
-		self.__pairing_model.on("modified", self.__on_pairings_changed)
-		self.__pairing_model.on("removed", self.__on_pairings_changed)
+		g_pairing_model.on("added", self.__on_pairings_changed)
+		g_pairing_model.on("modified", self.__on_pairings_changed)
+		g_pairing_model.on("removed", self.__on_pairings_changed)
 		# create cache directory if it doesn't exist yet
 		if not os.path.isdir(self.__config_dirpath):
 			os.makedirs(self.__config_dirpath)
@@ -126,36 +123,6 @@ class UserCachePlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin,
 		}
 
 	@logutils.trace_call(logger)
-	def has_player_model(self, name):
-		"""
-		Implemented from PlayerModelProvider.
-		"""
-		return name == "cache"
-
-	@logutils.trace_call(logger)
-	def get_player_model(self, name):
-		"""
-		Implemented from PlayerModelProvider.
-		"""
-		assert name == "cache", "Plugin does not offer such model"
-		return self.__cached_player_model_proxy
-
-	@logutils.trace_call(logger)
-	def has_user_model(self, name):
-		"""
-		Implemented from UserModelProvider.
-		"""
-		return name == "cache"
-
-	@logutils.trace_call(logger)
-	def get_user_model(self, name):
-		"""
-		Implemented from UserModelProvider.
-		"""
-		assert name == "cache", "Plugin does not offer such model"
-		return self.__cached_user_model_proxy
-
-	@logutils.trace_call(logger)
 	def create_snapshot(self):
 		"""
 		Implemented from SnapshotProvider.
@@ -192,24 +159,24 @@ class UserCachePlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin,
 		self.__in_replay = True
 
 	def __on_pairings_changed(self, *args, **kwargs):
-		for pairing in self.__pairing_model.itervalues():
-			self.__cache_user_id(pairing["id"])
-			for player_id in pairing["player_ids"]:
+		for pairing in g_pairing_model.itervalues():
+			self.__cache_user_id(pairing.id)
+			for player_id in pairing.player_ids:
 				self.__cache_player_id(player_id)
 
 	def __cache_user_id(self, user_id):
-		if user_id in self.__user_model:
-			self.__cached_user_model.set({
-				"id": user_id,
-				"names": self.__user_model[user_id]["names"][:1]
-			})
+		if user_id in g_user_model:
+			g_user_model.set(self.NS, UserItem(
+				id = user_id,
+				names = g_user_model[user_id].names[:1]
+			))
 
 	def __cache_player_id(self, player_id):
-		if player_id in self.__player_model:
-			self.__cached_player_model.set({
-				"id": player_id,
-				"names": self.__player_model[user_id]["name"]
-			})
+		if player_id in g_player_model:
+			g_player_model.set(self.NS, PlayerItem(
+				id = player_id,
+				name = g_player_model[player_id].name
+			))
 
 	def __has_cache_file(self):
 		return os.path.isfile(self.__cache_filepath)
@@ -238,10 +205,10 @@ class UserCachePlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin,
 	def __import_cache_structure(self, cache_structure):
 		assert cache_structure, "Cache content invalid"
 		assert cache_structure.get("version") == 1, "Cache contents version mismatch"
-		users = [{ "id": pairing[0]["id"], "names": set(pairing[0]["name"]) } for pairing in cache_structure["pairings"]]
-		self.__cached_user_model.set_all(users)
-		players = [{ "id": int(pairing[1]["id"]), "name": pairing[0]["name"] } for pairing in cache_structure["pairings"]]
-		self.__cached_player_model.set_all(players)
+		users = [UserItem(id=pairing[0]["id"], names=[pairing[0]["name"]]) for pairing in cache_structure["pairings"]]
+		g_user_model.set_all(self.NS, users)
+		players = [PlayerItem(id=int(pairing[1]["id"]), name=pairing[1]["name"]) for pairing in cache_structure["pairings"]]
+		g_player_model.set_all(self.NS, players)
 		pairings = [(pairing[0]["id"], int(pairing[1]["id"])) for pairing in cache_structure["pairings"]]
 		for plugin_info in self.plugin_manager.getPluginsOfCategory("UserCache"):
 			plugin_info.plugin_object.reset_pairings(pairings)
@@ -249,16 +216,16 @@ class UserCachePlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin,
 	def __export_cache_structure(self):
 		return {
 			"version": 1,
-			"pairings": list(itertools.chain(reduce(self.__reduce_pairing, self.__pairing_model.itervalues(), [])))
+			"pairings": list(itertools.chain(reduce(self.__reduce_pairing, g_pairing_model.itervalues(), [])))
 		}
 
-	def __reduce_pairing(self, pairings, user):
+	def __reduce_pairing(self, pairings, pairing):
 		result = []
-		user_name = list(self.__cached_user_model.get(user["id"], {}).get("names", [None]))[0]
-		for player_id in user["player_ids"]:
-			player_name = self.__cached_player_model.get(player_id, {}).get("name", None)
+		user_name = list(g_user_model.get(pairing.id, {}).get("names", [None]))[0]
+		for player_id in pairing.player_ids:
+			player_name = g_player_model.get(player_id, {}).get("name", None)
 			result.append(({
-				"id": user["id"],
+				"id": pairing.id,
 				"name": user_name
 			}, {
 				"id": player_id,

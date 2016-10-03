@@ -15,7 +15,8 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes, logutils, models, pluginutils
+from gui.mods.tessumod import plugintypes, logutils, models
+from gui.mods.tessumod.models import g_player_model
 from gui.mods.tessumod.adapters.wotgame import MinimapAdapter
 
 logger = logutils.logger.getChild("minimap")
@@ -29,6 +30,8 @@ class MinimapPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintype
 	def __init__(self):
 		super(MinimapPlugin, self).__init__()
 		self.__adapter = MinimapAdapter()
+		self.__adapter.set_action_interval(2.0)
+		self.__adapter.set_action("attackSender")
 		self.__players = {}
 		self.__enabled = False
 		self.__self_enabled = False
@@ -36,14 +39,15 @@ class MinimapPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintype
 
 	@logutils.trace_call(logger)
 	def initialize(self):
-		self.__filter_model = models.FilterModel(pluginutils.get_player_model(self.plugin_manager, ["battle", "voice"]))
-		self.__filter_model.add_filter(lambda item: self.__enabled)
-		self.__filter_model.add_filter(lambda item: item.get("speaking", False))
-		self.__filter_model.add_filter(lambda item: item.get("is_alive", False))
-		self.__filter_model.add_filter(lambda item: "vehicle_id" in item)
-		self.__filter_model.add_filter(lambda item: self.__self_enabled or not item["is_me"])
+		self.__filter_model = models.FilterModel(g_player_model)
+		self.__filter_model.add_filter(lambda player: self.__enabled)
+		self.__filter_model.add_filter(lambda player: player.has_attribute("speaking"))
+		self.__filter_model.add_filter(lambda player: player.has_attribute("is_alive"))
+		self.__filter_model.add_filter(lambda player: player.has_attribute("vehicle_id"))
+		self.__filter_model.add_filter(lambda player: self.__self_enabled or not player.is_me)
 
 		self.__filter_model.on("added", self.__on_model_added)
+		self.__filter_model.on("modified", self.__on_model_modified)
 		self.__filter_model.on("removed", self.__on_model_removed)
 
 	@logutils.trace_call(logger)
@@ -170,7 +174,16 @@ class MinimapPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintype
 		}
 
 	def __on_model_added(self, new_player):
-		self.__adapter.set_player_speaking(dict(new_player, in_battle=True), True)
+		self.__adapter.set_player_speaking(self.__player_to_old(new_player), True)
+
+	def __on_model_modified(self, old_player, new_player):
+		self.__adapter.set_player_speaking(self.__player_to_old(new_player), new_player.speaking)
 
 	def __on_model_removed(self, old_player):
-		self.__adapter.set_player_speaking(dict(old_player, in_battle=True), False)
+		self.__adapter.set_player_speaking(self.__player_to_old(new_player), False)
+
+	def __player_to_old(self, player):
+		return {
+			"in_battle": True,
+			"vehicle_id": player.vehicle_id
+		}

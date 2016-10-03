@@ -434,8 +434,9 @@ class MinimapMarkerAnimation(object):
 	def __updateMinimap(self):
 		if self.__timer.is_active():
 			try:
-				g_sessionProvider.shared.feedback.onMinimapFeedbackReceived(
-					FEEDBACK_EVENT_ID.MINIMAP_SHOW_MARKER, self.__vehicle_id, self.__action)
+				if g_sessionProvider.shared.feedback:
+					g_sessionProvider.shared.feedback.onMinimapFeedbackReceived(
+						FEEDBACK_EVENT_ID.MINIMAP_SHOW_MARKER, self.__vehicle_id, self.__action)
 			except AttributeError:
 				log.LOG_CURRENT_EXCEPTION()
 		else:

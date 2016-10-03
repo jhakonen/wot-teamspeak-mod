@@ -15,7 +15,9 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes, logutils, models, pluginutils
+from gui.mods.tessumod import plugintypes, logutils, models
+from gui.mods.tessumod.models import g_player_model, g_user_model, g_pairing_model, PairingItem
+
 import re
 
 logger = logutils.logger.getChild("usermatching")
@@ -30,16 +32,23 @@ class UserMatching(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintypes
 	This plugin ...
 	"""
 
+	NS = "matching"
+
 	def __init__(self):
 		super(UserMatching, self).__init__()
 		self.__get_wot_nick_from_ts_metadata = True
 		self.__ts_nick_search_enabled = True
 		self.__nick_extract_patterns = []
 		self.__name_mappings = {}
-		self.__user_model = None
-		self.__all_player_model = None
-		self.__pairing_model = models.Model()
-		self.__pairing_model_proxy = models.ImmutableModelProxy(self.__pairing_model)
+
+		self.__filtered_player_model = models.FilterModel(g_player_model)
+		self.__filtered_player_model.allow_namespaces(["battle", "prebattle"])
+		self.__filtered_player_model.on("added", self.__on_player_added)
+
+		self.__filtered_user_model = models.FilterModel(g_user_model)
+		self.__filtered_user_model.add_filter(lambda user: user.my_channel)
+		self.__filtered_user_model.on("added", self.__on_user_added)
+		self.__filtered_user_model.on("modified", self.__on_user_modified)
 
 		self.__matchers = [
 			self.__find_matching_with_metadata,
@@ -47,15 +56,11 @@ class UserMatching(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintypes
 			self.__find_matching_with_mappings,
 			self.__find_matching_with_name_comparison
 		]
-
+		g_pairing_model.add_namespace(self.NS)
 
 	@logutils.trace_call(logger)
 	def initialize(self):
-		self.__all_player_model = pluginutils.get_player_model(self.plugin_manager, ["battle", "prebattle"])
-		self.__all_player_model.on("added", self.__on_all_player_model_added)
-		self.__user_model = pluginutils.get_user_model(self.plugin_manager, ["voice"])
-		self.__user_model.on("added", self.__on_user_added)
-		self.__user_model.on("modified", self.__on_user_modified)
+		pass
 
 	@logutils.trace_call(logger)
 	def deinitialize(self):
@@ -75,7 +80,7 @@ class UserMatching(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintypes
 				self.__nick_extract_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in value]
 		if section == "NameMappings":
 			self.__name_mappings = {k.lower(): v.lower() for k, v in value.iteritems()}
-		self.__match_users_to_players(self.__user_model.values(), self.__all_player_model.values())
+		self.__match_users_to_players(self.__filtered_user_model.values(), self.__filtered_player_model.values())
 
 	@logutils.trace_call(logger)
 	def get_settings_content(self):
@@ -162,56 +167,53 @@ class UserMatching(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintypes
 		"""
 		Implemented from UserCache.
 		"""
-		if user_id not in self.__pairing_model:
-			self.__pairing_model.set({ "id": user_id, "player_ids": set([player_id]) })
+		if user_id not in g_pairing_model:
+			g_pairing_model.set(self.NS, PairingItem(id=user_id, player_ids=[player_id]))
 		else:
-			pairing = dict(self.__pairing_model[user_id])
-			pairing["player_ids"] |= set([player_id])
-			self.__pairing_model.set(pairing)
+			pairing = g_pairing_model[user_id]
+			g_pairing_model.set(self.NS, PairingItem(
+				id = user_id,
+				player_ids = list(set(pairing.player_ids + [player_id])),
+			))
 
 	@logutils.trace_call(logger)
 	def remove_pairing(self, user_id, player_id):
 		"""
 		Implemented from UserCache.
 		"""
-		if user_id in self.__pairing_model:
-			pairing = dict(self.__pairing_model[user_id])
-			pairing["player_ids"] -= set([player_id])
-			self.__pairing_model.set(pairing)
+		if user_id in g_pairing_model:
+			pairing = g_pairing_model[user_id]
+			pairing.player_ids -= set([player_id])
+			g_pairing_model.set(self.NS, PairingItem(
+				id = user_id,
+				player_ids = list(set(pairing.player_ids) - set([player_id]))
+			))
 
 	def reset_pairings(self, pairings):
 		"""
 		Implemented from UserCache.
 		"""
-		model_pairings_data = {}
+		data = {}
 		for pair in pairings:
-			if pair[0] not in model_pairings_data:
-				model_pairings_data[pair[0]] = {"id": pair[0], "player_ids": set()}
-			model_pairings_data[pair[0]]["player_ids"].add(int(pair[1]))
-		self.__pairing_model.set_all(model_pairings_data.values())
+			if pair[0] not in data:
+				data[pair[0]] = {"id": pair[0], "player_ids": set()}
+			data[pair[0]]["player_ids"].add(int(pair[1]))
+		g_pairing_model.set_all(self.NS, [PairingItem(id=e["id"], player_ids=list(e["player_ids"])) for e in data.values()])
 
-	@logutils.trace_call(logger)
-	def get_pairing_model(self):
-		"""
-		Implemented from UserCache.
-		"""
-		return self.__pairing_model_proxy
-
-	def __on_all_player_model_added(self, new_player):
-		self.__match_users_to_players(self.__user_model.values(), [new_player])
+	def __on_player_added(self, new_player):
+		self.__match_users_to_players(self.__filtered_user_model.values(), [new_player])
 
 	def __on_user_added(self, new_user):
-		self.__match_users_to_players([new_user], self.__all_player_model.values())
+		self.__match_users_to_players([new_user], self.__filtered_player_model.values())
 
 	def __on_user_modified(self, old_user, new_user):
-		if old_user["names"] != new_user["names"] or old_user["game_names"] != new_user["game_names"]:
-			self.__match_users_to_players([new_user], self.__all_player_model.values())
+		if old_user.names != new_user.names or old_user.game_names != new_user.game_names:
+			self.__match_users_to_players([new_user], self.__filtered_player_model.values())
 
 	def __match_users_to_players(self, users, players):
 		for user, matching_players in self.__find_matching_candidates(users, players):
-			id = user["id"]
 			for player in matching_players:
-				self.add_pairing(id, player["id"])
+				self.add_pairing(user.id, player.id)
 
 	def __find_matching_candidates(self, users, players):
 		results = []
@@ -227,10 +229,10 @@ class UserMatching(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintypes
 		results = []
 		if not self.__get_wot_nick_from_ts_metadata:
 			return results
-		for usergamename in user["game_names"]:
+		for usergamename in user.game_names:
 			usergamename = usergamename.lower()
 			for player in players:
-				playername = player["name"].lower()
+				playername = player.name.lower()
 				if usergamename == playername:
 					results.append(player)
 		return results
@@ -241,40 +243,40 @@ class UserMatching(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintypes
 			return results
 
 		for pattern in self.__nick_extract_patterns:
-			for username in user["names"]:
+			for username in user.names:
 				matches = pattern.match(username.lower())
 				if matches is None or not matches.groups():
 					continue
 				extracted_playername = matches.group(1).strip()
 				# find extracted playername from players
 				for player in players:
-					playername = player["name"].lower()
+					playername = player.name.lower()
 					if playername == extracted_playername:
 						results.append(player)
 		return results
 
 	def __find_matching_with_mappings(self, user, players):
 		results = []
-		for username in user["names"]:
+		for username in user.names:
 			username = username.lower()
 			if username not in self.__name_mappings:
 				return results
 			playername = self.__name_mappings[username]
 			for player in players:
-				if player["name"].lower() == playername:
+				if player.name.lower() == playername:
 					return [player]
 		return results
 
 	def __find_matching_with_name_comparison(self, user, players):
 		results = []
-		for username in user["names"]:
+		for username in user.names:
 			username = username.lower()
 			if self.__ts_nick_search_enabled:
 				for player in players:
-					if player["name"].lower() in username:
+					if player.name.lower() in username:
 						results.append(player)
 			else:
 				for player in players:
-					if player["name"].lower() == username:
+					if player.name.lower() == username:
 						results.append(player)
 		return results

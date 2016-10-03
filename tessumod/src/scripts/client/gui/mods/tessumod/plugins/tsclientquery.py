@@ -16,6 +16,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 from gui.mods.tessumod import plugintypes, logutils, models
+from gui.mods.tessumod.models import g_user_model, UserItem
 from gui.mods.tessumod.infrastructure import clientquery, gameapi
 import re
 import collections
@@ -23,10 +24,12 @@ import collections
 logger = logutils.logger.getChild("tsclientquery")
 UserTuple = collections.namedtuple('UserTuple', ('client_id', 'name', 'game_name', 'id', 'is_speaking', 'is_me', 'my_channel'))
 
-class TSClientQueryPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintypes.UserModelProvider):
+class TSClientQueryPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 	"""
 	This plugin ...
 	"""
+
+	NS = "voice"
 
 	def __init__(self):
 		super(TSClientQueryPlugin, self).__init__()
@@ -46,10 +49,7 @@ class TSClientQueryPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin, plug
 		self.__ts.on("user-removed", self.__on_user_removed)
 		self.__selected_schandlerid = None
 		self.__users = {}
-		self.__model = models.Model()
-		filter_model = models.FilterModel(self.__model)
-		filter_model.add_filter(lambda item: item.get("my_channel", False))
-		self.__model_proxy = models.ImmutableModelProxy(filter_model)
+		g_user_model.add_namespace(self.NS)
 
 	@logutils.trace_call(logger)
 	def initialize(self):
@@ -102,19 +102,6 @@ class TSClientQueryPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin, plug
 				]
 			}
 		}
-
-	def has_user_model(self, name):
-		"""
-		Implemented from UserModelProvider.
-		"""
-		return name == "voice"
-
-	def get_user_model(self, name):
-		"""
-		Implemented from UserModelProvider.
-		"""
-		assert name == "voice", "Unsupported model name requested"
-		return self.__model_proxy
 
 	@logutils.trace_call(logger)
 	def __connect(self):
@@ -194,27 +181,25 @@ class TSClientQueryPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin, plug
 		# client_id of current server is passed via shared memory)
 
 	def __update_model(self):
-		self.__model.set_all(reduce(self.__combine_by_identity, self.__users.itervalues(), {}).values())
+		g_user_model.set_all(self.NS, reduce(self.__combine_by_identity, self.__users.itervalues(), {}).values())
 
-	def __combine_by_identity(self, combined_users, user):
-		if user.id in combined_users:
-			combined_user = combined_users[user.id]
-			combined_user["client_id"].add(user.client_id)
-			combined_user["name"].add(user.name)
-			combined_user["game_name"].add(user.game_name)
-			combined_user["is_speaking"] |= user.is_speaking
-			combined_user["is_me"] |= user.is_me
-			combined_user["my_channel"] |= user.my_channel
+	def __combine_by_identity(self, combined_users, user_tuple):
+		kwargs = {
+			"id": user_tuple.id,
+			"client_ids": [user_tuple.client_id],
+			"is_speaking": user_tuple.is_speaking,
+			"is_me": user_tuple.is_me,
+			"my_channel": user_tuple.my_channel
+		}
+		if user_tuple.name:
+			kwargs["names"] = [user_tuple.name]
+		if user_tuple.game_name:
+			kwargs["game_names"] = [user_tuple.game_name]
+		new_user = UserItem(**kwargs)
+		if new_user.id in combined_users:
+			combined_users[new_user.id] = combined_users[new_user.id].get_updated(new_user)
 		else:
-			combined_users[user.id] = {
-				"id": user.id,
-				"client_ids": set(user.client_id),
-				"names": set(user.name) if user.name else set(),
-				"game_names": set(user.game_name) if user.game_name else set(),
-				"is_speaking": user.is_speaking,
-				"is_me": user.is_me,
-				"my_channel": user.my_channel
-			}
+			combined_users[new_user.id] = new_user
 		return combined_users
 
 class TeamSpeakClient(clientquery.ClientQuery):

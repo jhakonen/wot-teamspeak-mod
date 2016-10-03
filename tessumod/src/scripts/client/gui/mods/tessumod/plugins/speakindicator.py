@@ -15,7 +15,9 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes, logutils, models, pluginutils
+from gui.mods.tessumod import plugintypes, logutils, models
+from gui.mods.tessumod.models import g_player_model
+
 from VOIP.VOIPManager import VOIPManager
 from messenger.proto.events import g_messengerEvents
 from PlayerEvents import g_playerEvents
@@ -41,10 +43,11 @@ class SpeakIndicatorPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 
 	@logutils.trace_call(logger)
 	def initialize(self):
-		self.__filter_model = models.FilterModel(pluginutils.get_player_model(self.plugin_manager, ["battle", "prebattle", "voice"]))
-		self.__filter_model.add_filter(lambda item: self.__enabled)
-		self.__filter_model.add_filter(lambda item: "speaking" in item)
-		self.__filter_model.add_filter(lambda item: self.__self_enabled or not item["is_me"])
+		self.__filter_model = models.FilterModel(g_player_model)
+		self.__filter_model.allow_namespaces(["battle", "prebattle"])
+		self.__filter_model.add_filter(lambda player: self.__enabled)
+		self.__filter_model.add_filter(lambda player: player.has_attribute("speaking"))
+		self.__filter_model.add_filter(lambda player: self.__self_enabled or not player.is_me)
 
 		self.__filter_model.on("added", self.__on_filter_model_added)
 		self.__filter_model.on("modified", self.__on_filter_model_modified)
@@ -95,26 +98,26 @@ class SpeakIndicatorPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 
 	@logutils.trace_call(logger)
 	def is_player_id_speaking(self, id):
-		player = self.__filter_model.get(int(id), {})
+		player = self.__filter_model.get(int(id), None)
 		if player:
-			logger.debug("is_player_id_speaking: User %s is %s", player["name"], "speaking" if player["speaking"] else "not speaking")
-			return player["speaking"]
+			logger.debug("is_player_id_speaking: User %s is %s", player.name, "speaking" if player.speaking else "not speaking")
+			return player.speaking
 		return None
 
 	@logutils.trace_call(logger)
 	def __on_filter_model_added(self, new_player):
-		if new_player["speaking"]:
-			g_messengerEvents.voip.onPlayerSpeaking(new_player["id"], True)
+		if new_player.speaking:
+			g_messengerEvents.voip.onPlayerSpeaking(new_player.id, True)
 
 	@logutils.trace_call(logger)
 	def __on_filter_model_modified(self, old_player, new_player):
-		if new_player["speaking"] != old_player["speaking"]:
-			g_messengerEvents.voip.onPlayerSpeaking(new_player["id"], new_player["speaking"])
+		if new_player.speaking != old_player.speaking:
+			g_messengerEvents.voip.onPlayerSpeaking(new_player.id, new_player.speaking)
 
 	@logutils.trace_call(logger)
 	def __on_filter_model_removed(self, old_player):
-		if old_player["speaking"]:
-			g_messengerEvents.voip.onPlayerSpeaking(old_player["id"], False)
+		if old_player.speaking:
+			g_messengerEvents.voip.onPlayerSpeaking(old_player.id, False)
 
 	@logutils.trace_call(logger)
 	def __on_arena_period_change(self, period, *args, **kwargs):
@@ -124,7 +127,7 @@ class SpeakIndicatorPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 		# that by explictly notifying current speak state as soon as possible.
 		if period == ARENA_PERIOD.PREBATTLE:
 			for player in self.__filter_model.itervalues():
-				g_messengerEvents.voip.onPlayerSpeaking(player["id"], player["speaking"])
+				g_messengerEvents.voip.onPlayerSpeaking(player.id, player.speaking)
 
 def VOIPManager_isParticipantTalking(orig_method):
 	def wrapper(self, dbid):
