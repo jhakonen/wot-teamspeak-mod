@@ -20,17 +20,60 @@ import functools
 import copy
 from gui.mods.tessumod.infrastructure.eventemitter import EventEmitterMixin
 
+class ItemModel(collections.Mapping, EventEmitterMixin):
+
+	def __init__(self):
+		super(ItemModel, self).__init__()
+		self.__items = {}
+
+	def set(self, item):
+		id = item.id
+		# determine type of change
+		is_new = id not in self.__items
+		is_modified = not is_new and id in self.__items and item != self.__items[id]
+		# update model and notify of the change
+		if is_new:
+			self.__items[id] = item
+			self.emit("added", item)
+		elif is_modified:
+			old_item = self.__items[id]
+			self.__items[id] = item
+			self.emit("modified", old_item, item)
+
+	def remove(self, id):
+		if id in self.__items:
+			old_item = self.__items[id]
+			del self.__items[id]
+			self.emit("removed", old_item)
+
+	def clear(self):
+		for id in self.__items.keys():
+			self.remove(id)
+
+	def __getitem__(self, id):
+		return self.__items[id]
+
+	def __iter__(self):
+		return iter(self.__items)
+
+	def __len__(self):
+		return len(self.__items)
+
+
 class Priority:
 	NORMAL = 0
 	LOW = -1
 
 
-class Model(collections.Mapping, EventEmitterMixin):
+class NamespaceModel(collections.Mapping, EventEmitterMixin):
 
-	def __init__(self):
-		super(Model, self).__init__()
+	def __init__(self, model):
+		super(NamespaceModel, self).__init__()
+		self.__model = model
+		self.__model.on("added", functools.partial(self.emit, "added"))
+		self.__model.on("modified", functools.partial(self.emit, "modified"))
+		self.__model.on("removed", functools.partial(self.emit, "removed"))
 		self.__items_by_ns = {}
-		self.__public_items = {}
 		self.__priority_namespaces = []
 		self.__namespaces = []
 
@@ -76,34 +119,19 @@ class Model(collections.Mapping, EventEmitterMixin):
 		if all_items:
 			public_item = all_items.pop(0)
 			public_item = reduce(lambda public_item, ns_item: public_item.get_updated(ns_item), all_items, public_item)
-		# determine type of change
-		is_new = public_item and id not in self.__public_items
-		is_removed = not public_item and id in self.__public_items
-		is_modified = not is_new and not is_removed and id in self.__public_items and public_item != self.__public_items[id]
-
-		assert is_new or is_removed or is_modified
-
-		# update public item and notify of the change
-		if is_new:
-			self.__public_items[id] = public_item
-			self.emit("added", public_item)
-		elif is_removed:
-			old_public_item = self.__public_items[id]
-			del self.__public_items[id]
-			self.emit("removed", old_public_item)
-		elif is_modified:
-			old_public_item = self.__public_items[id]
-			self.__public_items[id] = public_item
-			self.emit("modified", old_public_item, public_item)
+		if public_item:
+			self.__model.set(public_item)
+		else:
+			self.__model.remove(id)
 
 	def __getitem__(self, id):
-		return self.__public_items[id]
+		return self.__model[id]
 
 	def __iter__(self):
-		return iter(self.__public_items)
+		return iter(self.__model)
 
 	def __len__(self):
-		return len(self.__public_items)
+		return len(self.__model)
 
 
 class FilterModel(collections.Mapping, EventEmitterMixin):
@@ -111,11 +139,14 @@ class FilterModel(collections.Mapping, EventEmitterMixin):
 	def __init__(self, source_model):
 		super(FilterModel, self).__init__()
 		self.__source_model = source_model
-		self.__filtered_items = {}
+		self.__source_model.on("added", self.__on_source_model_added)
+		self.__source_model.on("modified", self.__on_source_model_modified)
+		self.__source_model.on("removed", self.__on_source_model_removed)
+		self.__target_model = ItemModel()
+		self.__target_model.on("added", functools.partial(self.emit, "added"))
+		self.__target_model.on("modified", functools.partial(self.emit, "modified"))
+		self.__target_model.on("removed", functools.partial(self.emit, "removed"))
 		self.__filters = []
-		source_model.on("added", self.__on_source_model_added)
-		source_model.on("modified", self.__on_source_model_modified)
-		source_model.on("removed", self.__on_source_model_removed)
 
 	def add_filter(self, func):
 		self.__filters.append(func)
@@ -125,57 +156,37 @@ class FilterModel(collections.Mapping, EventEmitterMixin):
 		self.add_filter(lambda item: any(ns in item.namespaces for ns in namespaces))
 
 	def invalidate(self):
-		for id, item in self.__source_model.iteritems():
-			ok = self.__is_ok(item)
-			if ok:
-				if id in self.__filtered_items:
-					old_item = self.__filtered_items[id]
-					if item != old_item:
-						self.__filtered_items[id] = item
-						self.emit("modified", old_item, item)
-				else:
-					self.__filtered_items[id] = item
-					self.emit("added", self.__filtered_items[id])
-			elif not ok and id in self.__filtered_items:
-				del self.__filtered_items[id]
-				self.emit("removed", item)
+		for item in self.__source_model.itervalues():
+			if self.__is_ok(item):
+				self.__target_model.set(item)
+			elif item.id in self.__target_model:
+				self.__target_model.remove(item.id)
 
 	def __on_source_model_added(self, new_item):
 		if self.__is_ok(new_item):
-			id = new_item.id
-			self.__filtered_items[id] = new_item
-			self.emit("added", self.__filtered_items[id])
+			self.__target_model.set(new_item)
 
 	def __on_source_model_modified(self, old_item, new_item):
-		id = new_item.id
-		ok = self.__is_ok(new_item)
-		if id in self.__filtered_items:
-			if ok:
-				self.__filtered_items[id] = new_item
-				self.emit("modified", old_item, self.__filtered_items[id])
-			else:
-				self.emit("removed", self.__filtered_items.pop(id))
-		else:
-			if ok:
-				self.__filtered_items[id] = new_item
-				self.emit("added", self.__filtered_items[id])
+		if self.__is_ok(new_item):
+			self.__target_model.set(new_item)
+		elif new_item.id in self.__target_model:
+			self.__target_model.remove(new_item.id)
 
 	def __on_source_model_removed(self, old_item):
-		id = old_item.id
-		if id in self.__filtered_items:
-			self.emit("removed", self.__filtered_items.pop(id))
+		if old_item.id in self.__target_model:
+			self.__target_model.remove(old_item.id)
 
 	def __is_ok(self, item):
 		return all(f(item) for f in self.__filters)
 
 	def __getitem__(self, id):
-		return self.__filtered_items[id]
+		return self.__target_model[id]
 
 	def __iter__(self):
-		return iter(self.__filtered_items)
+		return iter(self.__target_model)
 
 	def __len__(self):
-		return len(self.__filtered_items)
+		return len(self.__target_model)
 
 
 def uniqueify(sequence):
@@ -190,9 +201,24 @@ def uniqueify(sequence):
 
 class Item(object):
 
-	def __init__(self, id):
+	VALID_KWARGS = set()
+
+	def __init__(self, id, attributes):
+		self.__has_attributes = set(attributes)
+		unknown_args = self.__has_attributes - self.VALID_KWARGS
+		assert not unknown_args, "Unknown arguments: {}".format(unknown_args)
 		self.__id         = id
 		self.__namespaces = []
+
+	def get_attributes(self):
+		attributes = {}
+		for arg_name in self.VALID_KWARGS:
+			if self.has_attribute(arg_name):
+				attributes[arg_name] = getattr(self, arg_name)
+		return attributes
+
+	def has_attribute(self, name):
+		return name in self.__has_attributes
 
 	@property
 	def id(self):
@@ -205,6 +231,15 @@ class Item(object):
 	@namespaces.setter
 	def namespaces(self, namespaces):
 		self.__namespaces = namespaces
+
+	def equal(self, other):
+		return self.id == other.id and self.namespaces == other.namespaces
+
+	def __eq__(self, other):
+		return self.equal(other)
+
+	def __ne__(self, other):
+		return not self.equal(other)
 
 
 class PlayerItem(Item):
@@ -236,10 +271,7 @@ class PlayerItem(Item):
 	VALID_KWARGS = set(["name", "vehicle_id", "is_alive", "speaking", "is_me"])
 
 	def __init__(self, id, **kwargs):
-		super(PlayerItem, self).__init__(id)
-		self.__has_attributes = set(kwargs.keys())
-		unknown_args = self.__has_attributes - self.VALID_KWARGS
-		assert not unknown_args, "Unknown arguments: {}".format(unknown_args)
+		super(PlayerItem, self).__init__(id, attributes=kwargs.keys())
 		self.__name       = kwargs.get("name", "")
 		self.__vehicle_id = kwargs.get("vehicle_id", 0)
 		self.__is_alive   = kwargs.get("is_alive", False)
@@ -253,23 +285,14 @@ class PlayerItem(Item):
 
 	def get_updated(self, player):
 		assert self.id == player.id
-		item = PlayerItem(
-			id         = self.id,
-			name       = player.__name,
-			vehicle_id = player.__vehicle_id,
-			is_alive   = self.__is_alive or player.__is_alive,
-			speaking   = self.__speaking or player.__speaking,
-			is_me      = self.__is_me or player.__is_me
-		)
+		attributes = self.get_attributes()
+		attributes.update(player.get_attributes())
+		item = PlayerItem(id=self.id, **attributes)
 		item.namespaces = uniqueify(self.namespaces + player.namespaces)
 		return item
 
-	def has_attribute(self, name):
-		return name in self.__has_attributes
-
-	def __eq__(self, other):
-		result = self.id == other.id
-		result &= self.namespaces == other.__namespaces
+	def equal(self, other):
+		result = super(PlayerItem, self).equal(other)
 		result &= self.__name == other.__name
 		result &= self.__vehicle_id == other.__vehicle_id
 		result &= self.__is_alive == other.__is_alive
@@ -279,7 +302,7 @@ class PlayerItem(Item):
 
 	def __repr__(self):
 		args = [("id", self.id), ("namespaces", self.namespaces)]
-		args.extend([(name, getattr(self, name)) for name in self.__has_attributes])
+		args.extend(self.get_attributes().iteritems())
 		args = [(key, repr(value)) for key, value in args]
 		return "PlayerItem({})".format(", ".join("=".join(arg) for arg in args))
 
@@ -326,10 +349,7 @@ class UserItem(Item):
 	VALID_KWARGS = set(["client_ids", "names", "game_names", "is_speaking", "is_me", "my_channel"])
 
 	def __init__(self, id, **kwargs):
-		super(UserItem, self).__init__(id)
-		self.__has_attributes = set(kwargs.keys())
-		unknown_args = self.__has_attributes - self.VALID_KWARGS
-		assert not unknown_args, "Unknown arguments: {}".format(unknown_args)
+		super(UserItem, self).__init__(id, attributes=kwargs.keys())
 		self.__client_ids  = kwargs.get("client_ids", [])
 		self.__names       = kwargs.get("names", [])
 		self.__game_names  = kwargs.get("game_names", [])
@@ -346,24 +366,14 @@ class UserItem(Item):
 
 	def get_updated(self, user):
 		assert self.id == user.id
-		item = UserItem(
-			id          = self.id,
-			client_ids  = uniqueify(self.__client_ids + user.__client_ids),
-			names       = uniqueify(self.__names + user.__names),
-			game_names  = uniqueify(self.__game_names + user.__game_names),
-			is_speaking = self.__is_speaking or user.__is_speaking,
-			is_me       = self.__is_me or user.__is_me,
-			my_channel  = self.__my_channel or user.__my_channel
-		)
+		attributes = self.get_attributes()
+		attributes.update(user.get_attributes())
+		item = UserItem(id=self.id, **attributes)
 		item.namespaces = uniqueify(self.namespaces + user.namespaces)
 		return item
 
-	def has_attribute(self, name):
-		return name in self.__has_attributes
-
-	def __eq__(self, other):
-		result = self.id == other.id
-		result &= self.namespaces == other.namespaces
+	def equal(self, other):
+		result = super(UserItem, self).equal(other)
 		result &= self.__client_ids == other.__client_ids
 		result &= self.__names == other.__names
 		result &= self.__game_names == other.__game_names
@@ -374,7 +384,7 @@ class UserItem(Item):
 
 	def __repr__(self):
 		args = [("id", self.id), ("namespaces", self.namespaces)]
-		args.extend([(name, getattr(self, name)) for name in self.__has_attributes])
+		args.extend(self.get_attributes().iteritems())
 		args = [(key, repr(value)) for key, value in args]
 		return "UserItem({})".format(", ".join("=".join(arg) for arg in args))
 
@@ -405,29 +415,30 @@ class UserItem(Item):
 
 class PairingItem(Item):
 
+	VALID_KWARGS = set(["player_ids",])
+
 	def __init__(self, id, player_ids):
-		super(PairingItem, self).__init__(id)
+		super(PairingItem, self).__init__(id, attributes=["player_ids"])
 		self.__player_ids = player_ids
 		assert isinstance(self.id, basestring)
 		assert isinstance(self.__player_ids, list)
 
 	def get_updated(self, pairing):
 		assert self.id == pairing.id
-		item = PairingItem(
-			id          = self.id,
-			player_ids  = uniqueify(self.__player_ids + pairing.__player_ids)
-		)
+		attributes = self.get_attributes()
+		attributes.update(pairing.get_attributes())
+		item = PairingItem(id=self.id, **attributes)
 		item.namespaces = uniqueify(self.namespaces + pairing.namespaces)
 		return item
 
-	def __eq__(self, other):
-		result = self.id == other.id
-		result &= self.namespaces == other.namespaces
+	def equal(self, other):
+		result = super(PairingItem, self).equal(other)
 		result &= self.__player_ids == other.__player_ids
 		return result
 
 	def __repr__(self):
-		args = [("id", self.id), ("namespaces", self.namespaces), ("player_ids", self.__player_ids)]
+		args = [("id", self.id), ("namespaces", self.namespaces)]
+		args.extend(self.get_attributes().iteritems())
 		args = [(key, repr(value)) for key, value in args]
 		return "PairingItem({})".format(", ".join("=".join(arg) for arg in args))
 
@@ -436,6 +447,6 @@ class PairingItem(Item):
 		return self.__player_ids
 
 
-g_player_model = Model()
-g_user_model = Model()
-g_pairing_model = Model()
+g_player_model = NamespaceModel(ItemModel())
+g_user_model = NamespaceModel(ItemModel())
+g_pairing_model = NamespaceModel(ItemModel())
