@@ -41,8 +41,8 @@ class MinimapPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintype
 	def initialize(self):
 		self.__filter_model = models.FilterModel(g_player_model)
 		self.__filter_model.add_filter(lambda player: self.__enabled)
+		self.__filter_model.add_filter(lambda player: player.is_alive)
 		self.__filter_model.add_filter(lambda player: player.has_attribute("speaking"))
-		self.__filter_model.add_filter(lambda player: player.has_attribute("is_alive"))
 		self.__filter_model.add_filter(lambda player: player.has_attribute("vehicle_id"))
 		self.__filter_model.add_filter(lambda player: self.__self_enabled or not player.is_me)
 
@@ -174,13 +174,16 @@ class MinimapPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintype
 		}
 
 	def __on_model_added(self, new_player):
-		self.__adapter.set_player_speaking(self.__player_to_old(new_player), True)
+		logger.debug("__on_model_added: {}".format(new_player))
+		self.__adapter.set_player_speaking(self.__player_to_old(new_player), new_player.speaking)
 
 	def __on_model_modified(self, old_player, new_player):
+		logger.debug("__on_model_modified: {}".format(new_player))
 		self.__adapter.set_player_speaking(self.__player_to_old(new_player), new_player.speaking)
 
 	def __on_model_removed(self, old_player):
-		self.__adapter.set_player_speaking(self.__player_to_old(new_player), False)
+		logger.debug("__on_model_removed: {}".format(old_player))
+		self.__adapter.set_player_speaking(self.__player_to_old(old_player), False)
 
 	def __player_to_old(self, player):
 		return {

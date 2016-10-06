@@ -160,7 +160,6 @@ class PlayerSpeaking(plugintypes.ModPlugin, plugintypes.SettingsMixin,
 		speaking, player = pair
 		players[player.id] = PlayerItem(
 			id = player.id,
-			name = player.name,
 			speaking = (speaking or players[player.id].speaking) if player.id in players else speaking
 		)
 		return players
