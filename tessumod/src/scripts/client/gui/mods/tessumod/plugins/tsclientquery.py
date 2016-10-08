@@ -15,8 +15,8 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes, logutils, models
-from gui.mods.tessumod.models import g_user_model, UserItem
+from gui.mods.tessumod import plugintypes, logutils
+from gui.mods.tessumod.models import g_player_model, g_user_model, UserItem, FilterModel
 from gui.mods.tessumod.infrastructure import clientquery, gameapi
 import re
 import collections
@@ -50,6 +50,10 @@ class TSClientQueryPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 		self.__selected_schandlerid = None
 		self.__users = {}
 		g_user_model.add_namespace(self.NS)
+		player_model = FilterModel(g_player_model)
+		player_model.add_filter(lambda player: player.has_attribute("name"))
+		player_model.add_filter(lambda player: player.is_me)
+		player_model.on("added", self.__on_me_player_added)
 
 	@logutils.trace_call(logger)
 	def initialize(self):
@@ -137,6 +141,10 @@ class TSClientQueryPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 			plugin_info.plugin_object.on_voice_server_disconnected()
 
 	@logutils.trace_call(logger)
+	def __on_me_player_added(self, player):
+		self.__ts.set_my_game_nick(player.name)
+
+	@logutils.trace_call(logger)
 	def __on_user_added(self, schandlerid, clid):
 		self.__users[(schandlerid, clid)] = UserTuple._make((
 			(schandlerid, clid),
@@ -210,6 +218,7 @@ class TeamSpeakClient(clientquery.ClientQuery):
 		super(TeamSpeakClient, self).__init__()
 		self.__connect_requested = False
 		self.__game_nicknames = {}
+		self.__my_game_nick = None
 		self.on("connected", self.__on_connected)
 		self.on("connected-server", self.__on_connected_server)
 		self.on("notifycurrentserverconnectionchanged", self.__on_notifycurrentserverconnectionchanged)
@@ -225,6 +234,26 @@ class TeamSpeakClient(clientquery.ClientQuery):
 		else:
 			return super(TeamSpeakClient, self).get_user_parameter(schandlerid, clid, parameter)
 
+	def set_my_game_nick(self, game_nick):
+		self.__my_game_nick = game_nick
+		self.update_game_nick_to_servers(self.get_connected_schandlerids())
+
+	def update_game_nick_to_servers(self, schandlerids):
+		if not self.__my_game_nick:
+			return
+		for schandlerid in schandlerids:
+			clid = self.get_my_clid(schandlerid)
+			metadata = self.get_user_parameter(schandlerid, clid, "client_meta_data")
+			if not metadata:
+				metadata = ""
+			new_tag = "<wot_nickname_start>{0}<wot_nickname_end>".format(self.__my_game_nick)
+			if re.search(self.NICK_META_PATTERN, metadata):
+				new_metadata = re.sub(self.NICK_META_PATTERN, new_tag, metadata)
+			else:
+				new_metadata = metadata + new_tag
+			if metadata != new_metadata:
+				self.command_clientupdate("client_meta_data", new_metadata, schandlerid)
+
 	def __on_connected(self):
 		self.register_notify("notifycurrentserverconnectionchanged")
 
@@ -236,17 +265,7 @@ class TeamSpeakClient(clientquery.ClientQuery):
 		self.command_currentschandlerid(callback=on_currentschandlerid_finish)
 
 	def __on_connected_server(self, schandlerid):
-		# TODO: What if game doesn't have player's name yet when this happens?
-		clid = self.get_my_clid(schandlerid)
-		metadata = self.get_user_parameter(schandlerid, clid, "client_meta_data")
-		if not metadata:
-			metadata = ""
-		new_tag = "<wot_nickname_start>{0}<wot_nickname_end>".format(gameapi.Player.get_my_name())
-		if re.search(self.NICK_META_PATTERN, metadata):
-			metadata = re.sub(self.NICK_META_PATTERN, new_tag, metadata)
-		else:
-			metadata += new_tag
-		self.command_clientupdate("client_meta_data", metadata, schandlerid)
+		self.update_game_nick_to_servers([schandlerid])
 
 	def __on_notifycurrentserverconnectionchanged(self, args):
 		self.emit("server-tab-changed", int(args[0]["schandlerid"]))
