@@ -15,11 +15,9 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes, logutils, models
-from gui.mods.tessumod.models import g_player_model, g_user_model, g_pairing_model, PlayerItem
+from gui.mods.tessumod import plugintypes, logutils
+from gui.mods.tessumod.models import g_player_model, g_user_model, g_pairing_model, PlayerItem, FilterModel
 
-import re
-from operator import or_
 import functools
 import BigWorld
 
@@ -50,7 +48,7 @@ class PlayerSpeaking(plugintypes.ModPlugin, plugintypes.SettingsMixin,
 	def initialize(self):
 		g_player_model.on('added', self.__repopulate_voice_players)
 		g_player_model.on('removed', self.__repopulate_voice_players)
-		user_model = models.FilterModel(g_user_model)
+		user_model = FilterModel(g_user_model)
 		user_model.add_filter(lambda user: user.my_channel)
 		user_model.on("added", self.__on_user_added)
 		user_model.on("modified", self.__on_user_modified)

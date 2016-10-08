@@ -17,11 +17,9 @@
 
 from gui.mods.tessumod import plugintypes, logutils
 import gui.mods.tessumod.adapters.settings as adapter_settings
-from gui.mods.tessumod.constants import SettingConstants
 from gui.mods.tessumod.infrastructure.inifile import INIFile
 from gui.mods.tessumod.infrastructure.gameapi import Environment
 import os
-import copy
 import BigWorld
 
 logger = logutils.logger.getChild("settings")

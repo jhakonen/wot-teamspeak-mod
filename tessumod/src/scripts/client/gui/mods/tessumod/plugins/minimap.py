@@ -15,8 +15,8 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes, logutils, models
-from gui.mods.tessumod.models import g_player_model
+from gui.mods.tessumod import plugintypes, logutils
+from gui.mods.tessumod.models import g_player_model, FilterModel
 from gui.mods.tessumod.adapters.wotgame import MinimapAdapter
 
 logger = logutils.logger.getChild("minimap")
@@ -39,7 +39,7 @@ class MinimapPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintype
 
 	@logutils.trace_call(logger)
 	def initialize(self):
-		self.__filter_model = models.FilterModel(g_player_model)
+		self.__filter_model = FilterModel(g_player_model)
 		self.__filter_model.add_filter(lambda player: self.__enabled)
 		self.__filter_model.add_filter(lambda player: player.is_alive)
 		self.__filter_model.add_filter(lambda player: player.has_attribute("speaking"))

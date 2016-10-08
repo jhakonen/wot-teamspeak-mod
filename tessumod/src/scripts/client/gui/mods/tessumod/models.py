@@ -17,7 +17,6 @@
 
 import collections
 import functools
-import copy
 from gui.mods.tessumod.infrastructure.eventemitter import EventEmitterMixin
 
 class ItemModel(collections.Mapping, EventEmitterMixin):

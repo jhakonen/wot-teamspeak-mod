@@ -15,8 +15,8 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes, logutils, models
-from gui.mods.tessumod.models import g_player_model, g_user_model, g_pairing_model, PairingItem
+from gui.mods.tessumod import plugintypes, logutils
+from gui.mods.tessumod.models import g_player_model, g_user_model, g_pairing_model, PairingItem, FilterModel
 
 import re
 
@@ -41,11 +41,11 @@ class UserMatching(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintypes
 		self.__nick_extract_patterns = []
 		self.__name_mappings = {}
 
-		self.__filtered_player_model = models.FilterModel(g_player_model)
+		self.__filtered_player_model = FilterModel(g_player_model)
 		self.__filtered_player_model.allow_namespaces(["battle", "prebattle"])
 		self.__filtered_player_model.on("added", self.__on_player_added)
 
-		self.__filtered_user_model = models.FilterModel(g_user_model)
+		self.__filtered_user_model = FilterModel(g_user_model)
 		self.__filtered_user_model.add_filter(lambda user: user.my_channel)
 		self.__filtered_user_model.on("added", self.__on_user_added)
 		self.__filtered_user_model.on("modified", self.__on_user_modified)

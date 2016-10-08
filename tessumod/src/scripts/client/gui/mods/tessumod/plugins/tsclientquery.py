@@ -17,7 +17,7 @@
 
 from gui.mods.tessumod import plugintypes, logutils
 from gui.mods.tessumod.models import g_player_model, g_user_model, UserItem, FilterModel
-from gui.mods.tessumod.infrastructure import clientquery, gameapi
+from gui.mods.tessumod.infrastructure import clientquery
 import re
 import collections
 

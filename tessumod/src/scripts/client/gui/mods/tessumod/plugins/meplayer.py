@@ -15,9 +15,8 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes, logutils, models, gameutils
+from gui.mods.tessumod import plugintypes, logutils
 from gui.mods.tessumod.models import g_player_model, PlayerItem
-from gui.mods.tessumod.infrastructure import gameapi
 
 from PlayerEvents import g_playerEvents
 import BigWorld

@@ -15,16 +15,14 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes, logutils, models
+from gui.mods.tessumod import plugintypes, logutils
 from gui.mods.tessumod.infrastructure.gameapi import Environment
-from gui.mods.tessumod.models import g_player_model, g_user_model, g_pairing_model, PlayerItem, UserItem
+from gui.mods.tessumod.models import g_player_model, g_user_model, g_pairing_model, PlayerItem, UserItem, Priority
 
 from BattleReplay import BattleReplay
 
 import os
 import json
-import ConfigParser
-import csv
 import uuid
 import itertools
 
@@ -40,8 +38,8 @@ class UserCachePlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin,
 
 	def __init__(self):
 		super(UserCachePlugin, self).__init__()
-		g_player_model.add_namespace(self.NS, models.Priority.LOW)
-		g_user_model.add_namespace(self.NS, models.Priority.LOW)
+		g_player_model.add_namespace(self.NS, Priority.LOW)
+		g_user_model.add_namespace(self.NS, Priority.LOW)
 		self.__enabled_in_replays = False
 		self.__in_replay = False
 		self.__read_error = False
