@@ -66,7 +66,6 @@ class PlayersInBattlePlugin(plugintypes.ModPlugin):
 		g_player_model.clear(self.NS)
 
 	def __on_avatar_ready(self):
-		self.__my_vehicle_id = int(BigWorld.player().playerVehicleID)
 		for vehicle_id, vehicle in self.arena.vehicles.iteritems():
 			g_player_model.set(self.NS, self.__vehicle_to_player(vehicle_id, vehicle))
 
@@ -86,6 +85,5 @@ class PlayersInBattlePlugin(plugintypes.ModPlugin):
 			id         = int(vehicle["accountDBID"]),
 			name       = str(vehicle["name"]),
 			vehicle_id = int(vehicle_id),
-			is_alive   = int(vehicle_id) not in self.__killed_vehicles,
-			is_me      = int(vehicle_id) == self.__my_vehicle_id
+			is_alive   = int(vehicle_id) not in self.__killed_vehicles
 		)
