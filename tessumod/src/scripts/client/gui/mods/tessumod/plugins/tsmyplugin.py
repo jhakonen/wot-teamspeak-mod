@@ -71,6 +71,7 @@ class TSMyPluginPlugin(plugintypes.ModPlugin, plugintypes.VoiceClientListener, t
 		Implemented from VoiceClientListener.
 		"""
 		self.__current_schandlerid = server_id
+		self.__update_clid_lookup()
 
 	def __update_clid_lookup(self, *args, **kwargs):
 		self.__clid_lookup = {}
