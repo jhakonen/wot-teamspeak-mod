@@ -21,10 +21,10 @@ from gui.mods.tessumod.infrastructure import clientquery
 import re
 import collections
 
-logger = logutils.logger.getChild("tsclientquery")
+logger = logutils.logger.getChild("tscqplugin")
 UserTuple = collections.namedtuple('UserTuple', ('client_id', 'name', 'game_name', 'id', 'is_speaking', 'is_me', 'my_channel'))
 
-class TSClientQueryPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
+class TSCQPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 	"""
 	This plugin ...
 	"""
@@ -32,7 +32,7 @@ class TSClientQueryPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 	NS = "voice"
 
 	def __init__(self):
-		super(TSClientQueryPlugin, self).__init__()
+		super(TSCQPlugin, self).__init__()
 		self.__host = None
 		self.__port = None
 		self.__ts = TeamSpeakClient()

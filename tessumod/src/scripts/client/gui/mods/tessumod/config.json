@@ -8,7 +8,7 @@
 		"settings",
 		"settingsui",
 		"speakindicator",
-		"tsclientquery",
+		"tscqplugin",
 		"tsmyplugin",
 		"usercache",
 		"usermatching"
