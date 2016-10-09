@@ -60,6 +60,6 @@ coverage_report
 *.sdf
 *.pro.user
 _trial_marker
-config.json
+/config.json
 .vagrant
 chocolatey-repo

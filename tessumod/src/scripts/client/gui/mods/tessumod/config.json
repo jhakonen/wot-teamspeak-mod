@@ -1,0 +1,16 @@
+{
+	"plugins": [
+		"meplayer",
+		"minimap",
+		"playersinbattle",
+		"playersinprebattle",
+		"playerspeaking",
+		"settings",
+		"settingsui",
+		"speakindicator",
+		"tsclientquery",
+		"tsmyplugin",
+		"usercache",
+		"usermatching"
+	]
+}
