@@ -19,6 +19,8 @@ from gui.mods.tessumod import plugintypes, logutils
 from gui.mods.tessumod.models import g_player_model, g_user_model, g_pairing_model, PlayerItem, FilterModel
 
 import functools
+from itertools import ifilter, imap
+
 import BigWorld
 
 logger = logutils.logger.getChild("playerspeaking")
@@ -139,25 +141,38 @@ class PlayerSpeaking(plugintypes.ModPlugin, plugintypes.SettingsMixin,
 
 	@logutils.trace_call(logger)
 	def __repopulate_voice_players(self, *args, **kwargs):
-		pairs = reduce(self.__pairings_to_pairs, g_pairing_model.itervalues(), [])
-		pairs = reduce(self.__add_model_data_to_pairs, pairs, [])
-		players = reduce(self.__combine_pairs, pairs, {})
-		g_player_model.set_all(self.NS, players.values())
+		pairing_data_iter = iter(reduce(self.__reduce_to_pairing_data, g_pairing_model.itervalues(), []))
+		pairing_data_iter = ifilter(self.__is_pairing_data_in_player_model, pairing_data_iter)
+		pairing_data_iter = imap(self.__add_speaking_status, pairing_data_iter)
+		player_data_iter = reduce(self.__combine_player_data, pairing_data_iter, {}).itervalues()
+		player_item_iter = imap(self.__convert_to_player_items, player_data_iter)
+		g_player_model.set_all(self.NS, player_item_iter)
 
-	def __pairings_to_pairs(self, results, pairing):
-		return results + [(pairing.id, player_id) for player_id in pairing.player_ids]
+	def __reduce_to_pairing_data(self, results, pairing):
+		return results + [{ "user_id": pairing.id, "player_id": player_id } for player_id in pairing.player_ids]
 
-	def __add_model_data_to_pairs(self, results, pair):
-		player = g_player_model.get(pair[1])
-		if player:
-			speaking = self.__delayed_user_speak_states.get(pair[0], False)
-			results.append((speaking, player))
-		return results
+	def __is_pairing_data_in_player_model(self, pairing_data):
+		return pairing_data["player_id"] in g_player_model
 
-	def __combine_pairs(self, players, pair):
-		speaking, player = pair
-		players[player.id] = PlayerItem(
-			id = player.id,
-			speaking = (speaking or players[player.id].speaking) if player.id in players else speaking
+	def __add_speaking_status(self, pairing_data):
+		return dict(pairing_data, speaking=self.__delayed_user_speak_states.get(pairing_data["user_id"], False))
+
+	def __combine_player_data(self, players, pairing_data):
+		if pairing_data["player_id"] in players:
+			player_data = dict(players[pairing_data["player_id"]])
+			player_data["speaking"] |= pairing_data["speaking"]
+			player_data["user_ids"].add(pairing_data["user_id"])
+		else:
+			player_data = {
+				"id": pairing_data["player_id"],
+				"user_ids": set([pairing_data["user_id"]]),
+				"speaking": pairing_data["speaking"]
+			}
+		return dict(players, **{player_data["id"]: player_data})
+
+	def __convert_to_player_items(self, player_data):
+		return PlayerItem(
+			id=player_data["id"],
+			user_ids=list(player_data["user_ids"]),
+			speaking=player_data["speaking"]
 		)
-		return players

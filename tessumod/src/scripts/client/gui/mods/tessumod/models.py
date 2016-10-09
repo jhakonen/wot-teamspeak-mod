@@ -89,13 +89,14 @@ class NamespaceModel(collections.Mapping, EventEmitterMixin):
 		self.__items_by_ns[ns][id] = item
 		self.__update_public_item_id(id)
 
-	def set_all(self, ns, items):
+	def set_all(self, ns, items_iter):
 		old_ids = set(self.__items_by_ns[ns].iterkeys())
-		new_ids = reduce(lambda ids, item: ids | set([item.id]), items, set())
-		all_ids = old_ids | new_ids
-		for item in items:
+		new_ids = set()
+		for item in items_iter:
+			new_ids.add(item.id)
 			item.namespaces = [ns]
-		self.__items_by_ns[ns] = {item.id: item for item in items}
+			self.__items_by_ns[ns][item.id] = item
+		all_ids = old_ids | new_ids
 		for id in all_ids:
 			self.__update_public_item_id(id)
 
@@ -267,16 +268,18 @@ class PlayerItem(Item):
 	 * "speaking": [bool] <is player speaking>
 	"""
 
-	VALID_KWARGS = set(["name", "vehicle_id", "is_alive", "speaking", "is_me"])
+	VALID_KWARGS = set(["name", "user_ids", "vehicle_id", "is_alive", "speaking", "is_me"])
 
 	def __init__(self, id, **kwargs):
 		super(PlayerItem, self).__init__(id, attributes=kwargs.keys())
 		self.__name       = kwargs.get("name", "")
+		self.__user_ids   = sorted(kwargs.get("user_ids", []))
 		self.__vehicle_id = kwargs.get("vehicle_id", 0)
 		self.__is_alive   = kwargs.get("is_alive", False)
 		self.__speaking   = kwargs.get("speaking", False)
 		self.__is_me      = kwargs.get("is_me", False)
 		assert isinstance(self.id, int)
+		assert isinstance(self.__user_ids, list)
 		assert isinstance(self.__name, basestring)
 		assert isinstance(self.__vehicle_id, int)
 		assert isinstance(self.__is_alive, bool)
@@ -293,6 +296,7 @@ class PlayerItem(Item):
 	def equal(self, other):
 		result = super(PlayerItem, self).equal(other)
 		result &= self.__name == other.__name
+		result &= self.__user_ids == other.__user_ids
 		result &= self.__vehicle_id == other.__vehicle_id
 		result &= self.__is_alive == other.__is_alive
 		result &= self.__speaking == other.__speaking
@@ -308,6 +312,10 @@ class PlayerItem(Item):
 	@property
 	def name(self):
 		return self.__name
+
+	@property
+	def user_ids(self):
+		return self.__user_ids
 
 	@property
 	def vehicle_id(self):

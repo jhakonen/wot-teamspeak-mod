@@ -96,6 +96,9 @@ class VoiceClientListener(object):
 	def on_voice_server_disconnected(self):
 		pass
 
+	def on_current_voice_server_changed(self, server_id):
+		pass
+
 class SnapshotProvider(object):
 	"""
 	"""

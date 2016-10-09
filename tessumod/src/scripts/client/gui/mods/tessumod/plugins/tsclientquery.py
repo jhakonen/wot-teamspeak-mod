@@ -47,7 +47,6 @@ class TSClientQueryPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 		self.__ts.on("user-changed-talking", self.__on_user_speaking_changed)
 		self.__ts.on("user-changed-my-channel", self.__on_user_my_channel_changed)
 		self.__ts.on("user-removed", self.__on_user_removed)
-		self.__selected_schandlerid = None
 		self.__users = {}
 		g_user_model.add_namespace(self.NS)
 		player_model = FilterModel(g_player_model)
@@ -184,9 +183,8 @@ class TSClientQueryPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 
 	@logutils.trace_call(logger)
 	def __on_server_tab_changed(self, schandlerid):
-		self.__selected_schandlerid = schandlerid
-		# TODO: inform audio positioning the currently selected tab (since
-		# client_id of current server is passed via shared memory)
+		for plugin_info in self.plugin_manager.getPluginsOfCategory("VoiceClientListener"):
+			plugin_info.plugin_object.on_current_voice_server_changed(schandlerid)
 
 	def __update_model(self):
 		g_user_model.set_all(self.NS, reduce(self.__combine_by_identity, self.__users.itervalues(), {}).values())
