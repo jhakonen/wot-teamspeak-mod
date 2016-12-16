@@ -7,7 +7,7 @@ import shutil
 import argparse
 import re
 
-WOT_VERSION          = "0.9.15.2"
+WOT_VERSION          = "0.9.17.0.1"
 SUPPORT_URL          = "http://forum.worldoftanks.eu/index.php?/topic/433614-/"
 ROOT_DIR             = os.path.dirname(os.path.realpath(__file__))
 SRC_DIR              = os.path.join(ROOT_DIR, "src")

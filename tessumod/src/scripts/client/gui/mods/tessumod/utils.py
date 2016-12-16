@@ -18,9 +18,10 @@
 import BigWorld
 import debug_utils
 from gui.battle_control.battle_constants import FEEDBACK_EVENT_ID
-from gui.battle_control import g_sessionProvider
+from helpers import dependency
+from skeletons.gui.battle_session import IBattleSessionProvider
 from gui.prb_control.dispatcher import _PrbControlLoader
-from gui.prb_control.prb_helpers import GlobalListener
+from gui.prb_control.entities.listener import IGlobalListener
 from messenger.storage import storage_getter
 from messenger.proto.events import g_messengerEvents
 from messenger.proto.shared_find_criteria import FriendsFindCriteria
@@ -30,6 +31,8 @@ import os
 import functools
 import inspect
 import time
+
+g_sessionProvider = dependency.instance(IBattleSessionProvider)
 
 def noop(*args, **kwargs):
 	'''Function that does nothing. A safe default value for callback
@@ -367,7 +370,7 @@ class RepeatTimer(object):
 			self.on_timeout()
 			self._do_call()
 
-class PrebattleListener(GlobalListener):
+class PrebattleListener(IGlobalListener):
 
 	def __init__(self):
 		self.__players = {}

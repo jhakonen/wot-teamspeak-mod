@@ -26,6 +26,8 @@ from notification import NotificationMVC
 from notification.settings import NOTIFICATION_TYPE
 from notification.decorators import _NotificationDecorator
 from gui.shared.notifications import NotificationGuiSettings
+from helpers import dependency
+from skeletons.gui.system_messages import ISystemMessages
 
 import utils
 
@@ -77,12 +79,13 @@ def _push_system_message(message, type):
 	is one of the SystemMessages.SM_TYPE.* constants.
 	'''
 	try:
-		if SystemMessages.g_instance is None:
+		system_messages = dependency.instance(ISystemMessages)
+		if system_messages is None:
 			BigWorld.callback(1, functools.partial(_push_system_message, message, type))
 		elif _are_notifications_enabled:
-			SystemMessages.pushMessage(message, type)
+			system_messages.pushMessage(message, type)
 	except:
-		LOG_CURRENT_EXCEPTION()
+		utils.LOG_CURRENT_EXCEPTION()
 
 def _push_notification(notification):
 	model = NotificationMVC.g_instance.getModel()
@@ -93,7 +96,8 @@ def _push_notification(notification):
 
 def _get_new_message_id():
 	try:
-		return SystemMessages.g_instance.proto.serviceChannel._ServiceChannelManager__idGenerator.next()
+		system_messages = dependency.instance(ISystemMessages)
+		return system_messages.proto.serviceChannel._ServiceChannelManager__idGenerator.next()
 	except AttributeError:
 		return 0
 
