@@ -19,9 +19,10 @@ import py_compile, zipfile, os, fnmatch
 import subprocess
 import re
 import shutil
+import urllib2
 
 # configuration
-MOD_VERSION        = "0.6.10"
+MOD_VERSION        = "0.6.11"
 ROOT_DIR           = os.path.dirname(os.path.realpath(__file__))
 BUILD_DIR          = os.path.join(os.getcwd(), "build")
 MOD_PACKAGE_PATH   = os.path.join(os.getcwd(), "tessumod-{0}-bin.zip".format(MOD_VERSION))
@@ -81,11 +82,14 @@ remove_file(MOD_PACKAGE_PATH)
 remove_file(DEBUG_ARCHIVE_PATH)
 remove_dir(BUILD_DIR)
 
-plugin_installer_path, plugin_debug_path = package_ts_plugin(os.path.join(BUILD_DIR, "tsplugin"))
+# NOTE: Disabled plugin building for now. Using prebuild binary from ts-3.1-beta release.
+#plugin_installer_path, plugin_debug_path = package_ts_plugin(os.path.join(BUILD_DIR, "tsplugin"))
 package_path, package_root_path = package_tessumod(os.path.join(BUILD_DIR, "tessumod"))
 
-shutil.copy(plugin_debug_path, DEBUG_ARCHIVE_PATH)
+#shutil.copy(plugin_debug_path, DEBUG_ARCHIVE_PATH)
 shutil.copy(package_path, MOD_PACKAGE_PATH)
 
 with zipfile.ZipFile(MOD_PACKAGE_PATH, "a") as package_file:
-	package_file.write(plugin_installer_path, os.path.join(package_root_path, os.path.basename(plugin_installer_path)))
+	r = urllib2.urlopen("https://github.com/jhakonen/wot-teamspeak-mod/releases/download/ts-3.1-beta/tessumod.ts3_plugin")
+	package_file.writestr(os.path.join(package_root_path, "tessumod.ts3_plugin"), r.read())
+	#package_file.write(plugin_installer_path, os.path.join(package_root_path, os.path.basename(plugin_installer_path)))
