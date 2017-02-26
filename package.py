@@ -22,7 +22,7 @@ import shutil
 import urllib2
 
 # configuration
-MOD_VERSION        = "0.6.11"
+MOD_VERSION        = "0.6.12"
 ROOT_DIR           = os.path.dirname(os.path.realpath(__file__))
 BUILD_DIR          = os.path.join(os.getcwd(), "build")
 MOD_PACKAGE_PATH   = os.path.join(os.getcwd(), "tessumod-{0}-bin.zip".format(MOD_VERSION))
@@ -90,6 +90,6 @@ package_path, package_root_path = package_tessumod(os.path.join(BUILD_DIR, "tess
 shutil.copy(package_path, MOD_PACKAGE_PATH)
 
 with zipfile.ZipFile(MOD_PACKAGE_PATH, "a") as package_file:
-	r = urllib2.urlopen("https://github.com/jhakonen/wot-teamspeak-mod/releases/download/ts-3.1-beta/tessumod.ts3_plugin")
+	r = urllib2.urlopen("https://github.com/jhakonen/wot-teamspeak-mod/releases/download/ts-3.1.1/tessumod.ts3_plugin")
 	package_file.writestr(os.path.join(package_root_path, "tessumod.ts3_plugin"), r.read())
 	#package_file.write(plugin_installer_path, os.path.join(package_root_path, os.path.basename(plugin_installer_path)))
