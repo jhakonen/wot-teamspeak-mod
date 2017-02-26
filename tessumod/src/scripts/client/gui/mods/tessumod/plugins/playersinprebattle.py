@@ -19,7 +19,7 @@ from gui.mods.tessumod import plugintypes, logutils
 from gui.mods.tessumod.models import g_player_model, PlayerItem
 
 from gui.prb_control.dispatcher import _PrbControlLoader
-from gui.prb_control.prb_helpers import GlobalListener
+from gui.prb_control.entities.listener import IGlobalListener
 
 logger = logutils.logger.getChild("playersinprebattle")
 
@@ -39,7 +39,7 @@ class PlayersInPrebattlePlugin(plugintypes.ModPlugin):
 	def deinitialize(self):
 		pass
 
-class PrebattleListener(GlobalListener):
+class PrebattleListener(IGlobalListener):
 
 	NS = "prebattle"
 

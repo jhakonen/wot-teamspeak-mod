@@ -16,18 +16,20 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 import BigWorld
+from helpers import dependency
 from gui import SystemMessages
 from gui.shared.notifications import NotificationGuiSettings
 from gui.battle_control.battle_constants import FEEDBACK_EVENT_ID
-from gui.battle_control import g_sessionProvider
 from gui.prb_control.dispatcher import _PrbControlLoader
-from gui.prb_control.prb_helpers import GlobalListener
+from gui.prb_control.entities.listener import IGlobalListener
 from messenger.proto.events import g_messengerEvents
 from messenger.proto.shared_find_criteria import FriendsFindCriteria
 from messenger.storage import storage_getter
 from notification import NotificationMVC
 from notification.settings import NOTIFICATION_TYPE
 from notification.decorators import _NotificationDecorator
+from skeletons.gui.battle_session import IBattleSessionProvider
+from skeletons.gui.system_messages import ISystemMessages
 from debug_utils import _doLog, _makeMsgHeader
 import Event as _Event
 import VOIP
@@ -41,6 +43,8 @@ import sys
 import types
 
 import log
+
+g_sessionProvider = dependency.instance(IBattleSessionProvider)
 
 Event = _Event.Event
 
@@ -340,17 +344,19 @@ class Notifications(object):
 	@classmethod
 	def __get_new_message_id(cls):
 		try:
-			return SystemMessages.g_instance.proto.serviceChannel._ServiceChannelManager__idGenerator.next()
+			system_messages = dependency.instance(ISystemMessages)
+			return system_messages.proto.serviceChannel._ServiceChannelManager__idGenerator.next()
 		except AttributeError:
 			return 0
 
 	@classmethod
 	def __show_system_message(cls, message, type):
 		try:
-			if SystemMessages.g_instance is None:
+			system_messages = dependency.instance(ISystemMessages)
+			if system_messages is None:
 				EventLoop.callback(1, cls.__show_system_message, message, type)
 			elif cls.__enabled:
-				SystemMessages.pushMessage(message, type)
+				system_messages.pushMessage(message, type)
 		except:
 			log.LOG_CURRENT_EXCEPTION()
 
@@ -464,7 +470,7 @@ def patch_instance_method(instance, method_name, new_function):
 	new_method = types.MethodType(partial(new_function, original_method), instance)
 	setattr(instance, method_name, new_method)
 
-class PrebattleListener(GlobalListener):
+class PrebattleListener(IGlobalListener):
 
 	def __init__(self):
 		self.__players = {}

@@ -39,17 +39,19 @@ class MePlayerPlugin(plugintypes.ModPlugin):
 		pass
 	@logutils.trace_call(logger)
 	def initialize(self):
-		g_playerEvents.onAccountBecomePlayer += self.__on_account_become_player
+		g_playerEvents.onAccountShowGUI += self.__on_account_show_gui
 		g_playerEvents.onAvatarReady += self.__on_avatar_ready
 
 	@logutils.trace_call(logger)
 	def deinitialize(self):
-		g_playerEvents.onAccountBecomePlayer -= self.__on_account_become_player
+		g_playerEvents.onAccountShowGUI -= self.__on_account_show_gui
 		g_playerEvents.onAvatarReady -= self.__on_avatar_ready
 
 
 	@logutils.trace_call(logger)
-	def __on_account_become_player(self):
+	def __on_account_show_gui(self, ctx):
+		# databaseID is set when GUI is shown and will be available before
+		# onAccountShowGUI() is called
 		g_player_model.set(self.NS, PlayerItem(
 			id = int(BigWorld.player().databaseID),
 			is_me = True
