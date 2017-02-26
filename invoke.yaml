@@ -1,5 +1,5 @@
 vars:
-  version: 0.7.0
+  version: 0.7.1
   game_version: 0.9.15.1.1
   plugin_name: TessuMod Plugin
   plugin_author: Janne Hakonen (jhakonen @ WOT EU server)
