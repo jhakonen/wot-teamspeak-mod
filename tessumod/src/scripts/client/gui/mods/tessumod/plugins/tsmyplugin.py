@@ -17,26 +17,33 @@
 
 from gui.mods.tessumod import plugintypes, logutils
 from gui.mods.tessumod.models import g_player_model, g_user_model, FilterModel
-from gui.mods.tessumod.infrastructure import sharedmemory, timer
+from gui.mods.tessumod.infrastructure import sharedmemory, timer, gameapi
 
 from PlayerEvents import g_playerEvents
 import BigWorld
 
+import os
+import sys
 import time
 import struct
 
 logger = logutils.logger.getChild("tsmyplugin")
 
-class TSMyPluginPlugin(plugintypes.ModPlugin, plugintypes.VoiceClientListener, timer.TimerMixin):
+class TSMyPluginPlugin(plugintypes.ModPlugin, plugintypes.VoiceClientListener,
+	                   plugintypes.SettingsMixin, plugintypes.SettingsUIProvider,
+	                   timer.TimerMixin):
 	"""
 	This plugin ...
 	"""
+
+	SUPPORTED_PLUGIN_VERSIONS = [1]
 
 	# TODO: read version from shared memory and send update offer if needed
 	# TODO: handle plugin installation
 
 	def __init__(self):
 		super(TSMyPluginPlugin, self).__init__()
+		self.__advertisement_ignored = False
 		self.__current_schandlerid = None
 		self.__positional_data_api = PositionalDataAPI()
 		# filtered model with players who are alive in battle, has vehicle id
@@ -64,6 +71,119 @@ class TSMyPluginPlugin(plugintypes.ModPlugin, plugintypes.VoiceClientListener, t
 	def deinitialize(self):
 		g_playerEvents.onAvatarBecomePlayer -= self.__on_avatar_become_player
 		g_playerEvents.onAvatarBecomeNonPlayer -= self.__on_avatar_become_non_player
+
+	@logutils.trace_call(logger)
+	def on_settings_changed(self, section, name, value):
+		"""
+		Implemented from SettingsMixin.
+		"""
+		if section == "General":
+			if name == "tsplugin_advertisement":
+				self.__advertisement_ignored = value
+
+	@logutils.trace_call(logger)
+	def get_settings_content(self):
+		"""
+		Implemented from SettingsMixin.
+		"""
+		return {
+			"General": {
+				"help": "",
+				"variables": [
+					{
+						"name": "tsplugin_advertisement",
+						"default": False,
+						"help": "Do not show TessuMod TeamSpeak plugin install advertisement"
+					}
+				]
+			}
+		}
+
+	def get_settingsui_content(self):
+		"""
+		Implemented from SettingsUIProvider.
+		"""
+		return {
+			"Ignored Notifications": [
+				{
+					"label": "Ignore plugin advertisement",
+					"help": "Do not show TessuMod TeamSpeak plugin install advertisement",
+					"type": "checkbox",
+					"variable": ("General", "tsplugin_advertisement")
+				}
+			]
+		}
+
+	@logutils.trace_call(logger)
+	def on_voice_client_connected(self):
+		"""
+		Implemented from VoiceClientListener.
+		"""
+		# Check is plugin file included with mod, and offer to install it
+		mods_dirpath = gameapi.Environment.find_res_mods_version_path()
+		installer_path = os.path.normpath(os.path.join(mods_dirpath, "tessumod.ts3_plugin"))
+		# plugin doesn't work in WinXP so check that we are running on
+		# sufficiently recent Windows OS
+		if not self.__is_vista_or_newer():
+			return
+		if not os.path.isfile(installer_path):
+			return
+		if self.__get_plugin_version() in self.SUPPORTED_PLUGIN_VERSIONS:
+			return
+		if self.__advertisement_ignored:
+			return
+		for plugin_info in self.plugin_manager.getPluginsOfCategory("Notifications"):
+			plugin_info.plugin_object.show_notification({
+				"icon": "scripts/client/gui/mods/tessumod/assets/ts_notification_icon.png",
+				"message": [
+					"Would you like to install TessuMod plugin for TeamSpeak?",
+					"With the plugin TessuMod supports 3D audio, positioning users voice in " +
+					"TeamSpeak so that their voices appear to come from their vehicle's " +
+					"direction on battlefield. <a href=\"event:moreinfo\">More info</a>"
+				],
+				"ignorable": "tsplugin_api_version_1",
+				"ignore_action": self.__on_notification_ignored,
+				"buttons": [
+					{
+						"label": "Install",
+						"action": "install"
+					}
+				],
+				"actions": {
+					"moreinfo": self.__on_notification_moreinfo_clicked,
+					"install": self.__on_notification_install_clicked
+				}
+			})
+
+	def __is_vista_or_newer(self):
+		'''
+		Returns True if the game is running on Windows Vista or newer OS.
+		'''
+		try:
+			return sys.getwindowsversion()[0] >= 6
+		except:
+			logger.warning("Failed to get current Windows OS version")
+			return True
+
+	def __get_plugin_version(self):
+		"""
+		Returns plugin's API version from shared memory. Returns zero if plugin is not present.
+		"""
+		with InfoAPI() as api:
+			return api.get_api_version()
+
+	def __on_notification_moreinfo_clicked(self):
+		# TODO: open browser to plugin's help page
+		logger.error("Handling of moreinfo not implemented")
+
+	def __on_notification_install_clicked(self):
+		# TODO: start plugin installer
+		logger.error("Handling of install not implemented")
+
+	def __on_notification_ignored(self, ignored):
+		# TODO: create interface to settings plugin for changing values
+		# TODO: write ignore state to settings plugin
+		logger.error("Handling of ignoring not implemented (ignored: {})".format(ignored))
 
 	@logutils.trace_call(logger)
 	def on_current_voice_server_changed(self, server_id):

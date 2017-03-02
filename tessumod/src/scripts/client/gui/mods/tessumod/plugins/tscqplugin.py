@@ -53,6 +53,7 @@ class TSCQPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 		player_model.add_filter(lambda player: player.has_attribute("name"))
 		player_model.add_filter(lambda player: player.is_me)
 		player_model.on("added", self.__on_me_player_added)
+		self.__server_names = {}
 
 	@logutils.trace_call(logger)
 	def initialize(self):
@@ -116,28 +117,47 @@ class TSCQPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 		'''Called when TessuMod manages to connect TeamSpeak client. However, this
 		doesn't mean that the client is connected to any TeamSpeak server.
 		'''
-		# TODO: send notification center message
-		# TODO: show teamspeak-plugin install message
 		for plugin_info in self.plugin_manager.getPluginsOfCategory("VoiceClientListener"):
 			plugin_info.plugin_object.on_voice_client_connected()
+		for plugin_info in self.plugin_manager.getPluginsOfCategory("Notifications"):
+			plugin_info.plugin_object.show_notification({
+				"type": "info",
+				"message": [ "Connected to TeamSpeak client" ]
+			})
 
 	@logutils.trace_call(logger)
 	def __on_disconnected_from_ts(self):
 		'''Called when TessuMod loses connection to TeamSpeak client.'''
-		# TODO: send notification center message
-		for plugin_info in self.plugin_manager.getPluginsOfCategory("VoiceClientListener"):
-			plugin_info.plugin_object.on_voice_client_disconnected()
+		for plugin_info in self.plugin_manager.getPluginsOfCategory("Notifications"):
+			plugin_info.plugin_object.show_notification({
+				"type": "warning",
+				"message": [ "Disconnected from TeamSpeak client" ]
+			})
 
 	@logutils.trace_call(logger)
 	def __on_connected_to_ts_server(self, schandlerid):
-		# TODO: send notification center message
-		for plugin_info in self.plugin_manager.getPluginsOfCategory("VoiceClientListener"):
-			plugin_info.plugin_object.on_voice_server_connected()
+		def on_servervariable_finish(error, result):
+			name = ""
+			if error:
+				logger.error("servervariable command failed: %s", error)
+			else:
+				self.__server_names[schandlerid] = result["virtualserver_name"]
+				for plugin_info in self.plugin_manager.getPluginsOfCategory("Notifications"):
+					plugin_info.plugin_object.show_notification({
+						"type": "info",
+						"message": [ "Connected to TeamSpeak server '{0}'".format(self.__server_names[schandlerid]) ]
+					})
+		self.__ts.command_servervariable("virtualserver_name", schandlerid=schandlerid, callback=on_servervariable_finish)
 
 	@logutils.trace_call(logger)
 	def __on_disconnected_from_ts_server(self, schandlerid):
-		for plugin_info in self.plugin_manager.getPluginsOfCategory("VoiceClientListener"):
-			plugin_info.plugin_object.on_voice_server_disconnected()
+		if schandlerid in self.__server_names:
+			for plugin_info in self.plugin_manager.getPluginsOfCategory("Notifications"):
+				plugin_info.plugin_object.show_notification({
+					"type": "info",
+					"message": [ "Disconnected from TeamSpeak server '{0}'".format(self.__server_names[schandlerid]) ]
+				})
+			del self.__server_names[schandlerid]
 
 	@logutils.trace_call(logger)
 	def __on_me_player_added(self, player):

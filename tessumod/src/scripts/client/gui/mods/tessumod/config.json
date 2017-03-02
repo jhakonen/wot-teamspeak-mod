@@ -2,6 +2,7 @@
 	"plugins": [
 		"meplayer",
 		"minimap",
+		"notifications",
 		"playersinbattle",
 		"playersinprebattle",
 		"playerspeaking",

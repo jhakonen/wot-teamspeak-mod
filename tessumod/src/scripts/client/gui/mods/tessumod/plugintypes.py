@@ -17,6 +17,8 @@
 
 class ModPlugin(object):
 
+	CATEGORY = "Plugin"
+
 	def __init__(self):
 		super(ModPlugin, self).__init__()
 
@@ -36,6 +38,8 @@ class ModPlugin(object):
 
 class SettingsMixin(object):
 
+	CATEGORY = "Settings"
+
 	def __init__(self):
 		super(SettingsMixin, self).__init__()
 
@@ -46,6 +50,8 @@ class SettingsMixin(object):
 		pass
 
 class SettingsUIProvider(object):
+
+	CATEGORY = "SettingsUIProvider"
 
 	def __init__(self):
 		super(SettingsUIProvider, self).__init__()
@@ -58,6 +64,8 @@ class SettingsUIProvider(object):
 class UserCache(object):
 	"""
 	"""
+
+	CATEGORY = "UserCache"
 
 	def __init__(self):
 		super(UserCache, self).__init__()
@@ -81,19 +89,12 @@ class VoiceClientListener(object):
 	"""
 	"""
 
+	CATEGORY = "VoiceClientListener"
+
 	def __init__(self):
 		super(VoiceClientListener, self).__init__()
 
 	def on_voice_client_connected(self):
-		pass
-
-	def on_voice_client_disconnected(self):
-		pass
-
-	def on_voice_server_connected(self):
-		pass
-
-	def on_voice_server_disconnected(self):
 		pass
 
 	def on_current_voice_server_changed(self, server_id):
@@ -102,6 +103,8 @@ class VoiceClientListener(object):
 class SnapshotProvider(object):
 	"""
 	"""
+
+	CATEGORY = "SnapshotProvider"
 
 	def __init__(self):
 		super(SnapshotProvider, self).__init__()
@@ -113,4 +116,16 @@ class SnapshotProvider(object):
 		pass
 
 	def restore_snapshot(self, snapshot_name):
+		pass
+
+class Notifications(object):
+	"""
+	"""
+
+	CATEGORY = "Notifications"
+
+	def __init__(self):
+		super(Notifications, self).__init__()
+
+	def show_notification(self, data):
 		pass

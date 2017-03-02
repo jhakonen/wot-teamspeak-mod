@@ -175,8 +175,8 @@ projects:
       - copy:
           tags: ['build', 'clean']
           input_files:
-            - "{src_dir}/gui/tessu_mod/*"
-          target_dir: "{archive_dir}/gui/tessu_mod"
+            - "{src_dir}/scripts/client/gui/mods/tessumod/assets/*"
+          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/assets"
       - copy:
           tags: ['build', 'clean']
           input_files:

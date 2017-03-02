@@ -36,9 +36,6 @@ class MePlayerPlugin(plugintypes.ModPlugin):
 
 	@logutils.trace_call(logger)
 	def initialize(self):
-		pass
-	@logutils.trace_call(logger)
-	def initialize(self):
 		g_playerEvents.onAccountShowGUI += self.__on_account_show_gui
 		g_playerEvents.onAvatarReady += self.__on_avatar_ready
 

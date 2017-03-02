@@ -22,6 +22,7 @@ import plugintypes
 import os
 import json
 import imp
+import inspect
 
 logger = logutils.logger.getChild("pluginmanager")
 
@@ -34,16 +35,21 @@ class ModPluginManager(object):
 			self.__plugins_list = json.loads(file.read())["plugins"]
 
 		self.__plugins_dir_path = os.path.join(self.__mods_dirpath, "tessumod/plugins")
-		self.__categories_filter = {
-			"Plugin": plugintypes.ModPlugin,
-			"Settings": plugintypes.SettingsMixin,
-			"SettingsUIProvider": plugintypes.SettingsUIProvider,
-			"UserCache": plugintypes.UserCache,
-			"VoiceClientListener": plugintypes.VoiceClientListener,
-			"SnapshotProvider": plugintypes.SnapshotProvider
-		}
+		self.__categories_filter = self.get_categories(plugintypes)
 		self.__plugin_infos_by_category = {name: [] for name in self.__categories_filter.iterkeys()}
 		self.__plugin_infos_all = []
+
+	def get_categories(self, module):
+		"""
+		Collects all classes in 'module' which has CATEGORY class member.
+		Returns categories as map of CATEGORY as key and the class as value.
+		"""
+		categories = {}
+		for name in dir(plugintypes):
+			attribute = getattr(plugintypes, name)
+			if inspect.isclass(attribute) and hasattr(attribute, "CATEGORY"):
+				categories[getattr(attribute, "CATEGORY")] = attribute
+		return categories
 
 	def collectPlugins(self):
 		for plugin_name in self.__plugins_list:
