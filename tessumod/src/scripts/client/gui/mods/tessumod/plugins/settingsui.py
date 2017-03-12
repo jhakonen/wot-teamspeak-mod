@@ -74,6 +74,7 @@ class SettingsUIPlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider):
 		for plugin_info in self.plugin_manager.getPluginsOfCategory("SnapshotProvider"):
 			for snapshot in self.__snapshots:
 				plugin_info.plugin_object.restore_snapshot(snapshot)
+				plugin_info.plugin_object.release_snaphot(snapshot)
 
 	def __load_descriptions(self):
 		for plugin_info in self.plugin_manager.getPluginsOfCategory("SettingsUIProvider"):

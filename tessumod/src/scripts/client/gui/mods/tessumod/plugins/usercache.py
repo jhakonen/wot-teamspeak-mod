@@ -144,7 +144,6 @@ class UserCachePlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider,
 		"""
 		if snapshot_name in self.__snapshots:
 			self.__import_cache_structure(self.__snapshots[snapshot_name])
-			del self.__snapshots[snapshot_name]
 
 	def __hook_battlereplay_play(self, orig_method):
 		def wrapper(battlereplay_self, fileName=None):
