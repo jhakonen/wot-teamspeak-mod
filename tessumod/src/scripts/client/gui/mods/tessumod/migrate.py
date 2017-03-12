@@ -45,7 +45,7 @@ def migrate_user_cache_0_6_to_0_7():
 			dest_structure = json.loads(file.read())
 
 	if os.path.isfile(source_filepath) and dest_structure["version"] == 1:
-		logger.info("Migrating user cache from 0.6 to 0.7")
+		logger.info("Migrating user cache from version 0.6 to 0.7")
 
 		parser = ConfigParser.ConfigParser()
 		with open(source_filepath, "rb") as file:
@@ -100,6 +100,85 @@ def migrate_user_cache_0_6_to_0_7():
 		os.rename(source_filepath, backup_filepath)
 
 def migrate_settings_0_6_to_0_7():
-	# TODO: migrate settings ini file
-	# TODO: migrate states-folder
-	pass
+	"""
+	This function migrates following files into configs/tessumod/settings.json:
+	 * configs/tessu_mod/tessu_mod.ini
+	 * configs/tessu_mod/states/ignored_plugin_version
+	"""
+	source_settings_path = os.path.join(res_mods_dirpath, "configs", "tessu_mod", "tessu_mod.ini")
+	source_states_path = os.path.join(res_mods_dirpath, "configs", "tessu_mod", "states", "ignored_plugin_version")
+	dest_filepath = os.path.join(res_mods_dirpath, "configs", "tessumod", "settings.json")
+
+	dest_structure = { "version": 1 }
+	# If destination already exists, load it so we can override values in it
+	# with values from the old settings file
+	if os.path.isfile(dest_filepath):
+		with open(dest_filepath, "rb") as file:
+			dest_structure = json.loads(file.read())
+
+	if os.path.isfile(source_settings_path) and dest_structure["version"] == 1:
+		logger.info("Migrating settings from version 0.6 to 0.7")
+
+		parser = ConfigParser.ConfigParser()
+		with open(source_settings_path, "rb") as file:
+			parser.readfp(file)
+		for section in parser.sections():
+			for option in parser.options(section):
+				if section == "General":
+					if option == "speak_stop_delay":
+						dest_structure.setdefault("General", {})["speak_stop_delay"] = parser.getint(section, option)
+					elif option == "get_wot_nick_from_ts_metadata":
+						dest_structure.setdefault("General", {})["get_wot_nick_from_ts_metadata"] = parser.getboolean(section, option)
+					elif option == "update_cache_in_replays":
+						dest_structure.setdefault("General", {})["update_cache_in_replays"] = parser.getboolean(section, option)
+					elif option == "ts_nick_search_enabled":
+						dest_structure.setdefault("General", {})["ts_nick_search_enabled"] = parser.getboolean(section, option)
+					elif option == "nick_extract_patterns":
+						dest_structure.setdefault("General", {})["nick_extract_patterns"] = parser.get(section, option).split(",")
+				elif section == "NameMappings":
+					dest_structure.setdefault("NameMappings", {})[option] = parser.get(section, option)
+				elif section == "TSClientQueryService":
+					if option == "host":
+						dest_structure.setdefault("TSClientQueryService", {})["host"] = parser.get(section, option)
+					elif option == "port":
+						dest_structure.setdefault("TSClientQueryService", {})["port"] = parser.getint(section, option)
+					elif option == "polling_interval":
+						dest_structure.setdefault("TSClientQueryService", {})["polling_interval"] = parser.getfloat(section, option)
+				elif section == "VoiceChatNotifications":
+					if option == "enabled":
+						dest_structure.setdefault("VoiceChatNotifications", {})["enabled"] = parser.getboolean(section, option)
+					elif option == "self_enabled":
+						dest_structure.setdefault("VoiceChatNotifications", {})["self_enabled"] = parser.getboolean(section, option)
+				elif section == "MinimapNotifications":
+					if option == "enabled":
+						dest_structure.setdefault("VoiceChatNotifications", {})["enabled"] = parser.getboolean(section, option)
+					elif option == "self_enabled":
+						dest_structure.setdefault("VoiceChatNotifications", {})["self_enabled"] = parser.getboolean(section, option)
+					elif option == "action":
+						dest_structure.setdefault("VoiceChatNotifications", {})["action"] = parser.get(section, option)
+					elif option == "repeat_interval":
+						dest_structure.setdefault("VoiceChatNotifications", {})["repeat_interval"] = parser.getfloat(section, option)
+
+	if os.path.isfile(source_states_path) and dest_structure["version"] == 1:
+		logger.info("Migrating plugin install opt-out from version 0.6 to 0.7")
+		dest_structure.setdefault("General", {})["tsplugin_advertisement"] = True
+
+	# create destination directory if it doesn't exist yet
+	dest_dirpath = os.path.dirname(dest_filepath)
+	if not os.path.isdir(dest_dirpath):
+		os.makedirs(dest_dirpath)
+
+	# write out the settings file
+	with open(dest_filepath, "wb") as out_file:
+		out_file.write(json.dumps(dest_structure, indent=4))
+
+	# backup and remove old settings file
+	if os.path.isfile(source_settings_path):
+		backup_filepath = os.path.join(dest_dirpath, os.path.basename(source_settings_path)) + ".old-0.6"
+		if os.path.isfile(backup_filepath):
+			os.remove(backup_filepath)
+		os.rename(source_settings_path, backup_filepath)
+
+	# remove old plugin opt-out file
+	if os.path.isfile(source_states_path):
+		os.remove(source_states_path)
