@@ -21,7 +21,7 @@ from gui.mods.tessumod.adapters.wotgame import MinimapAdapter
 
 logger = logutils.logger.getChild("minimap")
 
-class MinimapPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintypes.SettingsUIProvider):
+class MinimapPlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider, plugintypes.SettingsUIProvider):
 	"""
 	This plugin renders speech notifications to minimap in battle when a player
 	who is in battle speaks in voice chat.
@@ -53,7 +53,7 @@ class MinimapPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintype
 	@logutils.trace_call(logger)
 	def on_settings_changed(self, section, name, value):
 		"""
-		Implemented from SettingsMixin.
+		Implemented from SettingsProvider.
 		"""
 		if section == "MinimapNotifications":
 			if name == "enabled":
@@ -70,7 +70,7 @@ class MinimapPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintype
 	@logutils.trace_call(logger)
 	def get_settings_content(self):
 		"""
-		Implemented from SettingsMixin.
+		Implemented from SettingsProvider.
 		"""
 		return {
 			"MinimapNotifications": {

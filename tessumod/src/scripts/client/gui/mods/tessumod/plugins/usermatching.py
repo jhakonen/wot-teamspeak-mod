@@ -27,7 +27,8 @@ logger = logutils.logger.getChild("usermatching")
 #  - Snapshot interface
 # =============================================================================
 
-class UserMatching(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintypes.UserCache):
+class UserMatching(plugintypes.ModPlugin, plugintypes.SettingsProvider,
+	plugintypes.UserCache):
 	"""
 	This plugin ...
 	"""
@@ -69,7 +70,7 @@ class UserMatching(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintypes
 	@logutils.trace_call(logger)
 	def on_settings_changed(self, section, name, value):
 		"""
-		Implemented from SettingsMixin.
+		Implemented from SettingsProvider.
 		"""
 		if section == "General":
 			if name == "get_wot_nick_from_ts_metadata":
@@ -85,7 +86,7 @@ class UserMatching(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintypes
 	@logutils.trace_call(logger)
 	def get_settings_content(self):
 		"""
-		Implemented from SettingsMixin.
+		Implemented from SettingsProvider.
 		"""
 		return {
 			"General": {

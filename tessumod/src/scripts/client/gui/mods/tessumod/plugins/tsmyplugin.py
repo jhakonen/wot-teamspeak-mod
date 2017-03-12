@@ -25,12 +25,16 @@ import BigWorld
 import os
 import sys
 import time
+import uuid
 import struct
+import functools
+import threading
+import subprocess
 
 logger = logutils.logger.getChild("tsmyplugin")
 
 class TSMyPluginPlugin(plugintypes.ModPlugin, plugintypes.VoiceClientListener,
-	                   plugintypes.SettingsMixin, plugintypes.SettingsUIProvider,
+	                   plugintypes.SettingsProvider, plugintypes.SettingsUIProvider,
 	                   timer.TimerMixin):
 	"""
 	This plugin ...
@@ -45,6 +49,7 @@ class TSMyPluginPlugin(plugintypes.ModPlugin, plugintypes.VoiceClientListener,
 		super(TSMyPluginPlugin, self).__init__()
 		self.__advertisement_ignored = False
 		self.__current_schandlerid = None
+		self.__snapshots = {}
 		self.__positional_data_api = PositionalDataAPI()
 		# filtered model with players who are alive in battle, has vehicle id
 		# and is matched to one or more users
@@ -75,7 +80,7 @@ class TSMyPluginPlugin(plugintypes.ModPlugin, plugintypes.VoiceClientListener,
 	@logutils.trace_call(logger)
 	def on_settings_changed(self, section, name, value):
 		"""
-		Implemented from SettingsMixin.
+		Implemented from SettingsProvider.
 		"""
 		if section == "General":
 			if name == "tsplugin_advertisement":
@@ -84,7 +89,7 @@ class TSMyPluginPlugin(plugintypes.ModPlugin, plugintypes.VoiceClientListener,
 	@logutils.trace_call(logger)
 	def get_settings_content(self):
 		"""
-		Implemented from SettingsMixin.
+		Implemented from SettingsProvider.
 		"""
 		return {
 			"General": {
@@ -99,6 +104,7 @@ class TSMyPluginPlugin(plugintypes.ModPlugin, plugintypes.VoiceClientListener,
 			}
 		}
 
+	@logutils.trace_call(logger)
 	def get_settingsui_content(self):
 		"""
 		Implemented from SettingsUIProvider.
@@ -115,18 +121,43 @@ class TSMyPluginPlugin(plugintypes.ModPlugin, plugintypes.VoiceClientListener,
 		}
 
 	@logutils.trace_call(logger)
+	def create_snapshot(self):
+		"""
+		Implemented from SnapshotProvider.
+		"""
+		snapshot_name = uuid.uuid4()
+		self.__snapshots[snapshot_name] = { "advertisement_ignored": self.__advertisement_ignored }
+		return snapshot_name
+
+	@logutils.trace_call(logger)
+	def release_snaphot(self, snapshot_name):
+		"""
+		Implemented from SnapshotProvider.
+		"""
+		if snapshot_name in self.__snapshots:
+			del self.__snapshots[snapshot_name]
+
+	@logutils.trace_call(logger)
+	def restore_snapshot(self, snapshot_name):
+		"""
+		Implemented from SnapshotProvider.
+		"""
+		if snapshot_name in self.__snapshots:
+			self.__advertisement_ignored = self.__snapshots[snapshot_name]["advertisement_ignored"]
+
+	@logutils.trace_call(logger)
 	def on_voice_client_connected(self):
 		"""
 		Implemented from VoiceClientListener.
 		"""
 		# Check is plugin file included with mod, and offer to install it
 		mods_dirpath = gameapi.Environment.find_res_mods_version_path()
-		installer_path = os.path.normpath(os.path.join(mods_dirpath, "tessumod.ts3_plugin"))
+		self.__installer_path = os.path.normpath(os.path.join(mods_dirpath, "tessumod.ts3_plugin"))
 		# plugin doesn't work in WinXP so check that we are running on
 		# sufficiently recent Windows OS
 		if not self.__is_vista_or_newer():
 			return
-		if not os.path.isfile(installer_path):
+		if not os.path.isfile(self.__installer_path):
 			return
 		if self.__get_plugin_version() in self.SUPPORTED_PLUGIN_VERSIONS:
 			return
@@ -173,17 +204,22 @@ class TSMyPluginPlugin(plugintypes.ModPlugin, plugintypes.VoiceClientListener,
 			return api.get_api_version()
 
 	def __on_notification_moreinfo_clicked(self):
-		# TODO: open browser to plugin's help page
-		logger.error("Handling of moreinfo not implemented")
+		url = "https://github.com/jhakonen/wot-teamspeak-mod/wiki/TeamSpeak-Plugins#tessumod-plugin"
+		subprocess.call(["start", url], shell=True)
 
 	def __on_notification_install_clicked(self):
-		# TODO: start plugin installer
-		logger.error("Handling of install not implemented")
+		self.__installer_path
+		threading.Thread(
+			target = functools.partial(
+				subprocess.call,
+				args  = [self.__installer_path],
+				shell = True
+			)
+		).start()
 
 	def __on_notification_ignored(self, ignored):
-		# TODO: create interface to settings plugin for changing values
-		# TODO: write ignore state to settings plugin
-		logger.error("Handling of ignoring not implemented (ignored: {})".format(ignored))
+		for plugin_info in self.plugin_manager.getPluginsOfCategory("Settings"):
+			plugin_info.plugin_object.set_settings_value("General", "tsplugin_advertisement", ignored)
 
 	@logutils.trace_call(logger)
 	def on_current_voice_server_changed(self, server_id):

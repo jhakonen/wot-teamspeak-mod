@@ -25,7 +25,7 @@ from constants import ARENA_PERIOD
 
 logger = logutils.logger.getChild("speakindicator")
 
-class SpeakIndicatorPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
+class SpeakIndicatorPlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider):
 	"""
 	This plugin renders speech indicator notifications in game when a user
 	matched a player speaks. The indicator is shown as a green ripple effect
@@ -63,7 +63,7 @@ class SpeakIndicatorPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 	@logutils.trace_call(logger)
 	def on_settings_changed(self, section, name, value):
 		"""
-		Implemented from SettingsMixin.
+		Implemented from SettingsProvider.
 		"""
 		if section == "VoiceChatNotifications":
 			if name == "enabled":
@@ -76,7 +76,7 @@ class SpeakIndicatorPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 	@logutils.trace_call(logger)
 	def get_settings_content(self):
 		"""
-		Implemented from SettingsMixin.
+		Implemented from SettingsProvider.
 		"""
 		return {
 			"VoiceChatNotifications": {

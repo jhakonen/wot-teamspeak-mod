@@ -31,12 +31,13 @@ logger = logutils.logger.getChild("settings")
 #  - Snapshot interface
 # =============================================================================
 
-class SettingsPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintypes.SettingsUIProvider):
+class SettingsPlugin(plugintypes.ModPlugin, plugintypes.Settings,
+	plugintypes.SettingsProvider, plugintypes.SettingsUIProvider):
 	"""
 	This plugin loads settings from tessu_mod.ini file and writes a default
 	file when the config file is missing.
 
-	Calls following methods from "Settings" category:
+	Calls following methods from "SettingsProvider" category:
 	 * get_settings_content: To get information from other plugins what the
 	                         config file should contain
 	 * on_settings_changed:  For every setting variable at mod start and later
@@ -64,10 +65,17 @@ class SettingsPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintyp
 	def initialize(self):
 		BigWorld.callback(0, self.__inifile.init)
 
+	def set_settings_value(self, section, name, value):
+		"""
+		Implemented from Settings.
+		"""
+		logger.error("set_settings_value({}, {}, {}) :: Not implemented!".format(
+			section, name, value))
+
 	@logutils.trace_call(logger)
 	def on_settings_changed(self, section, name, value):
 		"""
-		Implemented from SettingsMixin.
+		Implemented from SettingsProvider.
 		"""
 		if section == "General":
 			if name == "ini_check_interval":
@@ -76,7 +84,7 @@ class SettingsPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintyp
 	@logutils.trace_call(logger)
 	def get_settings_content(self):
 		"""
-		Implemented from SettingsMixin.
+		Implemented from SettingsProvider.
 		"""
 		return {
 			"General": {
@@ -109,7 +117,7 @@ class SettingsPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintyp
 
 	def __on_file_loaded(self):
 		new_values = {}
-		for plugin_info in self.plugin_manager.getPluginsOfCategory("Settings"):
+		for plugin_info in self.plugin_manager.getPluginsOfCategory("SettingsProvider"):
 			content = plugin_info.plugin_object.get_settings_content()
 			for section in content:
 				variables = content[section]["variables"]
@@ -121,7 +129,7 @@ class SettingsPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin, plugintyp
 						default = variable["default"]
 						new_values[(section, name)] = self.__type_to_getter[type(default)](section, name, default=default)
 
-		for plugin_info in self.plugin_manager.getPluginsOfCategory("Settings"):
+		for plugin_info in self.plugin_manager.getPluginsOfCategory("SettingsProvider"):
 			for key, value in new_values.iteritems():
 				if value != self.__previous_values.get(key, None):
 					section, name = key

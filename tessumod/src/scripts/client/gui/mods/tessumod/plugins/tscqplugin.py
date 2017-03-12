@@ -24,7 +24,7 @@ import collections
 logger = logutils.logger.getChild("tscqplugin")
 UserTuple = collections.namedtuple('UserTuple', ('client_id', 'name', 'game_name', 'id', 'is_speaking', 'is_me', 'my_channel'))
 
-class TSCQPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
+class TSCQPlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider):
 	"""
 	This plugin ...
 	"""
@@ -62,7 +62,7 @@ class TSCQPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 	@logutils.trace_call(logger)
 	def on_settings_changed(self, section, name, value):
 		"""
-		Implemented from SettingsMixin.
+		Implemented from SettingsProvider.
 		"""
 		if section == "TSClientQueryService":
 			if name == "host":
@@ -77,7 +77,7 @@ class TSCQPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 	@logutils.trace_call(logger)
 	def get_settings_content(self):
 		"""
-		Implemented from SettingsMixin.
+		Implemented from SettingsProvider.
 		"""
 		return {
 			"TSClientQueryService": {

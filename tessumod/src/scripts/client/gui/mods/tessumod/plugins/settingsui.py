@@ -31,7 +31,7 @@ logger = logutils.logger.getChild("settingsui")
 #  - Creating, restoring and deleting snapshots
 # =============================================================================
 
-class SettingsUIPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
+class SettingsUIPlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider):
 	"""
 	This plugin...
 	"""
@@ -47,14 +47,14 @@ class SettingsUIPlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin):
 	@logutils.trace_call(logger)
 	def on_settings_changed(self, section, name, value):
 		"""
-		Implemented from SettingsMixin.
+		Implemented from SettingsProvider.
 		"""
 		pass
 
 	@logutils.trace_call(logger)
 	def get_settings_content(self):
 		"""
-		Implemented from SettingsMixin.
+		Implemented from SettingsProvider.
 		"""
 		return {}
 

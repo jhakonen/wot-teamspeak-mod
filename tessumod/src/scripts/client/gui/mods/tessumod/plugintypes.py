@@ -36,12 +36,22 @@ class ModPlugin(object):
 	def deinitialize(self):
 		pass
 
-class SettingsMixin(object):
+class Settings(object):
 
 	CATEGORY = "Settings"
 
 	def __init__(self):
-		super(SettingsMixin, self).__init__()
+		super(Settings, self).__init__()
+
+	def set_settings_value(self, section, name, value):
+		pass
+
+class SettingsProvider(object):
+
+	CATEGORY = "SettingsProvider"
+
+	def __init__(self):
+		super(SettingsProvider, self).__init__()
 
 	def on_settings_changed(self, section, name, value):
 		pass

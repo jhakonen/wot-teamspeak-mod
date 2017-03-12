@@ -28,7 +28,7 @@ import itertools
 
 logger = logutils.logger.getChild("usercache")
 
-class UserCachePlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin,
+class UserCachePlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider,
 	plugintypes.SettingsUIProvider, plugintypes.SnapshotProvider):
 	"""
 	This plugin ...
@@ -68,7 +68,7 @@ class UserCachePlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin,
 	@logutils.trace_call(logger)
 	def on_settings_changed(self, section, name, value):
 		"""
-		Implemented from SettingsMixin.
+		Implemented from SettingsProvider.
 		"""
 		if section == "General":
 			if name == "update_cache_in_replays":
@@ -77,7 +77,7 @@ class UserCachePlugin(plugintypes.ModPlugin, plugintypes.SettingsMixin,
 	@logutils.trace_call(logger)
 	def get_settings_content(self):
 		"""
-		Implemented from SettingsMixin.
+		Implemented from SettingsProvider.
 		"""
 		return {
 			"General": {

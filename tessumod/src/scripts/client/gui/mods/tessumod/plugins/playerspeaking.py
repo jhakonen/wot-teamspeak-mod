@@ -31,7 +31,7 @@ logger = logutils.logger.getChild("playerspeaking")
 #  - snapshot interface
 # =============================================================================
 
-class PlayerSpeaking(plugintypes.ModPlugin, plugintypes.SettingsMixin,
+class PlayerSpeaking(plugintypes.ModPlugin, plugintypes.SettingsProvider,
 	plugintypes.SettingsUIProvider):
 	"""
 	This plugin ...
@@ -66,7 +66,7 @@ class PlayerSpeaking(plugintypes.ModPlugin, plugintypes.SettingsMixin,
 	@logutils.trace_call(logger)
 	def on_settings_changed(self, section, name, value):
 		"""
-		Implemented from SettingsMixin.
+		Implemented from SettingsProvider.
 		"""
 		if section == "General":
 			if name == "speak_stop_delay":
@@ -75,7 +75,7 @@ class PlayerSpeaking(plugintypes.ModPlugin, plugintypes.SettingsMixin,
 	@logutils.trace_call(logger)
 	def get_settings_content(self):
 		"""
-		Implemented from SettingsMixin.
+		Implemented from SettingsProvider.
 		"""
 		return {
 			"General": {
