@@ -161,7 +161,7 @@ def migrate_settings_0_6_to_0_7():
 
 	if os.path.isfile(source_states_path) and dest_structure["version"] == 1:
 		logger.info("Migrating plugin install opt-out from version 0.6 to 0.7")
-		dest_structure.setdefault("General", {})["tsplugin_advertisement"] = True
+		dest_structure.setdefault("General", {})["tsplugin_opt_out"] = True
 
 	# create destination directory if it doesn't exist yet
 	dest_dirpath = os.path.dirname(dest_filepath)

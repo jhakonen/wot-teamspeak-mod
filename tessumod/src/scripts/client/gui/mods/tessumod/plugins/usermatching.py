@@ -22,11 +22,6 @@ import re
 
 logger = logutils.logger.getChild("usermatching")
 
-# =============================================================================
-#                          IMPLEMENTATION MISSING
-#  - Snapshot interface
-# =============================================================================
-
 class UserMatching(plugintypes.ModPlugin, plugintypes.SettingsProvider,
 	plugintypes.UserCache):
 	"""

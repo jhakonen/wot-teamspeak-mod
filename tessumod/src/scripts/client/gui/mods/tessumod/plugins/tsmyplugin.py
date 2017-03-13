@@ -25,7 +25,6 @@ import BigWorld
 import os
 import sys
 import time
-import uuid
 import struct
 import functools
 import threading
@@ -42,14 +41,10 @@ class TSMyPluginPlugin(plugintypes.ModPlugin, plugintypes.VoiceClientListener,
 
 	SUPPORTED_PLUGIN_VERSIONS = [1]
 
-	# TODO: read version from shared memory and send update offer if needed
-	# TODO: handle plugin installation
-
 	def __init__(self):
 		super(TSMyPluginPlugin, self).__init__()
 		self.__advertisement_ignored = False
 		self.__current_schandlerid = None
-		self.__snapshots = {}
 		self.__positional_data_api = PositionalDataAPI()
 		# filtered model with players who are alive in battle, has vehicle id
 		# and is matched to one or more users
@@ -83,7 +78,7 @@ class TSMyPluginPlugin(plugintypes.ModPlugin, plugintypes.VoiceClientListener,
 		Implemented from SettingsProvider.
 		"""
 		if section == "General":
-			if name == "tsplugin_advertisement":
+			if name == "tsplugin_opt_out":
 				self.__advertisement_ignored = value
 
 	@logutils.trace_call(logger)
@@ -96,7 +91,7 @@ class TSMyPluginPlugin(plugintypes.ModPlugin, plugintypes.VoiceClientListener,
 				"help": "",
 				"variables": [
 					{
-						"name": "tsplugin_advertisement",
+						"name": "tsplugin_opt_out",
 						"default": False,
 						"help": "Do not show TessuMod TeamSpeak plugin install advertisement"
 					}
@@ -115,35 +110,10 @@ class TSMyPluginPlugin(plugintypes.ModPlugin, plugintypes.VoiceClientListener,
 					"label": "Ignore plugin advertisement",
 					"help": "Do not show TessuMod TeamSpeak plugin install advertisement",
 					"type": "checkbox",
-					"variable": ("General", "tsplugin_advertisement")
+					"variable": ("General", "tsplugin_opt_out")
 				}
 			]
 		}
-
-	@logutils.trace_call(logger)
-	def create_snapshot(self):
-		"""
-		Implemented from SnapshotProvider.
-		"""
-		snapshot_name = uuid.uuid4()
-		self.__snapshots[snapshot_name] = { "advertisement_ignored": self.__advertisement_ignored }
-		return snapshot_name
-
-	@logutils.trace_call(logger)
-	def release_snaphot(self, snapshot_name):
-		"""
-		Implemented from SnapshotProvider.
-		"""
-		if snapshot_name in self.__snapshots:
-			del self.__snapshots[snapshot_name]
-
-	@logutils.trace_call(logger)
-	def restore_snapshot(self, snapshot_name):
-		"""
-		Implemented from SnapshotProvider.
-		"""
-		if snapshot_name in self.__snapshots:
-			self.__advertisement_ignored = self.__snapshots[snapshot_name]["advertisement_ignored"]
 
 	@logutils.trace_call(logger)
 	def on_voice_client_connected(self):
@@ -219,7 +189,7 @@ class TSMyPluginPlugin(plugintypes.ModPlugin, plugintypes.VoiceClientListener,
 
 	def __on_notification_ignored(self, ignored):
 		for plugin_info in self.plugin_manager.getPluginsOfCategory("Settings"):
-			plugin_info.plugin_object.set_settings_value("General", "tsplugin_advertisement", ignored)
+			plugin_info.plugin_object.set_settings_value("General", "tsplugin_opt_out", ignored)
 
 	@logutils.trace_call(logger)
 	def on_current_voice_server_changed(self, server_id):

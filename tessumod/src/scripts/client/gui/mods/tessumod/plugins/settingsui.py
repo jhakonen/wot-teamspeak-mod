@@ -28,7 +28,6 @@ logger = logutils.logger.getChild("settingsui")
 #  - Showing the settings ui
 #  - Showing button in ui for opening the settings ui
 #  - Handling events from flash (ok, apply, cancel, changes in controls)
-#  - Creating, restoring and deleting snapshots
 # =============================================================================
 
 class SettingsUIPlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider):

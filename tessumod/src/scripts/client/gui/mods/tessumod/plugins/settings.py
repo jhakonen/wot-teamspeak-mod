@@ -16,23 +16,23 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 from gui.mods.tessumod import plugintypes, logutils
-import gui.mods.tessumod.adapters.settings as adapter_settings
-from gui.mods.tessumod.infrastructure.inifile import INIFile
 from gui.mods.tessumod.infrastructure.gameapi import Environment
-import os
 import BigWorld
+
+import os
+import copy
+import json
+import uuid
 
 logger = logutils.logger.getChild("settings")
 
 # =============================================================================
 #                          IMPLEMENTATION MISSING
 #  - Add writing into file
-#  - Add creation of default file
-#  - Snapshot interface
 # =============================================================================
 
 class SettingsPlugin(plugintypes.ModPlugin, plugintypes.Settings,
-	plugintypes.SettingsProvider, plugintypes.SettingsUIProvider):
+	plugintypes.SnapshotProvider):
 	"""
 	This plugin loads settings from tessu_mod.ini file and writes a default
 	file when the config file is missing.
@@ -47,92 +47,103 @@ class SettingsPlugin(plugintypes.ModPlugin, plugintypes.Settings,
 
 	def __init__(self):
 		super(SettingsPlugin, self).__init__()
-		self.__inifile = INIFile(adapter_settings.DEFAULT_INI)
-		self.__inifile.on("file-loaded", self.__on_file_loaded)
-		self.__inifile.set_filepath(os.path.join(Environment.find_res_mods_version_path(),
-			"..", "configs", "tessu_mod", "tessu_mod.ini"))
+		self.__snapshots = {}
 		self.__previous_values = {}
-		self.__type_to_getter = {
-			bool: self.__inifile.get_boolean,
-			int: self.__inifile.get_int,
-			float: self.__inifile.get_float,
-			str: self.__inifile.get_string,
-			unicode: self.__inifile.get_string,
-			list: self.__inifile.get_list
-		}
+		self.__filepath = os.path.join(Environment.find_res_mods_version_path(),
+			"..", "configs", "tessumod", "settings.json")
 
 	@logutils.trace_call(logger)
 	def initialize(self):
-		BigWorld.callback(0, self.__inifile.init)
+		self.__load_settings_data()
+		BigWorld.callback(0, self.__notify_changed_settings)
+
+	@logutils.trace_call(logger)
+	def deinitialize(self):
+		self.__save_settings_data()
 
 	def set_settings_value(self, section, name, value):
 		"""
 		Implemented from Settings.
 		"""
-		logger.error("set_settings_value({}, {}, {}) :: Not implemented!".format(
-			section, name, value))
+		self.__settings_data[section][name] = value
+		self.__save_settings_data()
+		self.__notify_changed_settings()
 
 	@logutils.trace_call(logger)
-	def on_settings_changed(self, section, name, value):
+	def create_snapshot(self):
 		"""
-		Implemented from SettingsProvider.
+		Implemented from SnapshotProvider.
 		"""
-		if section == "General":
-			if name == "ini_check_interval":
-				self.__inifile.set_file_check_interval(value)
+		snapshot_name = uuid.uuid4()
+		self.__snapshots[snapshot_name] = copy.deepcopy(self.__settings_data)
+		return snapshot_name
 
 	@logutils.trace_call(logger)
-	def get_settings_content(self):
+	def release_snaphot(self, snapshot_name):
 		"""
-		Implemented from SettingsProvider.
+		Implemented from SnapshotProvider.
 		"""
-		return {
-			"General": {
-				"help": "",
-				"variables": [
-					{
-						"name": "ini_check_interval",
-						"default": 5,
-						"help": "Interval (as seconds) that this ini-file is checked for modifications, and reloaded if modified"
-					}
-				]
-			}
-		}
+		if snapshot_name in self.__snapshots:
+			del self.__snapshots[snapshot_name]
 
-	def get_settingsui_content(self):
+	@logutils.trace_call(logger)
+	def restore_snapshot(self, snapshot_name):
 		"""
-		Implemented from SettingsUIProvider.
+		Implemented from SnapshotProvider.
 		"""
-		return {
-			"General Settings": [
-				{
-					"label": "Config poll interval",
-					"help": """Interval (as seconds) that this ini-file is checked
-						for modifications, and reloaded if modified.""",
-					"type": "combobox",
-					"variable": ("General", "ini_check_interval")
-				}
-			]
-		}
+		if snapshot_name in self.__snapshots:
+			self.__settings_data = self.__snapshots[snapshot_name]
 
-	def __on_file_loaded(self):
-		new_values = {}
+	def __load_settings_data(self):
+		"""
+		Loads settings data from disk.
+		"""
+		# load settings file if one exists
+		if os.path.isfile(self.__filepath):
+			with open(self.__filepath, "rb") as file:
+				self.__settings_data = json.loads(file.read())
+		# load default values (existing variables are not overwritten)
 		for plugin_info in self.plugin_manager.getPluginsOfCategory("SettingsProvider"):
 			content = plugin_info.plugin_object.get_settings_content()
-			for section in content:
-				variables = content[section]["variables"]
+			for category_name in content:
+				category_content = content[category_name]
+				variables = category_content["variables"]
+				self.__settings_data.setdefault(category_name, {})
 				if variables == "any":
-					new_values[(section, section)] = self.__inifile.get_dict(section, self.__type_to_getter[content[section]["variable_type"]], default={})
-				else:
-					for variable in variables:
-						name = variable["name"]
-						default = variable["default"]
-						new_values[(section, name)] = self.__type_to_getter[type(default)](section, name, default=default)
+					continue
+				for variable in variables:
+					self.__settings_data[category_name].setdefault(
+						variable["name"], variable["default"])
 
+	def __save_settings_data(self):
+		"""
+		Saves settings data to disk.
+		"""
+		# create destination directory if it doesn't exist yet
+		dest_dirpath = os.path.dirname(self.__filepath)
+		if not os.path.isdir(dest_dirpath):
+			os.makedirs(dest_dirpath)
+		# write out the settings file
+		with open(self.__filepath, "wb") as out_file:
+			out_file.write(json.dumps(self.__settings_data, indent=4))
+
+	def __notify_changed_settings(self):
+		"""
+		Calls on_settings_changed() of any plugin which implements
+		"SettingsProvider" interface when a setting has changed since last
+		notification.
+		"""
+		# find changed settings
+		changed = []
+		for section, variables in self.__settings_data.iteritems():
+			if section == "version":
+				continue
+			for name, value in variables.iteritems():
+				if value != self.__previous_values.get(section, {}).get(name, None):
+					changed.append((section, name, value))
+		# notify listeners
 		for plugin_info in self.plugin_manager.getPluginsOfCategory("SettingsProvider"):
-			for key, value in new_values.iteritems():
-				if value != self.__previous_values.get(key, None):
-					section, name = key
-					plugin_info.plugin_object.on_settings_changed(section, name, value)
-
-		self.__previous_values = new_values
+			for section, name, value in changed:
+				plugin_info.plugin_object.on_settings_changed(section, name, value)
+		# Save changed values for next time
+		self.__previous_values = copy.deepcopy(self.__settings_data)
