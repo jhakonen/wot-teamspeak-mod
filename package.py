@@ -22,7 +22,7 @@ import shutil
 import urllib2
 
 # configuration
-MOD_VERSION        = "0.6.12"
+MOD_VERSION        = "0.6.13"
 ROOT_DIR           = os.path.dirname(os.path.realpath(__file__))
 BUILD_DIR          = os.path.join(os.getcwd(), "build")
 MOD_PACKAGE_PATH   = os.path.join(os.getcwd(), "tessumod-{0}-bin.zip".format(MOD_VERSION))
