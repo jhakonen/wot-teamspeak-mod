@@ -43,6 +43,9 @@ def init():
 	'''Mod's main entry point. Called by WoT's built-in mod loader.'''
 	try:
 		global g_ts, g_talk_states, g_minimap_ctrl, g_user_cache, g_positional_audio, g_keyvaluestorage
+		global g_authentication_error
+
+		g_authentication_error = False
 
 		# make sure that ini-folder exists
 		try:
@@ -74,11 +77,13 @@ def init():
 
 		load_settings()
 
+		g_ts.set_apikey(settings().get_client_query_apikey())
 		g_ts.connect()
 		g_ts.on_connected += on_connected_to_ts3
 		g_ts.on_disconnected += on_disconnected_from_ts3
 		g_ts.on_connected_to_server += on_connected_to_ts3_server
 		g_ts.on_disconnected_from_server += on_disconnected_from_ts3_server
+		g_ts.on_authenticate_error += on_ts3_authenticate_error
 		g_ts.users_in_my_channel.on_added += on_ts3_user_in_my_channel_added
 		g_ts.users_in_my_channel.on_modified += on_ts3_user_in_my_channel_modified
 		utils.call_in_loop(settings().get_client_query_interval(), g_ts.check_events)
@@ -103,6 +108,7 @@ def init():
 		notifications.add_event_handler(notifications.TSPLUGIN_INSTALL, on_tsplugin_install)
 		notifications.add_event_handler(notifications.TSPLUGIN_IGNORED, on_tsplugin_ignore_toggled)
 		notifications.add_event_handler(notifications.TSPLUGIN_MOREINFO, on_tsplugin_moreinfo_clicked)
+		notifications.add_event_handler(notifications.SETTINGS_PATH, on_settings_path_clicked)
 
 		g_keyvaluestorage = KeyValueStorage(utils.get_states_dir_path())
 
@@ -202,6 +208,12 @@ def on_connected_to_ts3():
 	doesn't mean that the client is connected to any TeamSpeak server.
 	'''
 	LOG_NOTE("Connected to TeamSpeak client")
+
+	global g_authentication_error
+	if g_authentication_error:
+		notifications.push_warning_message("Permission granted, connected to TeamSpeak client")
+	g_authentication_error = False
+
 	installer_path = utils.get_plugin_installer_path()
 
 	# plugin doesn't work in WinXP so check that we are running on
@@ -259,6 +271,23 @@ def on_disconnected_from_ts3_server():
 	LOG_NOTE("Disconnected from TeamSpeak server")
 	clear_speak_statuses()
 
+def on_ts3_authenticate_error():
+	'''Called when ClientQuery protocol tries to authenticate but the required
+	API key is either not set or is wrong.
+	'''
+	global g_authentication_error
+	if g_authentication_error:
+		return
+	g_authentication_error = True
+	LOG_NOTE("Failed to authenticate to TeamSpeak client")
+	settings_link = "<a href=\"event:{0}\">{1}</a>".format(notifications.SETTINGS_PATH, os.path.abspath(settings().get_filepath()))
+	notifications.push_warning_message("TessuMod needs permission to access your TeamSpeak client.\n\n"
+		+ "Plese enter ClientQuery API key (see TeamSpeak -> Tools -> Options -> Addons -> Plugins -> ClientQuery -> Settings) "
+		+ "to option <b>api_key</b> within section <b>[TSClientQueryService]</b> in TessuMod's settings file ({0}).\n\n".format(settings_link)
+		+ "<b>NOTE:</b> If your current settings file doesn't have this option, you can add it there yourself. "
+		+ "Alternatively you can delete the file and restart World of Tanks. "
+		+ "TessuMod will generate a new file on game start which will include the option.")
+
 def on_ts3_user_in_my_channel_added(client_id):
 	on_speak_status_changed(g_ts.users[client_id])
 
@@ -275,6 +304,7 @@ def load_settings():
 	utils.CURRENT_LOG_LEVEL = settings().get_log_level()
 	g_ts.HOST = settings().get_client_query_host()
 	g_ts.PORT = settings().get_client_query_port()
+	g_ts.set_apikey(settings().get_client_query_apikey())
 
 def sync_configs():
 	g_user_cache.sync()
@@ -331,3 +361,6 @@ def on_tsplugin_ignore_toggled(type_id, msg_id, data):
 
 def on_tsplugin_moreinfo_clicked(type_id, msg_id, data):
 	subprocess.call(["start", data["moreinfo_url"]], shell=True)
+
+def on_settings_path_clicked(type_id, msg_id, data):
+	subprocess.call(["start", os.path.abspath(settings().get_filepath())], shell=True)

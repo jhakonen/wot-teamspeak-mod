@@ -104,6 +104,9 @@ nick_extract_patterns:
 ;ts_nickname: wot_nickname
 
 [TSClientQueryService]
+; API key (must be set with TeamSpeak version 3.1.3 or newer)
+api_key:
+
 ; Host and port of the TeamSpeak clientquery plugin
 host: localhost
 port: 25639
@@ -222,6 +225,10 @@ class Settings(object):
 			self._load_parser()
 			self.on_reloaded()
 
+	def get_filepath(self):
+		'''Returns path to the settings file.'''
+		return self._ini_path
+
 	def _is_modified(self):
 		return self._load_time < self._get_modified_time()
 
@@ -255,6 +262,9 @@ class Settings(object):
 		for option in self._parser.options("NameMappings"):
 			results[option.lower()] = self._parser.get("NameMappings", option).lower()
 		return results
+
+	def get_client_query_apikey(self):
+		return self._parser.get("TSClientQueryService", "api_key")
 
 	def get_client_query_host(self):
 		return self._parser.get("TSClientQueryService", "host")

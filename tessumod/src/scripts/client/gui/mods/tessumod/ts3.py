@@ -75,6 +75,7 @@ class TS3Client(object):
 		self.on_disconnected = Event.Event()
 		self.on_connected_to_server = Event.Event()
 		self.on_disconnected_from_server = Event.Event()
+		self.on_authenticate_error = Event.Event()
 
 		# public models
 		self.users = UserModel()
@@ -89,6 +90,7 @@ class TS3Client(object):
 		self._my_client_id = None
 		self._my_channel_id = None
 		self._schandler_id = None
+		self.__apikey = None
 
 		self._protocol = _ClientQueryProtocol(self, self._socket_map)
 		self._protocol.on_ready += functools.partial(self._send_sm_event, "protocol_ready")
@@ -98,12 +100,15 @@ class TS3Client(object):
 
 		not_connected_state          = self._sm.add_state("Not Connected")
 		connecting_to_ts_state       = self._sm.add_state("Connecting to TS", on_enter=self._on_connecting_to_ts_state)
+		authenticate_state           = self._sm.add_state("Authenticate", on_enter=self._on_authenticate_state)
 		connecting_failed_state      = self._sm.add_state("Connecting Failed", on_enter=self._on_connect_failed_state)
 		connected_to_ts_state        = self._sm.add_state("Connected to TS", on_enter=self._on_connected_to_ts_state)
 		connected_to_ts_server_state = self._sm.add_state("Connected to TS Server", on_enter=self._on_connected_to_ts_server_state)
 
 		self._sm.add_transition(not_connected_state,          connecting_to_ts_state,       "connect")
-		self._sm.add_transition(connecting_to_ts_state,       connected_to_ts_state,        "protocol_ready", on_transit=self.on_connected)
+		self._sm.add_transition(connecting_to_ts_state,       authenticate_state,           "protocol_ready")
+		self._sm.add_transition(authenticate_state,           connected_to_ts_state,        "authenticated", on_transit=self.on_connected)
+		self._sm.add_transition(authenticate_state,           connecting_failed_state,      "protocol_closed")
 		self._sm.add_transition(connecting_to_ts_state,       connecting_failed_state,      "protocol_closed")
 		self._sm.add_transition(connected_to_ts_state,        connected_to_ts_server_state, "ping_ok")
 		self._sm.add_transition(connected_to_ts_state,        connecting_to_ts_state,       "protocol_closed", on_transit=self.on_disconnected)
@@ -116,6 +121,10 @@ class TS3Client(object):
 		self._sm.add_transition(connecting_failed_state,      connecting_to_ts_state,       "connect_retry")
 
 		self._sm.tick()
+
+	def set_apikey(self, apikey):
+		'''Sets API key for ClientQuery.'''
+		self.__apikey = apikey
 
 	def connect(self):
 		'''Starts connect attempt and continues to try until succesfully
@@ -147,6 +156,20 @@ class TS3Client(object):
 					self._protocol.close()
 			callback(err, lines)
 		self._protocol.send_command(command, on_command_finish, timeout)
+
+	def _on_authenticate_state(self):
+		'''Authenticates to client query, required with TeamSpeak 3.1.3 or newer.'''
+		def on_finish(err, lines):
+			if not err:
+				self._send_sm_event("authenticated")
+			elif err[0] == 256:
+				# Command not found, TeamSpeak is version 3.1.2 or older
+				self._send_sm_event("authenticated")
+			else:
+				# In other error cases the API key is likely not set or is wrong
+				self.on_authenticate_error()
+				self._protocol.close()
+		self._send_command("auth apikey={0}".format(self.__apikey), on_finish)
 
 	def _on_connected_to_ts_state(self):
 		self._my_client_id = None
@@ -501,7 +524,6 @@ class _ClientQueryProtocol(asynchat.async_chat):
 		nothing something totally else.
 		'''
 		if "ts3 client" in line.lower():
-			LOG_NOTE("TS client query protocol detected")
 			self._data_in_handler = self._handle_in_data_welcome_message
 		else:
 			LOG_ERROR("Not TS client query protocol")

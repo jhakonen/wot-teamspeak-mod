@@ -34,6 +34,7 @@ import utils
 TSPLUGIN_INSTALL  = "TessuModTSPluginInstall"
 TSPLUGIN_MOREINFO = "TessuModTSPluginMoreInfo"
 TSPLUGIN_IGNORED  = "TessuModTSPluginIgnore"
+SETTINGS_PATH     = "TessuModSettingsPath"
 
 _event_handlers = []
 _is_plugin_install_shown = False
@@ -174,7 +175,10 @@ def _handleAction(original_method, self, typeID, entityID, action):
 		if notification:
 			for handler_action, handler in _event_handlers:
 				if action == handler_action:
-					handler(typeID, entityID, notification.get_item())
+					item = None
+					if hasattr(notification, "get_item"):
+						item = notification.get_item()
+					handler(typeID, entityID, item)
 	else:
 		original_method(typeID, entityID, action)
 
