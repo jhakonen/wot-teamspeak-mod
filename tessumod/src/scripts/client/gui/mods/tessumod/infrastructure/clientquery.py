@@ -25,6 +25,7 @@ import errno
 
 from timer import TimerMixin
 from eventemitter import EventEmitterMixin
+from ..thirdparty.promise import Promise
 
 def noop(*args, **kwargs):
 	pass
@@ -275,19 +276,22 @@ class ClientQuerySendCommandMixin(object):
 		event on command completion.
 		'''
 		assert self.is_connected()
-		action = {"command": ClientQueryCommand(command, input)}
-		action["command"].on("result", self.__on_command_done)
-		action["command"].on("error", self.__on_command_done)
-		if schandlerid is not None:
-			action["schandlerid"] = int(schandlerid)
-			action["use-command"] = ClientQueryCommand("use", [{"schandlerid": schandlerid}])
-			action["use-command"].on("result", self.__on_use_command_finish)
-			action["use-command"].on("error", self.__on_use_command_failed)
-		self.__actions.append(action)
-		# send action right away if no other actions are waiting
-		if len(self.__actions) == 1:
-			self.__send_action(action)
-		return action["command"]
+		def resolver(resolve, reject):
+			action = {"command": ClientQueryCommand(command, input)}
+			action["command"].on("result", self.__on_command_done)
+			action["command"].on("error", self.__on_command_done)
+			action["command"].on("result", resolve)
+			action["command"].on("error", reject)
+			if schandlerid is not None:
+				action["schandlerid"] = int(schandlerid)
+				action["use-command"] = ClientQueryCommand("use", [{"schandlerid": schandlerid}])
+				action["use-command"].on("result", self.__on_use_command_finish)
+				action["use-command"].on("error", self.__on_use_command_failed)
+			self.__actions.append(action)
+			# send action right away if no other actions are waiting
+			if len(self.__actions) == 1:
+				self.__send_action(action)
+		return Promise(resolver)
 
 	def __on_use_command_finish(self, result):
 		self.__schandlerid = int(result["args"][0]["schandlerid"])
@@ -768,84 +772,62 @@ class ClientQueryCommandsImplMixin(object):
 	def command_authenticate(self, api_key, callback=noop):
 		'''ClientQuery requires authentication in TeamSpeak 3.1.3 and onwards. No other command
 		except 'auth' or 'help' work before authentication is done.'''
-		def on_success(result):
-			callback(None, None)
-		def on_error(error):
-			callback(error, None)
-		self.send_command("auth", [{"apikey": api_key}]).on("result", on_success).on("error", on_error)
+		(self.send_command("auth", [{"apikey": api_key}])
+			.then(lambda res: callback(None, None))
+			.catch(lambda err: callback(err, None)))
 
 	def command_clientnotifyregister(self, event, schandlerid=0, callback=noop):
 		assert self.is_valid_event(event) or event == "any"
-		def on_success(result):
-			callback(None, None)
-		def on_error(error):
-			callback(error, None)
-		self.send_command("clientnotifyregister", [{"schandlerid": schandlerid, "event": event}]).on("result", on_success).on("error", on_error)
+		(self.send_command("clientnotifyregister", [{"schandlerid": schandlerid, "event": event}])
+			.then(lambda res: callback(None, None))
+			.catch(lambda err: callback(err, None)))
 
 	def command_currentschandlerid(self, callback=noop):
-		def on_success(result):
-			callback(None, {"schandlerid": result["args"][0]["schandlerid"]})
-		def on_error(error):
-			callback(error, None)
-		self.send_command("currentschandlerid", []).on("result", on_success).on("error", on_error)
+		(self.send_command("currentschandlerid", [])
+			.then(lambda res: callback(None, {"schandlerid": res["args"][0]["schandlerid"]}))
+			.catch(lambda err: callback(err, None)))
 
 	def command_clientvariable(self, clid, variablename, schandlerid=None, callback=noop):
-		def on_success(result):
-			ret = {"schandlerid": schandlerid}
-			ret.update(result["args"][0])
-			callback(None, ret)
-		def on_error(error):
-			callback(error, None)
-		self.send_command("clientvariable", [{"clid": clid, variablename: None}], schandlerid=schandlerid).on("result", on_success).on("error", on_error)
+		(self.send_command("clientvariable", [{"clid": clid, variablename: None}], schandlerid=schandlerid)
+			.then(lambda res: callback(None, dict(res["args"][0], schandlerid=schandlerid)))
+			.catch(lambda err: callback(err, None)))
 
 	def command_clientupdate(self, variablename, variablevalue, schandlerid=None, callback=noop):
-		def on_success(result):
-			callback(None, {"schandlerid": schandlerid})
-		def on_error(error):
-			callback(error, None)
-		self.send_command("clientupdate", [{variablename: variablevalue}], schandlerid=schandlerid).on("result", on_success).on("error", on_error)
+		(self.send_command("clientupdate", [{variablename: variablevalue}], schandlerid=schandlerid)
+			.then(lambda res: callback(None, {"schandlerid": schandlerid}))
+			.catch(lambda err: callback(err, None)))
 
 	def command_servervariable(self, variablename, schandlerid=None, callback=noop):
-		def on_success(result):
-			ret = {"schandlerid": schandlerid}
-			ret.update(result["args"][0])
-			callback(None, ret)
-		def on_error(error):
-			callback(error, None)
-		self.send_command("servervariable", [{variablename: None}], schandlerid=schandlerid).on("result", on_success).on("error", on_error)
+		(self.send_command("servervariable", [{variablename: None}], schandlerid=schandlerid)
+			.then(lambda res: callback(None, dict(res["args"][0], schandlerid=schandlerid)))
+			.catch(lambda err: callback(err, None)))
 
 	def command_serverconnectionhandlerlist(self, callback=noop):
-		def on_success(result):
-			callback(None, [int(item["schandlerid"]) for item in result["args"]])
-		def on_error(error):
-			callback(error, None)
-		self.send_command("serverconnectionhandlerlist", []).on("result", on_success).on("error", on_error)
+		(self.send_command("serverconnectionhandlerlist", [])
+			.then(lambda res: callback(None, [int(item["schandlerid"]) for item in res["args"]]))
+			.catch(lambda err: callback(err, None)))
 
 	def command_whoami(self, schandlerid=None, callback=noop):
-		def on_success(result):
-			callback(None, {
-				"clid": int(result["args"][0]["clid"]),
-				"cid": int(result["args"][0]["cid"]),
-				"schandlerid": schandlerid
-			})
-		def on_error(error):
-			callback(error, None)
-		self.send_command("whoami", [], schandlerid=schandlerid).on("result", on_success).on("error", on_error)
+		(self.send_command("whoami", [], schandlerid=schandlerid)
+			.then(lambda res: callback(None, self.__normalize_client_data(dict(
+				res["args"][0], schandlerid=schandlerid))))
+			.catch(lambda err: callback(err, None)))
 
 	def command_clientlist(self, schandlerid=None, callback=noop):
-		def on_success(result):
-			clients = []
-			for item in result["args"]:
-				item["clid"] = int(item["clid"])
-				item["cid"] = int(item["cid"])
-				clients.append(item)
-			callback(None, {
+		(self.send_command("clientlist", [{"-uid": None}, {"-voice": None}], schandlerid=schandlerid)
+			.then(lambda res: callback(None, {
 				"schandlerid": schandlerid,
-				"clients": clients
-			})
-		def on_error(error):
-			callback(error, None)
-		self.send_command("clientlist", [{"-uid": None}, {"-voice": None}], schandlerid=schandlerid).on("result", on_success).on("error", on_error)
+				"clients": [self.__normalize_client_data(item) for item in res["args"]]
+			}))
+			.catch(lambda err: callback(err, None)))
+
+	def __normalize_client_data(self, input):
+		output = dict(input)
+		if "cid" in output:
+			output["cid"] = int(output["cid"])
+		if "clid" in output:
+			output["clid"] = int(output["clid"])
+		return output
 
 class ClientQuery(ClientQueryConnectionMixin, EventEmitterMixin, TimerMixin, ClientQuerySendCommandMixin,
 	ClientQueryCommandsImplMixin, ClientQueryEventsMixin, ClientQueryServerConnectionMixin,

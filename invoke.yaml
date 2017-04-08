@@ -172,6 +172,18 @@ projects:
             - "{src_dir}/scripts/client/gui/mods/tessumod/thirdparty/iniparse/*.py"
           target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/thirdparty/iniparse"
           dbg_dir: "scripts/client/gui/mods/tessumod/thirdparty/iniparse"
+      - py_compile:
+          tags: ['build', 'clean']
+          input_files:
+            - "{src_dir}/scripts/client/gui/mods/tessumod/thirdparty/promise/*.py"
+          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/thirdparty/promise"
+          dbg_dir: "scripts/client/gui/mods/tessumod/thirdparty/promise"
+      - py_compile:
+          tags: ['build', 'clean']
+          input_files:
+            - "{src_dir}/scripts/client/gui/mods/tessumod/thirdparty/promise/pyutils/*.py"
+          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/thirdparty/promise/pyutils"
+          dbg_dir: "scripts/client/gui/mods/tessumod/thirdparty/promise/pyutils"
       - copy:
           tags: ['build', 'clean']
           input_files:
