@@ -138,6 +138,8 @@ def migrate_settings_0_6_to_0_7():
 				elif section == "NameMappings":
 					dest_structure.setdefault("NameMappings", {})[option] = parser.get(section, option)
 				elif section == "TSClientQueryService":
+					if option == "api_key":
+						dest_structure.setdefault("TSClientQueryService", {})["api_key"] = parser.get(section, option)
 					if option == "host":
 						dest_structure.setdefault("TSClientQueryService", {})["host"] = parser.get(section, option)
 					elif option == "port":

@@ -36,7 +36,8 @@ class TSCQPlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider):
 		self.__host = None
 		self.__port = None
 		self.__ts = TeamSpeakClient()
-		self.__ts.on("connected", self.__on_connected_to_ts)
+		self.__ts.on("authenticated", self.__on_authenticated_to_ts)
+		self.__ts.on("authentication-required", self.__on_authentication_required)
 		self.__ts.on("disconnected", self.__on_disconnected_from_ts)
 		self.__ts.on("connected-server", self.__on_connected_to_ts_server)
 		self.__ts.on("disconnected-server", self.__on_disconnected_from_ts_server)
@@ -65,7 +66,9 @@ class TSCQPlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider):
 		Implemented from SettingsProvider.
 		"""
 		if section == "TSClientQueryService":
-			if name == "host":
+			if name == "api_key":
+				self.__ts.api_key = value
+			elif name == "host":
 				self.__host = value
 				self.__connect()
 			elif name == "port":
@@ -83,6 +86,11 @@ class TSCQPlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider):
 			"TSClientQueryService": {
 				"help": "",
 				"variables": [
+					{
+						"name": "api_key",
+						"default": "",
+						"help": "Clientquery plugin's API key"
+					},
 					{
 						"name": "host",
 						"default": "localhost",
@@ -113,9 +121,10 @@ class TSCQPlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider):
 			self.__ts.connect(self.__host, self.__port)
 
 	@logutils.trace_call(logger)
-	def __on_connected_to_ts(self):
-		'''Called when TessuMod manages to connect TeamSpeak client. However, this
-		doesn't mean that the client is connected to any TeamSpeak server.
+	def __on_authenticated_to_ts(self):
+		'''Called when TessuMod manages to connect TeamSpeak client and the connection is
+		authenticated. However, this doesn't mean that the client is connected to any TeamSpeak
+		server yet.
 		'''
 		for plugin_info in self.plugin_manager.getPluginsOfCategory("VoiceClientListener"):
 			plugin_info.plugin_object.on_voice_client_connected()
@@ -124,6 +133,14 @@ class TSCQPlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider):
 				"type": "info",
 				"message": [ "Connected to TeamSpeak client" ]
 			})
+
+	@logutils.trace_call(logger)
+	def __on_authentication_required(self):
+		'''Called when ClientQuery's API key is not set or is wrong.
+		Asks user to provide the key.'''
+		# TODO: Ask API key from user, some kind of UI dialog is needed
+		# TODO: Modify TSClientQueryService.api_key option in settings
+		logger.error("Not Implemented: Query API key from user")
 
 	@logutils.trace_call(logger)
 	def __on_disconnected_from_ts(self):
@@ -277,7 +294,7 @@ class TeamSpeakClient(clientquery.ClientQuery):
 
 		def on_currentschandlerid_finish(error, result):
 			if error:
-				log.LOG_ERROR("currentschandlerid command failed", error)
+				logger.error("currentschandlerid command failed", error)
 			else:
 				self.emit("server-tab-changed", int(result["schandlerid"]))
 		self.command_currentschandlerid(callback=on_currentschandlerid_finish)
@@ -315,4 +332,4 @@ class TeamSpeakClient(clientquery.ClientQuery):
 		return None
 
 	def __on_error(self, error):
-		log.LOG_ERROR("An error occured", error)
+		logger.error("An error occured", error)

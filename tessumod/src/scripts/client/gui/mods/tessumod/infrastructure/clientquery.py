@@ -92,6 +92,11 @@ class ClientQueryConnectionMixin(object):
 	def is_connected(self):
 		return self.__connected
 
+	def close(self):
+		'''Closes connection.'''
+		if self.__protocol.connected:
+			self.__protocol.close()
+
 	def __check_socket(self):
 		asyncore.loop(timeout=0, count=1, map=self.__socket_map)
 
@@ -183,20 +188,64 @@ class ClientQueryProtocol(asynchat.async_chat, EventEmitterMixin):
 			log.LOG_ERROR(message)
 
 	def __handle_proto_message(self, line):
-		self.__handle_line = self.__handle_welcome_message
-		if line != "TS3 Client":
+		if line == "TS3 Client":
+			self.__handle_line = self.__handle_instructions
+		else:
 			self.emit("error", Error("Not a Client Query Protocol"))
 			self.close()
 
-	def __handle_welcome_message(self, line):
-		self.__handle_line = self.__handle_schandlerid_message
-
-	def __handle_schandlerid_message(self, line):
-		self.__handle_line = self.__handle_data_message
-		self.emit("connected")
+	def __handle_instructions(self, line):
+		if "selected schandlerid" in line:
+			self.__handle_line = self.__handle_data_message
+			self.emit("connected")
 
 	def __handle_data_message(self, line):
 		self.emit("line-received", line)
+
+
+class ClientQueryAuthenticationMixin(object):
+	'''Mixin class which provides authentication key to ClientQuery plugin.
+
+	Emits following events:
+	 - authenticated            Connection was succesfully authenticated with an API key
+	 - authentication-required  Authentication failed
+	'''
+
+	def __init__(self):
+		self.__api_key = "";
+		self.on("connected", self.__on_connected)
+		super(ClientQueryAuthenticationMixin, self).__init__()
+
+	@property
+	def api_key(self):
+		return self.__api_key
+
+	@api_key.setter
+	def api_key(self, api_key):
+		if api_key != self.__api_key:
+			self.__api_key = api_key
+			self.close()
+
+	def __on_connected(self):
+		'''Called when connected to ClientQuery.'''
+		self.__authenticate()
+
+	def __authenticate(self):
+		'''Sends authentication command.'''
+		def on_finish(error, result):
+			if error:
+				if error.id == 256: # command not found
+					# Support older TS clients (3.1.2 and older) which do not have 'auth' command
+					# by acting as if authentication succeeded
+					self.emit("authenticated")
+				else:
+					# In other error situations the authentication attempt likely failed because
+					# provided API key was not set, or is wrong, or was renewed but not updated to
+					# TessuMod's settings
+					self.emit("authentication-required")
+			else:
+				self.emit("authenticated")
+		self.command_authenticate(self.__api_key, callback=on_finish)
 
 
 class ClientQuerySendCommandMixin(object):
@@ -491,7 +540,7 @@ class ClientQueryServerConnectionMixin(object):
 	def __init__(self):
 		super(ClientQueryServerConnectionMixin, self).__init__()
 		self.__scdata = {}
-		self.on("connected", self.__on_connected)
+		self.on("authenticated", self.__on_authenticated)
 		self.on("notifyconnectstatuschange", self.__on_notifyconnectstatuschange)
 		self.on("notifyclientmoved", self.__on_notifyclientmoved)
 
@@ -517,7 +566,7 @@ class ClientQueryServerConnectionMixin(object):
 		'''
 		return self.__scdata.keys()
 
-	def __on_connected(self):
+	def __on_authenticated(self):
 		self.register_notify("notifyconnectstatuschange")
 		self.register_notify("notifyclientmoved")
 		def on_serverconnectionhandlerlist_finish(error, result):
@@ -581,7 +630,7 @@ class ClientQueryServerUsersMixin(object):
 		self.on("notifyclientmoved", self.__on_notifyclientmoved)
 		self.on("notifyclientupdated", self.__on_notifyclientupdated)
 
-		self.on("connected", self.__on_connected)
+		self.on("authenticated", self.__on_authenticated)
 		self.on("connected-server", self.__on_connected_server)
 		self.on("disconnected-server", self.__on_disconnected_server)
 		self.on("my-cid-changed", self.__on_my_cid_changed)
@@ -600,7 +649,7 @@ class ClientQueryServerUsersMixin(object):
 			for clid in self.__scusers[schandlerid]:
 				yield schandlerid, clid
 
-	def __on_connected(self):
+	def __on_authenticated(self):
 		self.register_notify("notifycliententerview")
 		self.register_notify("notifyclientleftview")
 		self.register_notify("notifytalkstatuschange")
@@ -716,6 +765,15 @@ class ClientQueryCommandsImplMixin(object):
 	def __init__(self):
 		super(ClientQueryCommandsImplMixin, self).__init__()
 
+	def command_authenticate(self, api_key, callback=noop):
+		'''ClientQuery requires authentication in TeamSpeak 3.1.3 and onwards. No other command
+		except 'auth' or 'help' work before authentication is done.'''
+		def on_success(result):
+			callback(None, None)
+		def on_error(error):
+			callback(error, None)
+		self.send_command("auth", [{"apikey": api_key}]).on("result", on_success).on("error", on_error)
+
 	def command_clientnotifyregister(self, event, schandlerid=0, callback=noop):
 		assert self.is_valid_event(event) or event == "any"
 		def on_success(result):
@@ -791,7 +849,7 @@ class ClientQueryCommandsImplMixin(object):
 
 class ClientQuery(ClientQueryConnectionMixin, EventEmitterMixin, TimerMixin, ClientQuerySendCommandMixin,
 	ClientQueryCommandsImplMixin, ClientQueryEventsMixin, ClientQueryServerConnectionMixin,
-	ClientQueryServerUsersMixin):
+	ClientQueryServerUsersMixin, ClientQueryAuthenticationMixin):
 
 	def __init__(self):
 		super(ClientQuery, self).__init__()
