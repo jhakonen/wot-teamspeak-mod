@@ -190,9 +190,9 @@ class TSCQPlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider):
 			self.__ts.get_user_parameter(schandlerid, clid, "client-nickname"),
 			self.__ts.get_user_parameter(schandlerid, clid, "game-nickname"),
 			self.__ts.get_user_parameter(schandlerid, clid, "client-unique-identifier"),
-			bool(self.__ts.get_user_parameter(schandlerid, clid, "talking")),
-			bool(self.__ts.get_user_parameter(schandlerid, clid, "is-me")),
-			bool(self.__ts.get_user_parameter(schandlerid, clid, "my-channel"))
+			self.__ts.get_user_parameter(schandlerid, clid, "talking"),
+			self.__ts.get_user_parameter(schandlerid, clid, "is-me"),
+			self.__ts.get_user_parameter(schandlerid, clid, "my-channel")
 		))
 		self.__update_model()
 
@@ -213,12 +213,12 @@ class TSCQPlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider):
 
 	@logutils.trace_call(logger)
 	def __on_user_speaking_changed(self, schandlerid, clid, old_value, new_value):
-		self.__users[(schandlerid, clid)] = self.__users[(schandlerid, clid)]._replace(is_speaking=bool(new_value))
+		self.__users[(schandlerid, clid)] = self.__users[(schandlerid, clid)]._replace(is_speaking=new_value)
 		self.__update_model()
 
 	@logutils.trace_call(logger)
 	def __on_user_my_channel_changed(self, schandlerid, clid, old_value, new_value):
-		self.__users[(schandlerid, clid)] = self.__users[(schandlerid, clid)]._replace(my_channel=bool(new_value))
+		self.__users[(schandlerid, clid)] = self.__users[(schandlerid, clid)]._replace(my_channel=new_value)
 		self.__update_model()
 
 	@logutils.trace_call(logger)
@@ -296,14 +296,13 @@ class TeamSpeakClient(clientquery.ClientQuery):
 	def __on_connected(self):
 		(Promise.resolve(None)
 			.then(lambda res: self.register_notify("notifycurrentserverconnectionchanged"))
-			.then(lambda res: self.command_currentschandlerid())
 			.catch(lambda err: logger.error("connect failed", err)))
 
 	def __on_connected_server(self, schandlerid):
 		self.update_game_nick_to_servers([schandlerid])
 
 	def __on_notifycurrentserverconnectionchanged(self, args):
-		self.emit("server-tab-changed", int(args[0]["schandlerid"]))
+		self.emit("server-tab-changed", args[0]["schandlerid"])
 
 	def __on_user_added(self, schandlerid, clid):
 		metadata = self.get_user_parameter(schandlerid, clid, "client-meta-data")

@@ -457,6 +457,12 @@ class ParamsParser(object):
 class LineEnd(object):
 	pass
 
+def cast_parameters(entries, cast_map):
+	for entry in entries:
+		for key, value in entry.iteritems():
+			entry[key] = cast_map.get(key, lambda x: x)(value)
+	return entries
+
 class ClientQueryEventsMixin(object):
 	'''Mixin class which provides ability to send to register and listen for
 	ClientQuery's clientnotify events.
@@ -493,6 +499,62 @@ class ClientQueryEventsMixin(object):
 	 - notifyconnectstatuschange
 	'''
 
+	__EVENT_CASTS = {
+		"notifytalkstatuschange": {
+			"schandlerid": int,
+			"status": lambda x: bool(int(x)),
+			"clid": int,
+			"isreceivedwhisper": lambda x: bool(int(x))
+		},
+		"notifyclientmoved": {
+			"schandlerid": int,
+			"ctid": int,
+			"reasonid": int,
+			"invokerid": int,
+			"invokername": str,
+			"clid": int
+		},
+		"notifyclientleftview": {
+			"schandlerid": int,
+			"clid": int,
+			"cfid": int,
+			"ctid": int,
+			"reasonid": int,
+			"reasonmsg": str
+		},
+		"notifycliententerview": {
+			"schandlerid": int,
+			"clid": int,
+			"cfid": int,
+			"ctid": int,
+			"reasonid": int,
+			"reasonmsg": str
+		},
+		"notifyclientupdated": {
+			"schandlerid": int,
+			"clid": int,
+			"client_badges": str,
+			"client_version": str,
+			"client_platform": str,
+			"client_login_name": str,
+			"client_created": int,
+			"client_lastconnected": int,
+			"client_totalconnections": int,
+			"client_month_bytes_uploaded": int,
+			"client_month_bytes_downloaded": int,
+			"client_total_bytes_uploaded": int,
+			"client_total_bytes_downloaded": int
+		},
+		"notifycurrentserverconnectionchanged": {
+			"schandlerid": int
+		},
+		"notifyconnectstatuschange": {
+			"schandlerid": int,
+			"status": str,
+			"error": int
+		}
+	}
+
 	def __init__(self):
 		self.__registered_events = []
 		super(ClientQueryEventsMixin, self).__init__()
@@ -518,8 +580,11 @@ class ClientQueryEventsMixin(object):
 			if len(results) == 1:
 				self.emit(results[0])
 			else:
-				self.emit(results[0], parse_arguments(results[1]))
+				self.emit(results[0], self.__parse_parameters(results[0], results[1]))
 			raise StopIteration()
+
+	def __parse_parameters(self, event, parameters):
+		return cast_parameters(parse_arguments(parameters), self.__EVENT_CASTS.get(event, {}))
 
 class ClientQueryServerConnectionMixin(object):
 	'''Mixin class which provides basic server connection info and events.
@@ -588,7 +653,7 @@ class ClientQueryServerConnectionMixin(object):
 
 	def __on_notifyconnectstatuschange(self, args):
 		status = args[0]["status"]
-		schandlerid = int(args[0]["schandlerid"])
+		schandlerid = args[0]["schandlerid"]
 		if status == "connection_established":
 			self.__execute_whoami(schandlerid)
 		elif status == "disconnected":
@@ -596,19 +661,14 @@ class ClientQueryServerConnectionMixin(object):
 				self.emit("disconnected-server", schandlerid)
 
 	def __on_notifyclientmoved(self, args):
-		schandlerid = int(args[0]["schandlerid"])
+		schandlerid = args[0]["schandlerid"]
 		if schandlerid in self.__scdata:
 			data = self.__scdata[schandlerid]
-			if data["clid"] == int(args[0]["clid"]):
-				data["cid"] = int(args[0]["ctid"])
+			if data["clid"] == args[0]["clid"]:
+				data["cid"] = args[0]["ctid"]
 				self.emit("my-cid-changed", schandlerid)
 
 class ClientQueryServerUsersMixin(object):
-
-	__USER_VALUE_CONVERTERS = {
-		"cid": lambda x: int(x),
-		"talking": lambda x: bool(int(x))
-	}
 
 	def __init__(self):
 		super(ClientQueryServerUsersMixin, self).__init__()
@@ -700,8 +760,6 @@ class ClientQueryServerUsersMixin(object):
 		self.__set_server_user(**args[0])
 
 	def __set_server_user(self, schandlerid, clid, **kwargs):
-		schandlerid = int(schandlerid)
-		clid = int(clid)
 		if schandlerid not in self.__scusers:
 			return
 		users = self.__scusers[schandlerid]
@@ -732,22 +790,48 @@ class ClientQueryServerUsersMixin(object):
 	def __set_user_value(self, user, key, value, user_exists):
 		key = key.replace("_", "-")
 		old_value = user.get(key, None)
-		new_value = self.__USER_VALUE_CONVERTERS.get(key, lambda x: x)(value)
-		if new_value != old_value:
-			user[key] = new_value
+		if value != old_value:
+			user[key] = value
 			if user_exists:
-				self.emit("user-changed-"+key, schandlerid=user["schandlerid"], clid=user["clid"], old_value=old_value, new_value=new_value)
+				self.emit("user-changed-"+key, schandlerid=user["schandlerid"], clid=user["clid"], old_value=old_value, new_value=value)
 
 	def __remove_server_user(self, schandlerid, clid, **kwargs):
-		schandlerid = int(schandlerid)
-		clid = int(clid)
 		del self.__scusers[schandlerid][clid]
 		self.emit("user-removed", schandlerid=schandlerid, clid=clid)
 
 class ClientQueryCommandsImplMixin(object):
 
+	__COMMAND_CASTS = {
+		"currentschandlerid": {
+			"schandlerid": int
+		},
+		"clientvariable": {
+			"client_meta_data": str
+		},
+		"servervariable": {
+			"virtualserver_name": str
+		},
+		"serverconnectionhandlerlist": {
+			"schandlerid": int
+		},
+		"whoami": {
+			"clid": int,
+			"cid": int
+		},
+		"clientlist": {
+			"schandlerid": int,
+			"clid": int,
+			"cid": int,
+			"client_flag_talking": lambda x: bool(int(x))
+		}
+	}
+
 	def __init__(self):
 		super(ClientQueryCommandsImplMixin, self).__init__()
+
+	def __send_command(self, command, input, schandlerid=None):
+		return (self.send_command(command, input, schandlerid=schandlerid)
+			.then(lambda res: cast_parameters(res, self.__COMMAND_CASTS.get(command, {}))))
 
 	def command_authenticate(self, api_key):
 		"""Authenticates the ClientQuery connection.
@@ -762,7 +846,7 @@ class ClientQueryCommandsImplMixin(object):
 		:param api_key: API key from ClientQuery's settings
 		:returns: :py:class:`Promise` that resolves with no result, or rejects if command failed
 		"""
-		return (self.send_command("auth", [{"apikey": api_key}])
+		return (self.__send_command("auth", [{"apikey": api_key}])
 			.then(lambda res: None))
 
 	def command_clientnotifyregister(self, event, schandlerid=0):
@@ -777,7 +861,7 @@ class ClientQueryCommandsImplMixin(object):
 		:returns: :py:class:`Promise` that resolves with no result, or rejects if command failed
 		"""
 		assert self.is_valid_event(event) or event == "any"
-		return (self.send_command("clientnotifyregister", [{"schandlerid": schandlerid, "event": event}])
+		return (self.__send_command("clientnotifyregister", [{"schandlerid": schandlerid, "event": event}])
 			.then(lambda res: None))
 
 	def command_currentschandlerid(self):
@@ -789,8 +873,8 @@ class ClientQueryCommandsImplMixin(object):
 		:returns :py:class:`Promise` that resolves with server connection ID as result, or
 		         rejects if command failed
 		"""
-		return (self.send_command("currentschandlerid", [])
-			.then(lambda res: {"schandlerid": res[0]["schandlerid"]}))
+		return (self.__send_command("currentschandlerid", [])
+			.then(lambda res: res[0]["schandlerid"]))
 
 	def command_clientvariable(self, clid, variablename, schandlerid):
 		"""Returns value of a client variable from TeamSpeak.
@@ -835,7 +919,7 @@ class ClientQueryCommandsImplMixin(object):
 		:returns: :py:class:`Promise` that resolves with variable's value as result, or
 		          rejects if command failed
 		"""
-		return (self.send_command("clientvariable", [{"clid": clid, variablename: None}], schandlerid=schandlerid)
+		return (self.__send_command("clientvariable", [{"clid": clid, variablename: None}], schandlerid=schandlerid)
 			.then(lambda res: res[0][variablename]))
 
 	def command_clientupdate(self, variablename, variablevalue, schandlerid):
@@ -860,7 +944,7 @@ class ClientQueryCommandsImplMixin(object):
 		:param schandlerid:   server connection ID
 		:returns: :py:class:`Promise` that resolves with no result, or rejects if command failed
 		"""
-		return (self.send_command("clientupdate", [{variablename: variablevalue}], schandlerid=schandlerid)
+		return (self.__send_command("clientupdate", [{variablename: variablevalue}], schandlerid=schandlerid)
 			.then(lambda res: None))
 
 	def command_servervariable(self, variablename, schandlerid):
@@ -893,7 +977,7 @@ class ClientQueryCommandsImplMixin(object):
 		:returns: :py:class:`Promise` that resolves with variable's value as result, or
 		          rejects if command failed
 		"""
-		return (self.send_command("servervariable", [{variablename: None}], schandlerid=schandlerid)
+		return (self.__send_command("servervariable", [{variablename: None}], schandlerid=schandlerid)
 			.then(lambda res: res[0][variablename]))
 
 	def command_serverconnectionhandlerlist(self):
@@ -902,8 +986,8 @@ class ClientQueryCommandsImplMixin(object):
 		:returns: :py:class:`Promise` that resolves with list of server connection IDs as result,
 		          or rejects if command failed
 		"""
-		return (self.send_command("serverconnectionhandlerlist", [])
-			.then(lambda res: [int(item["schandlerid"]) for item in res]))
+		return (self.__send_command("serverconnectionhandlerlist", [])
+			.then(lambda res: [item["schandlerid"] for item in res]))
 
 	def command_whoami(self, schandlerid):
 		"""Returns own client's client ID and channel ID.
@@ -916,8 +1000,8 @@ class ClientQueryCommandsImplMixin(object):
 		:returns: :py:class:`Promise` that resolves with a dict of client ID and channel ID as
 		          result, or rejects if command failed
 		"""
-		return (self.send_command("whoami", [], schandlerid=schandlerid)
-			.then(lambda res: self.__normalize_client_data(res[0])))
+		return (self.__send_command("whoami", [], schandlerid=schandlerid)
+			.then(lambda res: res[0]))
 
 	def command_clientlist(self, modifiers, schandlerid):
 		"""Returns list of visible clients in the server.
@@ -961,16 +1045,7 @@ class ClientQueryCommandsImplMixin(object):
 		          rejects if command failed
 		"""
 		args = [{"-" + modifier: None} for modifier in modifiers]
-		return (self.send_command("clientlist", args, schandlerid=schandlerid)
-			.then(lambda res: [self.__normalize_client_data(item) for item in res]))
-
-	def __normalize_client_data(self, input):
-		output = dict(input)
-		if "cid" in output:
-			output["cid"] = int(output["cid"])
-		if "clid" in output:
-			output["clid"] = int(output["clid"])
-		return output
+		return self.__send_command("clientlist", args, schandlerid=schandlerid)
 
 class ClientQuery(ClientQueryConnectionMixin, EventEmitterMixin, TimerMixin, ClientQuerySendCommandMixin,
 	ClientQueryCommandsImplMixin, ClientQueryEventsMixin, ClientQueryServerConnectionMixin,
