@@ -252,8 +252,9 @@ class ClientQuerySendCommandMixin(object):
 	'''Mixin class which provides ability to send ClientQuery commands.'''
 
 	def __init__(self):
-		self.__actions = []
+		self.__command_queue = []
 		self.__schandlerid = None
+		self.__processing_command = None
 		super(ClientQuerySendCommandMixin, self).__init__()
 		self.on("line-received", self.__on_line_received)
 		self.on("disconnected", self.__on_disconnected)
@@ -274,67 +275,49 @@ class ClientQuerySendCommandMixin(object):
 		Returns ClientQueryCommand object which will emit "error" or "result"
 		event on command completion.
 		'''
-		assert self.is_connected()
-		def resolver(resolve, reject):
-			action = {"command": ClientQueryCommand(command, input)}
-			action["command"].on("result", self.__on_command_done)
-			action["command"].on("error", self.__on_command_done)
-			action["command"].on("result", resolve)
-			action["command"].on("error", reject)
-			if schandlerid is not None:
-				action["schandlerid"] = int(schandlerid)
-				action["use-command"] = ClientQueryCommand("use", [{"schandlerid": schandlerid}])
-				action["use-command"].on("result", self.__on_use_command_finish)
-				action["use-command"].on("error", self.__on_use_command_failed)
-			self.__actions.append(action)
-			# send action right away if no other actions are waiting
-			if len(self.__actions) == 1:
-				self.__send_action(action)
-		return Promise(resolver)
+		promise = (Promise.resolve(None)
+			.then(lambda res: None if self.is_connected() else Promise.reject(Error("Not connected"))))
 
-	def __on_use_command_finish(self, result):
-		self.__schandlerid = int(result["args"][0]["schandlerid"])
-		if self.__actions:
-			del self.__actions[0]["use-command"]
-			self.__send_action(self.__actions[0])
+		if schandlerid is not None and schandlerid != self.__schandlerid:
+			# Tell ClientQuery to use different schandlerid if desired schandlerid differs from
+			# previously requested one
+			self.__schandlerid = schandlerid
+			promise = (promise
+				.then(lambda res: self.__queue_command("use", [{"schandlerid": schandlerid}]))
+				.then(lambda res: self.__set_schandlerid(schandlerid)))
+		return (promise
+			.then(lambda res: self.__queue_command(command, input)))
 
-	def __on_use_command_failed(self, error):
-		if self.__actions:
-			self.__actions[0]["command"].emit("error", error)
-			del self.__actions[0]
-		if self.__actions:
-			self.__send_action(self.__actions[0])
+	def __set_schandlerid(self, schandlerid):
+		self.__schandlerid = schandlerid
 
-	def __on_command_done(self, *args, **kwargs):
-		if self.__actions:
-			del self.__actions[0]
-		if self.__actions:
-			self.__send_action(self.__actions[0])
+	def __queue_command(self, command, input):
+		promise = Promise(lambda resolve, reject: self.__command_queue.append(
+			ClientQueryCommand(command, input, resolve, reject)))
+		promise.then(lambda res: self.__on_command_done(), lambda err: self.__on_command_done())
+		self.__process_command_queue()
+		return promise
 
-	def __send_action(self, action):
-		if "use-command" in action:
-			if self.__schandlerid != action["schandlerid"]:
-				self.send(action["use-command"].serialize())
-			else:
-				del action["use-command"]
-				self.send(action["command"].serialize())
-		else:
-			self.send(action["command"].serialize())
+	def __on_command_done(self):
+		self.__processing_command = None
+		self.__process_command_queue()
+
+	def __process_command_queue(self):
+		if not self.__processing_command and self.__command_queue:
+			self.__processing_command = self.__command_queue.pop(0)
+			self.send(self.__processing_command.serialize())
 
 	def __on_line_received(self, line):
-		if self.__actions:
-			action = self.__actions[0]
-			if "use-command" in action:
-				action["use-command"].handle_line(line)
-			else:
-				action["command"].handle_line(line)
+		if self.__processing_command:
+			self.__processing_command.handle_line(line)
 
 	def __on_disconnected(self):
-		for action in self.__actions:
-			action["command"].emit("error", Error("Disconnected"))
-		del self.__actions[:]
+		for command in self.__command_queue:
+			command.reject(Error("Disconnected"))
+		del self.__command_queue[:]
+		self.__processing_command = None
 
-class ClientQueryCommand(EventEmitterMixin):
+class ClientQueryCommand(object):
 	'''Container for a single command, handles receiving response lines and
 	calling a callback provided by the caller with the response, or error.
 	'''
@@ -353,11 +336,12 @@ class ClientQueryCommand(EventEmitterMixin):
 		"\v": "\\v"
 	}
 
-	def __init__(self, command, input):
+	def __init__(self, command, input, resolve, reject):
 		self.__command = command
 		self.__input = input
 		self.__received_lines = []
-		super(ClientQueryCommand, self).__init__()
+		self.__resolve = resolve
+		self.__reject = reject
 
 	def serialize(self):
 		items = []
@@ -381,15 +365,21 @@ class ClientQueryCommand(EventEmitterMixin):
 			if args:
 				id = int(args[0].get("id", "0"))
 				if id != 0:
-					self.emit("error", Error("Command \"{0}\" failed, reason: {1}".format(self.__command, args[0].get("msg", "")), id=id))
+					self.reject(Error("Command \"{0}\" failed, reason: {1}".format(self.__command, args[0].get("msg", "")), id=id))
 				else:
 					args = []
 					for line in self.__received_lines:
 						args += parse_arguments(line)
-					self.emit("result", {"data": "\n".join(self.__received_lines), "args": args})
+					self.resolve({"data": "\n".join(self.__received_lines), "args": args})
 		# collect lines before error status line
 		else:
 			self.__received_lines.append(line)
+
+	def resolve(self, res):
+		self.__resolve(res)
+
+	def reject(self, err):
+		self.__reject(err)
 
 def parse_arguments(data):
 	'''Parses given ClientQuery parameters, returning parameters as a
