@@ -25,7 +25,7 @@ import errno
 
 from timer import TimerMixin
 from eventemitter import EventEmitterMixin
-from ..thirdparty.promise import Promise
+from gui.mods.tessumod.thirdparty.promise import Promise
 
 def noop(*args, **kwargs):
 	pass
@@ -233,20 +233,19 @@ class ClientQueryAuthenticationMixin(object):
 
 	def __authenticate(self):
 		'''Sends authentication command.'''
-		def on_finish(error, result):
-			if error:
-				if error.id == 256: # command not found
-					# Support older TS clients (3.1.2 and older) which do not have 'auth' command
-					# by acting as if authentication succeeded
-					self.emit("authenticated")
-				else:
-					# In other error situations the authentication attempt likely failed because
-					# provided API key was not set, or is wrong, or was renewed but not updated to
-					# TessuMod's settings
-					self.emit("authentication-required")
-			else:
+		def on_error(err):
+			if err.id == 256: # command not found
+				# Support older TS clients (3.1.2 and older) which do not have 'auth' command
+				# by acting as if authentication succeeded
 				self.emit("authenticated")
-		self.command_authenticate(self.__api_key, callback=on_finish)
+			else:
+				# In other error situations the authentication attempt likely failed because
+				# provided API key was not set, or is wrong, or was renewed but not updated to
+				# TessuMod's settings
+				self.emit("authentication-required")
+		(self.command_authenticate(self.__api_key)
+			.then(lambda res: self.emit("authenticated"))
+			.catch(on_error))
 
 
 class ClientQuerySendCommandMixin(object):
@@ -515,9 +514,10 @@ class ClientQueryEventsMixin(object):
 
 	def register_notify(self, name):
 		assert name != "any"
-		if name not in self.__registered_events:
-			self.__registered_events.append(name)
-			self.command_clientnotifyregister(schandlerid=0, event=name)
+		if name in self.__registered_events:
+			return Promise.resolve(None)
+		self.__registered_events.append(name)
+		return self.command_clientnotifyregister(schandlerid=0, event=name)
 
 	def __on_disconnected(self):
 		del self.__registered_events[:]
@@ -571,30 +571,25 @@ class ClientQueryServerConnectionMixin(object):
 		return self.__scdata.keys()
 
 	def __on_authenticated(self):
-		self.register_notify("notifyconnectstatuschange")
-		self.register_notify("notifyclientmoved")
-		def on_serverconnectionhandlerlist_finish(error, result):
-			if error:
-				log.LOG_ERROR("serverconnectionhandlerlist command failed", error)
-			else:
-				for schandlerid in result:
-					self.__execute_whoami(schandlerid)
-		self.command_serverconnectionhandlerlist(callback=on_serverconnectionhandlerlist_finish)
+		(Promise.resolve(None)
+			.then(lambda res: self.register_notify("notifyconnectstatuschange"))
+			.then(lambda res: self.register_notify("notifyclientmoved"))
+			.then(lambda res: self.command_serverconnectionhandlerlist())
+			.then(lambda res: Promise.all([self.__execute_whoami(schandlerid) for schandlerid in res]))
+			.catch(lambda err: log.LOG_ERROR("Server connection setup failed", err)))
 
 	def __execute_whoami(self, schandlerid):
-		def on_whoami_finish(error, result):
-			if error:
-				if error.id == 1794: # not connected to ts server
-					pass
-				else:
-					log.LOG_ERROR("whoami command failed", error)
-			else:
-				self.__scdata[result["schandlerid"]] = {
-					"clid": result["clid"],
-					"cid": result["cid"]
-				}
-				self.emit("connected-server", result["schandlerid"])
-		self.command_whoami(schandlerid=schandlerid, callback=on_whoami_finish)
+		return (self.command_whoami(schandlerid=schandlerid)
+			.then(lambda res: self.__set_schandler_data(schandlerid, res["clid"], res["cid"]))
+			.then(lambda res: self.emit("connected-server", schandlerid))
+			# ignore error if not connected to ts server
+			.catch(lambda err: None if err.id == 1794 else Promise.reject(err)))
+
+	def __set_schandler_data(self, schandlerid, clid, cid):
+		self.__scdata[schandlerid] = {
+			"clid": clid,
+			"cid": cid
+		}
 
 	def __on_disconnected(self):
 		for schandlerid in self.__scdata:
@@ -654,16 +649,31 @@ class ClientQueryServerUsersMixin(object):
 				yield schandlerid, clid
 
 	def __on_authenticated(self):
-		self.register_notify("notifycliententerview")
-		self.register_notify("notifyclientleftview")
-		self.register_notify("notifytalkstatuschange")
-		self.register_notify("notifyclientmoved")
-		self.register_notify("notifyclientupdated")
+		(Promise.resolve(None)
+			.then(lambda res: self.register_notify("notifycliententerview"))
+			.then(lambda res: self.register_notify("notifyclientleftview"))
+			.then(lambda res: self.register_notify("notifytalkstatuschange"))
+			.then(lambda res: self.register_notify("notifyclientmoved"))
+			.then(lambda res: self.register_notify("notifyclientupdated"))
+			.catch(lambda err: log.LOG_ERROR("Registering notifies failed", err)))
 
 	def __on_connected_server(self, schandlerid):
 		self.__clear_server_connection_data(schandlerid)
 		self.__scusers[schandlerid] = {}
-		self.command_clientlist(schandlerid=schandlerid, callback=self.__on_clientlist_finish)
+		(Promise.resolve(None)
+			.then(lambda res: self.command_clientlist(modifiers=["uid", "voice"], schandlerid=schandlerid))
+			.then(lambda res: Promise.all([self.__add_new_user(schandlerid, user) for user in res]))
+			.catch(lambda err: log.LOG_ERROR("Server users setup failed", err))
+		)
+
+	def __add_new_user(self, schandlerid, user):
+		user["talking"] = user["client_flag_talking"]
+		self.__set_server_user(schandlerid=schandlerid, **user)
+		return (self.command_clientvariable(schandlerid=schandlerid,
+			                         clid=user["clid"],
+			                         variablename="client_meta_data")
+			.then(lambda res: self.__set_server_user(schandlerid=schandlerid, clid=user["clid"],
+				                                     client_meta_data=res)))
 
 	def __on_disconnected_server(self, schandlerid):
 		self.__clear_server_connection_data(schandlerid)
@@ -678,26 +688,6 @@ class ClientQueryServerUsersMixin(object):
 			for clid in self.__scusers[schandlerid].keys():
 				self.__remove_server_user(schandlerid=schandlerid, clid=clid)
 		self.__scusers.pop(schandlerid, None)
-
-	def __on_clientlist_finish(self, error, result):
-		if error:
-			log.LOG_ERROR("clientlist command failed", error)
-		else:
-			for client in result["clients"]:
-				client["talking"] = client["client_flag_talking"]
-				self.__set_server_user(schandlerid=result["schandlerid"], **client)
-				self.command_clientvariable(
-					schandlerid=result["schandlerid"],
-					clid=client["clid"],
-					variablename="client_meta_data",
-					callback=self.__on_get_client_metadata_finish
-				)
-
-	def __on_get_client_metadata_finish(self, error, result):
-		if error:
-			log.LOG_ERROR("Failed to get client's metadata", error)
-		else:
-			self.__set_server_user(**result)
 
 	def __on_notifycliententerview(self, args):
 		input = args[0]
@@ -769,57 +759,220 @@ class ClientQueryCommandsImplMixin(object):
 	def __init__(self):
 		super(ClientQueryCommandsImplMixin, self).__init__()
 
-	def command_authenticate(self, api_key, callback=noop):
-		'''ClientQuery requires authentication in TeamSpeak 3.1.3 and onwards. No other command
-		except 'auth' or 'help' work before authentication is done.'''
-		(self.send_command("auth", [{"apikey": api_key}])
-			.then(lambda res: callback(None, None))
-			.catch(lambda err: callback(err, None)))
+	def command_authenticate(self, api_key):
+		"""Authenticates the ClientQuery connection.
 
-	def command_clientnotifyregister(self, event, schandlerid=0, callback=noop):
+		This and 'help' commands are the only ones that are accepted when connection is first made.
+		The connection must be authenticated before other commands can be executed. Required API
+		key is available at TeamSpeak client's options > Addons > Plugins > ClientQuery > Settings.
+
+		Command was added in TeamSpeak 3.1.3. Older versions didn't have this command nor required
+		authentication.
+
+		:param api_key: API key from ClientQuery's settings
+		:returns: :py:class:`Promise` that resolves with no result, or rejects if command failed
+		"""
+		return (self.send_command("auth", [{"apikey": api_key}])
+			.then(lambda res: None))
+
+	def command_clientnotifyregister(self, event, schandlerid=0):
+		"""Subscribes to an event.
+
+		When done ClientQuery will notify listeners whenever the given event occurs within
+		TeamSpeak. Use :py:meth:`EventEmitter.on` method to listen for the events. For list of
+		accepted events see documentation of :py:class:`ClientQueryEventsMixin`.
+
+		:param event:       name of the event to subscribe
+		:param schandlerid: server connection ID (use 0 to listen events from any server)
+		:returns: :py:class:`Promise` that resolves with no result, or rejects if command failed
+		"""
 		assert self.is_valid_event(event) or event == "any"
-		(self.send_command("clientnotifyregister", [{"schandlerid": schandlerid, "event": event}])
-			.then(lambda res: callback(None, None))
-			.catch(lambda err: callback(err, None)))
+		return (self.send_command("clientnotifyregister", [{"schandlerid": schandlerid, "event": event}])
+			.then(lambda res: None))
 
-	def command_currentschandlerid(self, callback=noop):
-		(self.send_command("currentschandlerid", [])
-			.then(lambda res: callback(None, {"schandlerid": res["args"][0]["schandlerid"]}))
-			.catch(lambda err: callback(err, None)))
+	def command_currentschandlerid(self):
+		"""Returns current server connection ID.
 
-	def command_clientvariable(self, clid, variablename, schandlerid=None, callback=noop):
-		(self.send_command("clientvariable", [{"clid": clid, variablename: None}], schandlerid=schandlerid)
-			.then(lambda res: callback(None, dict(res["args"][0], schandlerid=schandlerid)))
-			.catch(lambda err: callback(err, None)))
+		The current server connection ID is ID of the server window tab which has currently
+		selected in the TeamSpeak client.
 
-	def command_clientupdate(self, variablename, variablevalue, schandlerid=None, callback=noop):
-		(self.send_command("clientupdate", [{variablename: variablevalue}], schandlerid=schandlerid)
-			.then(lambda res: callback(None, {"schandlerid": schandlerid}))
-			.catch(lambda err: callback(err, None)))
+		:returns :py:class:`Promise` that resolves with server connection ID as result, or
+		         rejects if command failed
+		"""
+		return (self.send_command("currentschandlerid", [])
+			.then(lambda res: {"schandlerid": res["args"][0]["schandlerid"]}))
 
-	def command_servervariable(self, variablename, schandlerid=None, callback=noop):
-		(self.send_command("servervariable", [{variablename: None}], schandlerid=schandlerid)
-			.then(lambda res: callback(None, dict(res["args"][0], schandlerid=schandlerid)))
-			.catch(lambda err: callback(err, None)))
+	def command_clientvariable(self, clid, variablename, schandlerid):
+		"""Returns value of a client variable from TeamSpeak.
 
-	def command_serverconnectionhandlerlist(self, callback=noop):
-		(self.send_command("serverconnectionhandlerlist", [])
-			.then(lambda res: callback(None, [int(item["schandlerid"]) for item in res["args"]]))
-			.catch(lambda err: callback(err, None)))
+		Accepted variables include:
+		 - client_unique_identifier
+		 - client_nickname
+		 - client_input_muted
+		 - client_output_muted
+		 - client_outputonly_muted
+		 - client_input_hardware
+		 - client_output_hardware
+		 - client_meta_data
+		 - client_is_recording
+		 - client_database_id
+		 - client_channel_group_id
+		 - client_servergroups
+		 - client_away
+		 - client_away_message
+		 - client_type
+		 - client_flag_avatar
+		 - client_talk_power
+		 - client_talk_request
+		 - client_talk_request_msg
+		 - client_description
+		 - client_is_talker
+		 - client_is_priority_speaker
+		 - client_unread_messages
+		 - client_nickname_phonetic
+		 - client_needed_serverquery_view_power
+		 - client_icon_id
+		 - client_is_channel_commander
+		 - client_country
+		 - client_channel_group_inherited_channel_id
+		 - client_flag_talking
+		 - client_is_muted
+		 - client_volume_modificator
 
-	def command_whoami(self, schandlerid=None, callback=noop):
-		(self.send_command("whoami", [], schandlerid=schandlerid)
-			.then(lambda res: callback(None, self.__normalize_client_data(dict(
-				res["args"][0], schandlerid=schandlerid))))
-			.catch(lambda err: callback(err, None)))
+		:param clid:         client ID
+		:param variablename: name of the variable
+		:param schandlerid:  server connection ID
+		:returns: :py:class:`Promise` that resolves with variable's value as result, or
+		          rejects if command failed
+		"""
+		return (self.send_command("clientvariable", [{"clid": clid, variablename: None}], schandlerid=schandlerid)
+			.then(lambda res: res["args"][0][variablename]))
 
-	def command_clientlist(self, schandlerid=None, callback=noop):
-		(self.send_command("clientlist", [{"-uid": None}, {"-voice": None}], schandlerid=schandlerid)
-			.then(lambda res: callback(None, {
-				"schandlerid": schandlerid,
-				"clients": [self.__normalize_client_data(item) for item in res["args"]]
-			}))
-			.catch(lambda err: callback(err, None)))
+	def command_clientupdate(self, variablename, variablevalue, schandlerid):
+		"""Sets own client's variable to given value.
+
+		Accepted variables include:
+		 - client_nickname:             set a new nickname
+		 - client_away:                 0 or 1, set us away or back available
+		 - client_away_message:         what away message to display when away
+		 - client_input_muted:          0 or 1, mutes or unmutes microphone
+		 - client_output_muted:         0 or 1, mutes or unmutes speakers/headphones
+		 - client_input_deactivated:    0 or 1, same as input_muted, but invisible to other clients
+		 - client_is_channel_commander: 0 or 1, sets or removes channel commander
+		 - client_nickname_phonetic:    set your phonetic nickname
+		 - client_flag_avatar:          set your avatar
+		 - client_meta_data:            any string that is passed to all clients that have vision
+		                                of you.
+		 - client_default_token:        privilege key to be used for the next server connect
+
+		:param variablename:  name of the variable
+		:param variablevalue: value of the variable
+		:param schandlerid:   server connection ID
+		:returns: :py:class:`Promise` that resolves with no result, or rejects if command failed
+		"""
+		return (self.send_command("clientupdate", [{variablename: variablevalue}], schandlerid=schandlerid)
+			.then(lambda res: None))
+
+	def command_servervariable(self, variablename, schandlerid):
+		"""Returns information about TeamSpeak server.
+
+		Accepted variables include:
+		 - virtualserver_name
+		 - virtualserver_platform
+		 - virtualserver_version
+		 - virtualserver_created
+		 - virtualserver_codec_encryption_mode
+		 - virtualserver_default_server_group
+		 - virtualserver_default_channel_group
+		 - virtualserver_hostbanner_url
+		 - virtualserver_hostbanner_gfx_url
+		 - virtualserver_hostbanner_gfx_interval
+		 - virtualserver_priority_speaker_dimm_modificator
+		 - virtualserver_id
+		 - virtualserver_hostbutton_tooltip
+		 - virtualserver_hostbutton_url
+		 - virtualserver_hostbutton_gfx_url
+		 - virtualserver_name_phonetic
+		 - virtualserver_icon_id
+		 - virtualserver_ip
+		 - virtualserver_ask_for_privilegekey
+		 - virtualserver_hostbanner_mode
+
+		:param variablename: name of the variable
+		:param schandlerid:  server connection ID
+		:returns: :py:class:`Promise` that resolves with variable's value as result, or
+		          rejects if command failed
+		"""
+		return (self.send_command("servervariable", [{variablename: None}], schandlerid=schandlerid)
+			.then(lambda res: res["args"][0][variablename]))
+
+	def command_serverconnectionhandlerlist(self):
+		"""Returns list of active server connection IDs.
+
+		:returns: :py:class:`Promise` that resolves with list of server connection IDs as result,
+		          or rejects if command failed
+		"""
+		return (self.send_command("serverconnectionhandlerlist", [])
+			.then(lambda res: [int(item["schandlerid"]) for item in res["args"]]))
+
+	def command_whoami(self, schandlerid):
+		"""Returns own client's client ID and channel ID.
+
+		Returned value is dict of following properties:
+		 - clid: client ID
+		 - cid:  channel ID
+
+		:param schandlerid:  server connection ID
+		:returns: :py:class:`Promise` that resolves with a dict of client ID and channel ID as
+		          result, or rejects if command failed
+		"""
+		return (self.send_command("whoami", [], schandlerid=schandlerid)
+			.then(lambda res: self.__normalize_client_data(res["args"][0])))
+
+	def command_clientlist(self, modifiers, schandlerid):
+		"""Returns list of visible clients in the server.
+
+		Each client in the list has following properties:
+		 - clid:               client ID
+		 - cid:                channel ID
+		 - client_database_id: client database id
+		 - client_nickname:    nickname
+		 - client_type:        client type
+
+        Additional properties can be requested with following modifiers:
+		 - uid:
+		    - client_unique_identifier
+		 - away:
+		    - client_away
+		    - client_away_message
+		 - voice:
+		    - client_flag_talking
+		    - client_input_muted
+		    - client_output_muted
+		    - client_input_hardware
+		    - client_output_hardware
+		    - client_talk_power
+		    - client_is_talker
+		    - client_is_priority_speaker
+		    - client_is_recording
+		    - client_is_channel_commander
+		    - client_is_muted
+		 - groups:
+		    - client_servergroups
+		    - client_channel_group_id
+		 - icon:
+		    - client_icon_id
+		 - country:
+		    - client_country
+
+		:param modifiers:    list of modifiers
+		:param schandlerid:  server connection ID
+		:returns: :py:class:`Promise` that resolves with a list of client dicts as result, or
+		          rejects if command failed
+		"""
+		args = [{"-" + modifier: None} for modifier in modifiers]
+		return (self.send_command("clientlist", args, schandlerid=schandlerid)
+			.then(lambda res: [self.__normalize_client_data(item) for item in res["args"]]))
 
 	def __normalize_client_data(self, input):
 		output = dict(input)

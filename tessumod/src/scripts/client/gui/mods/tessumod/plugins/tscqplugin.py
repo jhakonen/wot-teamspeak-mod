@@ -18,6 +18,7 @@
 from gui.mods.tessumod import plugintypes, logutils
 from gui.mods.tessumod.models import g_player_model, g_user_model, UserItem, FilterModel
 from gui.mods.tessumod.infrastructure import clientquery
+from gui.mods.tessumod.thirdparty.promise import Promise
 import re
 import collections
 
@@ -153,18 +154,20 @@ class TSCQPlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider):
 
 	@logutils.trace_call(logger)
 	def __on_connected_to_ts_server(self, schandlerid):
-		def on_servervariable_finish(error, result):
-			name = ""
-			if error:
-				logger.error("servervariable command failed: %s", error)
-			else:
-				self.__server_names[schandlerid] = result["virtualserver_name"]
-				for plugin_info in self.plugin_manager.getPluginsOfCategory("Notifications"):
-					plugin_info.plugin_object.show_notification({
-						"type": "info",
-						"message": [ "Connected to TeamSpeak server '{0}'".format(self.__server_names[schandlerid]) ]
-					})
-		self.__ts.command_servervariable("virtualserver_name", schandlerid=schandlerid, callback=on_servervariable_finish)
+		(self.__ts.command_servervariable("virtualserver_name", schandlerid=schandlerid)
+			.then(lambda res: self.__set_server_name(schandlerid, res))
+			.then(lambda res: self.__notify_connected_to_server(schandlerid))
+			.catch(lambda err: logger.error("servervariable command failed", err)))
+
+	def __set_server_name(self, schandlerid, name):
+		self.__server_names[schandlerid] = name
+
+	def __notify_connected_to_server(self, schandlerid):
+		for plugin_info in self.plugin_manager.getPluginsOfCategory("Notifications"):
+			plugin_info.plugin_object.show_notification({
+				"type": "info",
+				"message": [ "Connected to TeamSpeak server '{0}'".format(self.__server_names[schandlerid]) ]
+			})
 
 	@logutils.trace_call(logger)
 	def __on_disconnected_from_ts_server(self, schandlerid):
@@ -287,17 +290,14 @@ class TeamSpeakClient(clientquery.ClientQuery):
 			else:
 				new_metadata = metadata + new_tag
 			if metadata != new_metadata:
-				self.command_clientupdate("client_meta_data", new_metadata, schandlerid)
+				(self.command_clientupdate("client_meta_data", new_metadata, schandlerid)
+					.catch(lambda err: logger.error("Failed to update metadata", err)))
 
 	def __on_connected(self):
-		self.register_notify("notifycurrentserverconnectionchanged")
-
-		def on_currentschandlerid_finish(error, result):
-			if error:
-				logger.error("currentschandlerid command failed", error)
-			else:
-				self.emit("server-tab-changed", int(result["schandlerid"]))
-		self.command_currentschandlerid(callback=on_currentschandlerid_finish)
+		(Promise.resolve(None)
+			.then(lambda res: self.register_notify("notifycurrentserverconnectionchanged"))
+			.then(lambda res: self.command_currentschandlerid())
+			.catch(lambda err: logger.error("connect failed", err)))
 
 	def __on_connected_server(self, schandlerid):
 		self.update_game_nick_to_servers([schandlerid])
