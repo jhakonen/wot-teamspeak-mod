@@ -370,7 +370,7 @@ class ClientQueryCommand(object):
 					args = []
 					for line in self.__received_lines:
 						args += parse_arguments(line)
-					self.resolve({"data": "\n".join(self.__received_lines), "args": args})
+					self.resolve(args)
 		# collect lines before error status line
 		else:
 			self.__received_lines.append(line)
@@ -790,7 +790,7 @@ class ClientQueryCommandsImplMixin(object):
 		         rejects if command failed
 		"""
 		return (self.send_command("currentschandlerid", [])
-			.then(lambda res: {"schandlerid": res["args"][0]["schandlerid"]}))
+			.then(lambda res: {"schandlerid": res[0]["schandlerid"]}))
 
 	def command_clientvariable(self, clid, variablename, schandlerid):
 		"""Returns value of a client variable from TeamSpeak.
@@ -836,7 +836,7 @@ class ClientQueryCommandsImplMixin(object):
 		          rejects if command failed
 		"""
 		return (self.send_command("clientvariable", [{"clid": clid, variablename: None}], schandlerid=schandlerid)
-			.then(lambda res: res["args"][0][variablename]))
+			.then(lambda res: res[0][variablename]))
 
 	def command_clientupdate(self, variablename, variablevalue, schandlerid):
 		"""Sets own client's variable to given value.
@@ -894,7 +894,7 @@ class ClientQueryCommandsImplMixin(object):
 		          rejects if command failed
 		"""
 		return (self.send_command("servervariable", [{variablename: None}], schandlerid=schandlerid)
-			.then(lambda res: res["args"][0][variablename]))
+			.then(lambda res: res[0][variablename]))
 
 	def command_serverconnectionhandlerlist(self):
 		"""Returns list of active server connection IDs.
@@ -903,7 +903,7 @@ class ClientQueryCommandsImplMixin(object):
 		          or rejects if command failed
 		"""
 		return (self.send_command("serverconnectionhandlerlist", [])
-			.then(lambda res: [int(item["schandlerid"]) for item in res["args"]]))
+			.then(lambda res: [int(item["schandlerid"]) for item in res]))
 
 	def command_whoami(self, schandlerid):
 		"""Returns own client's client ID and channel ID.
@@ -917,7 +917,7 @@ class ClientQueryCommandsImplMixin(object):
 		          result, or rejects if command failed
 		"""
 		return (self.send_command("whoami", [], schandlerid=schandlerid)
-			.then(lambda res: self.__normalize_client_data(res["args"][0])))
+			.then(lambda res: self.__normalize_client_data(res[0])))
 
 	def command_clientlist(self, modifiers, schandlerid):
 		"""Returns list of visible clients in the server.
@@ -962,7 +962,7 @@ class ClientQueryCommandsImplMixin(object):
 		"""
 		args = [{"-" + modifier: None} for modifier in modifiers]
 		return (self.send_command("clientlist", args, schandlerid=schandlerid)
-			.then(lambda res: [self.__normalize_client_data(item) for item in res["args"]]))
+			.then(lambda res: [self.__normalize_client_data(item) for item in res]))
 
 	def __normalize_client_data(self, input):
 		output = dict(input)
