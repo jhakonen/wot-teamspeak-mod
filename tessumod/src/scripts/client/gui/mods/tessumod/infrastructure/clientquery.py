@@ -22,6 +22,7 @@ import socket
 import sys
 import log
 import errno
+import copy
 
 from timer import TimerMixin
 from eventemitter import EventEmitterMixin
@@ -661,11 +662,12 @@ class ClientQueryServerConnectionMixin(object):
 				self.emit("disconnected-server", schandlerid)
 
 	def __on_notifyclientmoved(self, args):
-		schandlerid = args[0]["schandlerid"]
+		entry = args[0]
+		schandlerid = entry["schandlerid"]
 		if schandlerid in self.__scdata:
 			data = self.__scdata[schandlerid]
-			if data["clid"] == args[0]["clid"]:
-				data["cid"] = args[0]["ctid"]
+			if data["clid"] == entry["clid"]:
+				data["cid"] = entry["ctid"]
 				self.emit("my-cid-changed", schandlerid)
 
 class ClientQueryServerUsersMixin(object):
@@ -752,7 +754,7 @@ class ClientQueryServerUsersMixin(object):
 		self.__set_server_user(**args[0])
 
 	def __on_notifyclientmoved(self, args):
-		input = args[0]
+		input = copy.copy(args[0])
 		input["cid"] = input.pop("ctid")
 		self.__set_server_user(**input)
 
