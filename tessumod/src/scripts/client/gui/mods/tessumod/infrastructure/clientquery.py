@@ -75,7 +75,7 @@ class ClientQueryConnectionMixin(object):
 		super(ClientQueryConnectionMixin, self).__init__()
 		self.on("check-events", self.__check_socket)
 		self.__protocol.on("connected", self.__on_protocol_connected)
-		self.__protocol.on("disconnected", self.__on_protocol_disconnected)
+		self.__protocol.on("closed", self.__on_protocol_closed)
 		self.__protocol.on("line-received", self.__on_protocol_line_received)
 		self.__protocol.on("error", self.__on_protocol_error)
 
@@ -113,7 +113,7 @@ class ClientQueryConnectionMixin(object):
 		self.on_timeout(60, self.__keep_alive, repeat=True)
 		self.emit("connected")
 
-	def __on_protocol_disconnected(self):
+	def __on_protocol_closed(self):
 		if self.__connected:
 			self.__connected = False
 			self.off_timeout(self.__keep_alive)
@@ -163,7 +163,7 @@ class ClientQueryProtocol(asynchat.async_chat, EventEmitterMixin):
 		or lost.
 		'''
 		asynchat.async_chat.handle_close(self)
-		self.emit("disconnected")
+		self.emit("closed")
 
 	def collect_incoming_data(self, data):
 		'''Hook method which is called by async_chat to provide incoming data.
