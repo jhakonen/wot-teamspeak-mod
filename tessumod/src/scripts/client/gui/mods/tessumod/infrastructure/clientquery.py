@@ -56,6 +56,9 @@ class Error(Exception):
 		else:
 			return "{0}TeamSpeak Error: {1} ({2})".format(stack_str, self.__message, self.__id)
 
+	def __repr__(self):
+		return "{}(\"{}\", id={})".format(self.__class__.__name__, self.__message, self.__id)
+
 class ClientQueryConnectionMixin(object):
 	'''Mixin class which provides basic TCP connection to TeamSpeak's
 	ClientQuery plugin.
@@ -656,7 +659,8 @@ class ClientQueryServerConnectionMixin(object):
 		status = args[0]["status"]
 		schandlerid = args[0]["schandlerid"]
 		if status == "connection_established":
-			self.__execute_whoami(schandlerid)
+			(self.__execute_whoami(schandlerid)
+				.catch(lambda err: log.LOG_ERROR("Whoami command failed", err)))
 		elif status == "disconnected":
 			if self.__scdata.pop(schandlerid, None):
 				self.emit("disconnected-server", schandlerid)
