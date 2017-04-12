@@ -21,6 +21,7 @@ from gui.mods.tessumod.infrastructure import clientquery
 from gui.mods.tessumod.thirdparty.promise import Promise
 import re
 import collections
+import itertools
 
 logger = logutils.logger.getChild("tscqplugin")
 UserTuple = collections.namedtuple('UserTuple', ('client_id', 'name', 'game_name', 'id', 'is_speaking', 'is_me', 'my_channel'))
@@ -227,7 +228,10 @@ class TSCQPlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider):
 			plugin_info.plugin_object.on_current_voice_server_changed(schandlerid)
 
 	def __update_model(self):
-		g_user_model.set_all(self.NS, reduce(self.__combine_by_identity, self.__users.itervalues(), {}).values())
+		# Discard users which do not have id yet, may occur if user's speak
+		# status has come before 'clientlist' command has finished
+		users = itertools.ifilter(lambda user: user.id is not None, self.__users.itervalues())
+		g_user_model.set_all(self.NS, reduce(self.__combine_by_identity, users, {}).values())
 
 	def __combine_by_identity(self, combined_users, user_tuple):
 		kwargs = {
