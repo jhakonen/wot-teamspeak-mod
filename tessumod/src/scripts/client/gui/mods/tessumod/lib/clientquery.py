@@ -26,7 +26,7 @@ import copy
 
 from timer import TimerMixin
 from eventemitter import EventEmitterMixin
-from gui.mods.tessumod.thirdparty.promise import Promise
+from promise import Promise
 
 def noop(*args, **kwargs):
 	pass

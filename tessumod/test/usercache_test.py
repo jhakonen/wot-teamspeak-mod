@@ -20,7 +20,7 @@ import ConfigParser
 import mock
 import helpers
 from tessumod.adapters.usercache import UserCacheAdapter
-from tessumod.infrastructure import timer
+from tessumod.lib import timer
 
 ini_path = os.path.join(helpers.temp_dirpath, "tessu_mod_cache.ini")
 

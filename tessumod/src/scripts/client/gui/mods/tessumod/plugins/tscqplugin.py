@@ -17,8 +17,8 @@
 
 from gui.mods.tessumod import plugintypes, logutils
 from gui.mods.tessumod.models import g_player_model, g_user_model, UserItem, FilterModel
-from gui.mods.tessumod.infrastructure import clientquery
-from gui.mods.tessumod.thirdparty.promise import Promise
+from gui.mods.tessumod.lib import clientquery
+from gui.mods.tessumod.lib.promise import Promise
 import re
 import collections
 import itertools

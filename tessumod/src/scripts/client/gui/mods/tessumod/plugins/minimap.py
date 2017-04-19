@@ -17,7 +17,7 @@
 
 from gui.mods.tessumod import plugintypes, logutils
 from gui.mods.tessumod.models import g_player_model, FilterModel
-from gui.mods.tessumod.infrastructure import gameapi
+from gui.mods.tessumod.lib import gameapi
 
 logger = logutils.logger.getChild("minimap")
 

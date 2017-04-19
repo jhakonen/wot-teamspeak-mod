@@ -145,33 +145,27 @@ projects:
       - py_compile:
           tags: ['build', 'clean']
           input_files:
-            - "{src_dir}/scripts/client/gui/mods/tessumod/infrastructure/*.py"
-          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/infrastructure"
-          dbg_dir: "scripts/client/gui/mods/tessumod/infrastructure"
+            - "{src_dir}/scripts/client/gui/mods/tessumod/lib/*.py"
+          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/lib"
+          dbg_dir: "scripts/client/gui/mods/tessumod/lib"
+      - py_compile:
+          tags: ['build', 'clean']
+          input_files:
+            - "{src_dir}/scripts/client/gui/mods/tessumod/lib/promise/*.py"
+          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/lib/promise"
+          dbg_dir: "scripts/client/gui/mods/tessumod/lib/promise"
+      - py_compile:
+          tags: ['build', 'clean']
+          input_files:
+            - "{src_dir}/scripts/client/gui/mods/tessumod/lib/promise/pyutils/*.py"
+          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/lib/promise/pyutils"
+          dbg_dir: "scripts/client/gui/mods/tessumod/lib/promise/pyutils"
       - py_compile:
           tags: ['build', 'clean']
           input_files:
             - "{src_dir}/scripts/client/gui/mods/tessumod/plugins/*.py"
           target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/plugins"
           dbg_dir: "scripts/client/gui/mods/tessumod/plugins"
-      - py_compile:
-          tags: ['build', 'clean']
-          input_files:
-            - "{src_dir}/scripts/client/gui/mods/tessumod/thirdparty/__init__.py"
-          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/thirdparty"
-          dbg_dir: "scripts/client/gui/mods/tessumod/thirdparty"
-      - py_compile:
-          tags: ['build', 'clean']
-          input_files:
-            - "{src_dir}/scripts/client/gui/mods/tessumod/thirdparty/promise/*.py"
-          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/thirdparty/promise"
-          dbg_dir: "scripts/client/gui/mods/tessumod/thirdparty/promise"
-      - py_compile:
-          tags: ['build', 'clean']
-          input_files:
-            - "{src_dir}/scripts/client/gui/mods/tessumod/thirdparty/promise/pyutils/*.py"
-          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/thirdparty/promise/pyutils"
-          dbg_dir: "scripts/client/gui/mods/tessumod/thirdparty/promise/pyutils"
       - copy:
           tags: ['build', 'clean']
           input_files:

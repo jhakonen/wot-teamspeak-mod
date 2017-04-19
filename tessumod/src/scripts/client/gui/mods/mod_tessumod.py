@@ -15,7 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from tessumod.infrastructure import gameapi, log, timer
+from tessumod.lib import gameapi, log, timer
 from tessumod.pluginmanager import ModPluginManager
 import logging
 import logging.config

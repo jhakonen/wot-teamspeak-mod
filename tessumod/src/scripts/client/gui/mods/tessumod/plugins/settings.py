@@ -16,7 +16,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 from gui.mods.tessumod import plugintypes, logutils
-from gui.mods.tessumod.infrastructure.gameapi import Environment
+from gui.mods.tessumod.lib.gameapi import Environment
 import BigWorld
 
 import os
