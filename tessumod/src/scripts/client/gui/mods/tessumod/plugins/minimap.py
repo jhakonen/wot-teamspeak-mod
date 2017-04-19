@@ -17,7 +17,7 @@
 
 from gui.mods.tessumod import plugintypes, logutils
 from gui.mods.tessumod.models import g_player_model, FilterModel
-from gui.mods.tessumod.adapters.wotgame import MinimapAdapter
+from gui.mods.tessumod.infrastructure import gameapi
 
 logger = logutils.logger.getChild("minimap")
 
@@ -29,9 +29,9 @@ class MinimapPlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider, plugint
 
 	def __init__(self):
 		super(MinimapPlugin, self).__init__()
-		self.__adapter = MinimapAdapter()
-		self.__adapter.set_action_interval(2.0)
-		self.__adapter.set_action("attackSender")
+		self.__action = "attackSender"
+		self.__interval = 2.0
+		self.__running_animations = {}
 		self.__players = {}
 		self.__enabled = False
 		self.__self_enabled = False
@@ -63,9 +63,9 @@ class MinimapPlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider, plugint
 				self.__self_enabled = value
 				self.__filter_model.invalidate()
 			if name == "action":
-				self.__adapter.set_action(value)
+				self.__action = value
 			if name == "repeat_interval":
-				self.__adapter.set_action_interval(value)
+				self.__interval = value
 
 	@logutils.trace_call(logger)
 	def get_settings_content(self):
@@ -175,18 +175,25 @@ class MinimapPlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider, plugint
 
 	def __on_model_added(self, new_player):
 		logger.debug("__on_model_added: {}".format(new_player))
-		self.__adapter.set_player_speaking(self.__player_to_old(new_player), new_player.speaking)
+		self.__set_vehicle_speaking(new_player.vehicle_id, new_player.speaking)
 
 	def __on_model_modified(self, old_player, new_player):
 		logger.debug("__on_model_modified: {}".format(new_player))
-		self.__adapter.set_player_speaking(self.__player_to_old(new_player), new_player.speaking)
+		self.__set_vehicle_speaking(new_player.vehicle_id, new_player.speaking)
 
 	def __on_model_removed(self, old_player):
 		logger.debug("__on_model_removed: {}".format(old_player))
-		self.__adapter.set_player_speaking(self.__player_to_old(old_player), False)
+		self.__set_vehicle_speaking(old_player.vehicle_id, False)
 
-	def __player_to_old(self, player):
-		return {
-			"in_battle": True,
-			"vehicle_id": player.vehicle_id
-		}
+	def __set_vehicle_speaking(self, vehicle_id, speaking):
+		if speaking:
+			if vehicle_id not in self.__running_animations:
+				anim = gameapi.MinimapMarkerAnimation(vehicle_id, self.__interval, self.__action, self.__on_animation_done)
+				self.__running_animations[vehicle_id] = anim
+			self.__running_animations[vehicle_id].start()
+		else:
+			if vehicle_id in self.__running_animations:
+				self.__running_animations[vehicle_id].stop()
+
+	def __on_animation_done(self, vehicle_id):
+		self.__running_animations.pop(vehicle_id, None)

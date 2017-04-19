@@ -145,12 +145,6 @@ projects:
       - py_compile:
           tags: ['build', 'clean']
           input_files:
-            - "{src_dir}/scripts/client/gui/mods/tessumod/adapters/*.py"
-          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/adapters"
-          dbg_dir: "scripts/client/gui/mods/tessumod/adapters"
-      - py_compile:
-          tags: ['build', 'clean']
-          input_files:
             - "{src_dir}/scripts/client/gui/mods/tessumod/infrastructure/*.py"
           target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/infrastructure"
           dbg_dir: "scripts/client/gui/mods/tessumod/infrastructure"
@@ -166,12 +160,6 @@ projects:
             - "{src_dir}/scripts/client/gui/mods/tessumod/thirdparty/__init__.py"
           target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/thirdparty"
           dbg_dir: "scripts/client/gui/mods/tessumod/thirdparty"
-      - py_compile:
-          tags: ['build', 'clean']
-          input_files:
-            - "{src_dir}/scripts/client/gui/mods/tessumod/thirdparty/iniparse/*.py"
-          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/thirdparty/iniparse"
-          dbg_dir: "scripts/client/gui/mods/tessumod/thirdparty/iniparse"
       - py_compile:
           tags: ['build', 'clean']
           input_files:
