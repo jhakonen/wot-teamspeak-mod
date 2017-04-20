@@ -20,13 +20,15 @@ import asynchat
 import asyncore
 import socket
 import sys
-import log
 import errno
 import copy
 
 from timer import TimerMixin
 from eventemitter import EventEmitterMixin
 from promise import Promise
+import logutils
+
+logger = logutils.logger.getChild("clientquery")
 
 def noop(*args, **kwargs):
 	pass
@@ -91,7 +93,7 @@ class ClientQueryConnectionMixin(object):
 		self.__protocol.connect(self.__address)
 
 	def send(self, data):
-		log.LOG_DEBUG("send: {0}".format(data))
+		logger.debug("send: %s", data)
 		self.__protocol.send(data)
 
 	def is_connected(self):
@@ -124,7 +126,7 @@ class ClientQueryConnectionMixin(object):
 		self.on_timeout(5, self.__connect)
 
 	def __on_protocol_line_received(self, line):
-		log.LOG_DEBUG("recv: {0}".format(line))
+		logger.debug("recv: %s", line)
 		self.emit("line-received", line)
 
 	def __on_protocol_error(self, error):
@@ -186,11 +188,11 @@ class ClientQueryProtocol(asynchat.async_chat, EventEmitterMixin):
 		messages.
 		'''
 		if type == "info":
-			log.LOG_NOTE(message)
+			logger.info(message)
 		elif type == "warning":
-			log.LOG_WARNING(message)
+			logger.warning(message)
 		else:
-			log.LOG_ERROR(message)
+			logger.error(message)
 
 	def __handle_proto_message(self, line):
 		if line == "TS3 Client":
@@ -635,7 +637,7 @@ class ClientQueryServerConnectionMixin(object):
 			.then(lambda res: self.register_notify("notifyclientmoved"))
 			.then(lambda res: self.command_serverconnectionhandlerlist())
 			.then(lambda res: Promise.all([self.__execute_whoami(schandlerid) for schandlerid in res]))
-			.catch(lambda err: log.LOG_ERROR("Server connection setup failed", err)))
+			.catch(lambda err: logger.error("Server connection setup failed: %s", err)))
 
 	def __execute_whoami(self, schandlerid):
 		return (self.command_whoami(schandlerid=schandlerid)
@@ -660,7 +662,7 @@ class ClientQueryServerConnectionMixin(object):
 		schandlerid = args[0]["schandlerid"]
 		if status == "connection_established":
 			(self.__execute_whoami(schandlerid)
-				.catch(lambda err: log.LOG_ERROR("Whoami command failed", err)))
+				.catch(lambda err: logger.error("Whoami command failed: %s", err)))
 		elif status == "disconnected":
 			if self.__scdata.pop(schandlerid, None):
 				self.emit("disconnected-server", schandlerid)
@@ -711,7 +713,7 @@ class ClientQueryServerUsersMixin(object):
 			.then(lambda res: self.register_notify("notifytalkstatuschange"))
 			.then(lambda res: self.register_notify("notifyclientmoved"))
 			.then(lambda res: self.register_notify("notifyclientupdated"))
-			.catch(lambda err: log.LOG_ERROR("Registering notifies failed", err)))
+			.catch(lambda err: logger.error("Registering notifies failed: %s", err)))
 
 	def __on_connected_server(self, schandlerid):
 		self.__clear_server_connection_data(schandlerid)
@@ -719,7 +721,7 @@ class ClientQueryServerUsersMixin(object):
 		(Promise.resolve(None)
 			.then(lambda res: self.command_clientlist(modifiers=["uid", "voice"], schandlerid=schandlerid))
 			.then(lambda res: Promise.all([self.__add_new_user(schandlerid, user) for user in res]))
-			.catch(lambda err: log.LOG_ERROR("Server users setup failed", err))
+			.catch(lambda err: logger.error("Server users setup failed: %s", err))
 		)
 
 	def __add_new_user(self, schandlerid, user):

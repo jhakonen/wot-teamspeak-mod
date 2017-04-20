@@ -36,46 +36,21 @@ import VOIP
 from VOIP.VOIPManager import VOIPManager
 import BattleReplay
 import ResMgr
+import BWLogging
 
 from functools import partial
 from traceback import format_exception
 import sys
 import types
+import logging
 
-import log
+import logutils
+
+logger = logutils.logger.getChild("gameapi")
 
 g_sessionProvider = dependency.instance(IBattleSessionProvider)
 
 Event = _Event.Event
-
-class Logger(object):
-
-	@staticmethod
-	def debug(msg, *args):
-		if log.CURRENT_LOG_LEVEL <= log.LOG_LEVEL.DEBUG:
-			_doLog('DEBUG', log.prefix_with_timestamp(msg), args)
-
-	@staticmethod
-	def note(msg, *args):
-		if log.CURRENT_LOG_LEVEL <= log.LOG_LEVEL.NOTE:
-			_doLog('NOTE', log.prefix_with_timestamp(msg), args)
-
-	@staticmethod
-	def warning(msg, *args):
-		if log.CURRENT_LOG_LEVEL <= log.LOG_LEVEL.WARNING:
-			_doLog('WARNING', log.prefix_with_timestamp(msg), args)
-
-	@staticmethod
-	def error(msg, *args):
-		if log.CURRENT_LOG_LEVEL <= log.LOG_LEVEL.ERROR:
-			_doLog('ERROR', log.prefix_with_timestamp(msg), args)
-
-	@staticmethod
-	def exception():
-		msg = _makeMsgHeader(sys._getframe(1)) + "\n"
-		etype, value, tb = sys.exc_info()
-		msg += "".join(format_exception(etype, value, tb, None))
-		BigWorld.logError('EXCEPTION', log.prefix_with_timestamp(msg), None)
 
 class EventLoop(object):
 
@@ -241,7 +216,7 @@ class Player(object):
 					if vehicle["name"] not in yielded_names:
 						yield dict(name=vehicle["name"], id=vehicle["accountDBID"], in_battle=True)
 						yielded_names.append(vehicle["name"])
-				log.LOG_DEBUG("Found players from battle", names)
+				logger.debug("Found players from battle: %s", names)
 			except AttributeError:
 				pass
 
@@ -252,7 +227,7 @@ class Player(object):
 				if player["name"] not in yielded_names:
 					yield dict(player, in_battle=False)
 					yielded_names.append(player["name"])
-			log.LOG_DEBUG("Found players from prebattle", names)
+			logger.debug("Found players from prebattle: %s", names)
 
 		users_storage = storage_getter('users')()
 
@@ -263,7 +238,7 @@ class Player(object):
 				if member.getName() not in yielded_names:
 					yield dict(name=member.getName(), id=member.getID(), in_battle=False)
 					yielded_names.append(member.getName())
-			log.LOG_DEBUG("Found clan members", names)
+			logger.debug("Found clan members: %s", names)
 
 		if friends:
 			names = []
@@ -272,7 +247,7 @@ class Player(object):
 				if friend.getName() not in yielded_names:
 					yield dict(name=friend.getName(), id=friend.getID(), in_battle=False)
 					yielded_names.append(friend.getName())
-			log.LOG_DEBUG("Found friends", names)
+			logger.debug("Found friends: %s", names)
 
 class Notifications(object):
 
@@ -358,7 +333,7 @@ class Notifications(object):
 			elif cls.__enabled:
 				system_messages.pushMessage(message, type)
 		except:
-			log.LOG_CURRENT_EXCEPTION()
+			logger.exception("Showing system message failed")
 
 	class __MessageDecorator(_NotificationDecorator):
 
@@ -444,7 +419,7 @@ class MinimapMarkerAnimation(object):
 					g_sessionProvider.shared.feedback.onMinimapFeedbackReceived(
 						FEEDBACK_EVENT_ID.MINIMAP_SHOW_MARKER, self.__vehicle_id, self.__action)
 			except AttributeError:
-				log.LOG_CURRENT_EXCEPTION()
+				logger.exception("Updating minimap failed")
 		else:
 			self.__on_done(self.__vehicle_id)
 
@@ -504,3 +479,18 @@ def PrbControlLoader_onAccountShowGUI(original):
 		g_prebattleListener.startGlobalListening()
 	return decorator
 _PrbControlLoader.onAccountShowGUI = PrbControlLoader_onAccountShowGUI(_PrbControlLoader.onAccountShowGUI)
+
+class LogRedirectionHandler(logging.Handler):
+	"""
+	Specialized logging handler which redirects logging calls to BigWorld's
+	logging facility. In a difference to BWLogging.BWLogRedirectionHandler this
+	handles also exception information, printing it log output as well.
+	"""
+
+	def emit(self, record):
+		category = record.name.encode(sys.getdefaultencoding())
+		msg = record.getMessage()
+		if record.exc_info is not None:
+			msg += "\n" + "".join(format_exception(*record.exc_info))
+		msg = msg.encode(sys.getdefaultencoding())
+		BWLogging.logLevelToBigWorldFunction[record.levelno](category, msg, None)

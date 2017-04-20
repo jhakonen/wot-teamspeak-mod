@@ -15,7 +15,9 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-import log
+import logutils
+
+logger = logutils.logger.getChild("eventemitter")
 
 class EventEmitterMixin(object):
 	'''Mixin class which provides ability to emit and receive send events.'''
@@ -30,7 +32,7 @@ class EventEmitterMixin(object):
 
 		Raising StopIteration exception from inside event handler prevents
 		calling of any further event handlers.
-		''' 
+		'''
 		if event in self.__listeners:
 			for priority, function in self.__listeners[event]:
 				try:
@@ -38,7 +40,7 @@ class EventEmitterMixin(object):
 				except StopIteration:
 					return
 				except Exception:
-					log.LOG_CURRENT_EXCEPTION()
+					logger.exception("Exception caught in eventemitter")
 
 	def on(self, event, function, priority=0):
 		'''Registers an event handler "function" for "event".

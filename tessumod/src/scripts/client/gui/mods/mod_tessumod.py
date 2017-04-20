@@ -15,23 +15,21 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from tessumod.lib import gameapi, log, timer
+from tessumod.lib import logutils, gameapi, timer
 from tessumod.pluginmanager import ModPluginManager
-import logging
-import logging.config
 import os
-from tessumod import logutils, migrate, plugintypes
+from tessumod import migrate, plugintypes
 
 plugin_manager = None
 
+logutils.init(os.path.join(gameapi.Environment.find_res_mods_version_path(),
+	"..", "configs", "tessu_mod", "logging.ini"), gameapi.LogRedirectionHandler())
+logger = logutils.logger
+
 def init():
 	'''Mod's main entry point. Called by WoT's built-in mod loader.'''
-
+	global plugin_manager
 	try:
-		log.install_logger_impl(gameapi.Logger)
-		logutils.init(os.path.join(gameapi.Environment.find_res_mods_version_path(),
-			"..", "configs", "tessu_mod", "logging.ini"))
-
 		timer.set_eventloop(gameapi.EventLoop)
 
 		try:
@@ -51,10 +49,11 @@ def init():
 			plugin_info.plugin_object.initialize()
 
 	except:
-		log.LOG_CURRENT_EXCEPTION()
+		logger.exception("TessuMod initialization failed")
 
 def fini():
 	'''Mod's destructor entry point. Called by WoT's built-in mod loader.'''
+	global plugin_manager
 	if plugin_manager is not None:
 		for plugin_info in plugin_manager.getAllPlugins():
 			plugin_info.plugin_object.deinitialize()

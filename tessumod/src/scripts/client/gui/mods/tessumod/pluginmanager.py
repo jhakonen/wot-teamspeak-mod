@@ -16,7 +16,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 from lib.gameapi import Environment
-import logutils
+from lib import logutils
 import plugintypes
 
 import os

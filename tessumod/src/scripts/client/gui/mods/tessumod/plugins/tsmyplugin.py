@@ -15,9 +15,9 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes, logutils
+from gui.mods.tessumod import plugintypes
 from gui.mods.tessumod.models import g_player_model, g_user_model, FilterModel
-from gui.mods.tessumod.lib import sharedmemory, timer, gameapi
+from gui.mods.tessumod.lib import logutils, sharedmemory, timer, gameapi
 
 from PlayerEvents import g_playerEvents
 import BigWorld

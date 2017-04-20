@@ -16,12 +16,10 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 import logging
+import logging.config
 from functools import wraps
 from inspect import getcallargs
 import os
-import sys
-import traceback
-import BWLogging
 
 logger = logging.getLogger("tessumod")
 
@@ -41,27 +39,9 @@ def trace_call(logger, level=logging.DEBUG):
 		return wrapper
 	return decorator
 
-class LogRedirectionHandler(logging.Handler):
-	"""
-	Specialized logging handler which redirects logging calls to BigWorld's
-	logging facility. In a difference to BWLogging.BWLogRedirectionHandler this
-	handles also exception information, printing it log output as well.
-	"""
-
-	def emit(self, record):
-		category = record.name.encode(sys.getdefaultencoding())
-		msg = record.getMessage()
-		if record.exc_info is not None:
-			msg += "\n" + "".join(traceback.format_exception(*record.exc_info))
-		msg = msg.encode(sys.getdefaultencoding())
-		BWLogging.logLevelToBigWorldFunction[record.levelno](category, msg, None)
-
-def init(config_path):
+def init(config_path, log_handler):
 	global logger
-	yapsy_logger = logging.getLogger("yapsy")
 	if os.path.exists(config_path):
 		logging.config.fileConfig(config_path, disable_existing_loggers=False)
-	logger.addHandler(LogRedirectionHandler())
+	logger.addHandler(log_handler)
 	logger.propagate = False
-	yapsy_logger.addHandler(LogRedirectionHandler())
-	yapsy_logger.propagate = False
