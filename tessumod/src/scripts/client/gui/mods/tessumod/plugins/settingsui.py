@@ -17,6 +17,8 @@
 
 from gui.mods.tessumod import plugintypes
 from gui.mods.tessumod.lib import logutils
+from gui.mods.tessumod.lib.pluginmanager import Plugin
+
 import BigWorld
 
 logger = logutils.logger.getChild("settingsui")
@@ -31,7 +33,7 @@ logger = logutils.logger.getChild("settingsui")
 #  - Handling events from flash (ok, apply, cancel, changes in controls)
 # =============================================================================
 
-class SettingsUIPlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider):
+class SettingsUIPlugin(Plugin, plugintypes.SettingsProvider):
 	"""
 	This plugin...
 	"""

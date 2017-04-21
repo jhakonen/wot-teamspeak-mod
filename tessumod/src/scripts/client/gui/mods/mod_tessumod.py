@@ -15,15 +15,22 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from tessumod.lib import logutils, gameapi, timer
-from tessumod.pluginmanager import ModPluginManager
-import os
 from tessumod import migrate, plugintypes
+from tessumod.lib import logutils, gameapi, timer
+from tessumod.lib.pluginmanager import PluginManager
+
+import inspect
+import json
+import os
 
 plugin_manager = None
 
-logutils.init(os.path.join(gameapi.Environment.find_res_mods_version_path(),
-	"..", "configs", "tessu_mod", "logging.ini"), gameapi.LogRedirectionHandler())
+mods_path = gameapi.Environment.find_res_mods_version_path()
+log_config_path = os.path.join(mods_path, "..", "configs", "tessu_mod", "logging.ini")
+config_path     = os.path.join(mods_path, "scripts", "client", "gui", "mods", "tessumod", "config.json")
+plugins_path    = os.path.join(mods_path, "scripts", "client", "gui", "mods", "tessumod", "plugins")
+
+logutils.init(log_config_path, gameapi.LogRedirectionHandler())
 logger = logutils.logger
 
 def init():
@@ -40,10 +47,13 @@ def init():
 
 		migrate.migrate()
 
-		plugin_manager = ModPluginManager(plugintypes.ModPlugin)
+		with open(config_path, "rb") as config_file:
+			config = json.loads(config_file.read())
+
+		plugin_categories = [member[1] for member in inspect.getmembers(plugintypes, inspect.isclass)]
+		plugin_manager = PluginManager(config["plugins"], plugins_path, plugin_categories)
 		plugin_manager.collectPlugins()
 		for plugin_info in plugin_manager.getAllPlugins():
-			plugin_manager.activatePluginByName(plugin_info.name)
 			plugin_info.plugin_object.plugin_manager = plugin_manager
 		for plugin_info in plugin_manager.getAllPlugins():
 			plugin_info.plugin_object.initialize()

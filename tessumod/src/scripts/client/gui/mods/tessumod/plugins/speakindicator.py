@@ -17,6 +17,7 @@
 
 from gui.mods.tessumod import plugintypes
 from gui.mods.tessumod.lib import logutils
+from gui.mods.tessumod.lib.pluginmanager import Plugin
 from gui.mods.tessumod.models import g_player_model, FilterModel
 
 from VOIP.VOIPManager import VOIPManager
@@ -26,7 +27,7 @@ from constants import ARENA_PERIOD
 
 logger = logutils.logger.getChild("speakindicator")
 
-class SpeakIndicatorPlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider):
+class SpeakIndicatorPlugin(Plugin, plugintypes.SettingsProvider):
 	"""
 	This plugin renders speech indicator notifications in game when a user
 	matched a player speaks. The indicator is shown as a green ripple effect

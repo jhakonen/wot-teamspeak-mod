@@ -17,6 +17,7 @@
 
 from gui.mods.tessumod import plugintypes
 from gui.mods.tessumod.lib import logutils
+from gui.mods.tessumod.lib.pluginmanager import Plugin
 from gui.mods.tessumod.models import g_player_model, PlayerItem
 
 from gui.prb_control.dispatcher import _PrbControlLoader
@@ -24,7 +25,7 @@ from gui.prb_control.entities.listener import IGlobalListener
 
 logger = logutils.logger.getChild("playersinprebattle")
 
-class PlayersInPrebattlePlugin(plugintypes.ModPlugin):
+class PlayersInPrebattlePlugin(Plugin):
 	"""
 	This plugin provides a model for other plugins which contains players in prebattle.
 	"""

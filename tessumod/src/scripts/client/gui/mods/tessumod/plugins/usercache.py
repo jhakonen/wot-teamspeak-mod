@@ -18,6 +18,7 @@
 from gui.mods.tessumod import plugintypes
 from gui.mods.tessumod.lib import logutils
 from gui.mods.tessumod.lib.gameapi import Environment
+from gui.mods.tessumod.lib.pluginmanager import Plugin
 from gui.mods.tessumod.models import g_player_model, g_user_model, g_pairing_model, PlayerItem, UserItem, Priority
 
 from BattleReplay import BattleReplay
@@ -29,7 +30,7 @@ import itertools
 
 logger = logutils.logger.getChild("usercache")
 
-class UserCachePlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider,
+class UserCachePlugin(Plugin, plugintypes.SettingsProvider,
 	plugintypes.SettingsUIProvider, plugintypes.SnapshotProvider):
 	"""
 	This plugin ...

@@ -17,13 +17,14 @@
 
 from gui.mods.tessumod import plugintypes
 from gui.mods.tessumod.lib import logutils
+from gui.mods.tessumod.lib.pluginmanager import Plugin
 from gui.mods.tessumod.models import g_player_model, g_user_model, g_pairing_model, PairingItem, FilterModel
 
 import re
 
 logger = logutils.logger.getChild("usermatching")
 
-class UserMatching(plugintypes.ModPlugin, plugintypes.SettingsProvider,
+class UserMatching(Plugin, plugintypes.SettingsProvider,
 	plugintypes.UserCache):
 	"""
 	This plugin ...

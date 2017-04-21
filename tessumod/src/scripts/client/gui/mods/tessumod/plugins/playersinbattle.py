@@ -17,6 +17,7 @@
 
 from gui.mods.tessumod import plugintypes
 from gui.mods.tessumod.lib import logutils
+from gui.mods.tessumod.lib.pluginmanager import Plugin
 from gui.mods.tessumod.models import g_player_model, PlayerItem
 
 from PlayerEvents import g_playerEvents
@@ -24,7 +25,7 @@ import BigWorld
 
 logger = logutils.logger.getChild("playersinbattle")
 
-class PlayersInBattlePlugin(plugintypes.ModPlugin):
+class PlayersInBattlePlugin(Plugin):
 	"""
 	This plugin provides a model for other plugins which contains players in battle.
 	"""

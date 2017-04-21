@@ -17,6 +17,7 @@
 
 from gui.mods.tessumod import plugintypes
 from gui.mods.tessumod.lib import logutils, timer
+from gui.mods.tessumod.lib.pluginmanager import Plugin
 
 import BigWorld
 from helpers import dependency
@@ -50,7 +51,7 @@ def remove_action_listener(listener):
 	del notification_handlers[listener.getID()]
 
 
-class NotificationsPlugin(plugintypes.ModPlugin, plugintypes.Notifications, timer.TimerMixin):
+class NotificationsPlugin(Plugin, plugintypes.Notifications, timer.TimerMixin):
 	"""
 	This plugin ...
 	"""

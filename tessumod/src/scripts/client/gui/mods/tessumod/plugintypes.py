@@ -15,27 +15,6 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-class ModPlugin(object):
-
-	CATEGORY = "Plugin"
-
-	def __init__(self):
-		super(ModPlugin, self).__init__()
-
-	@property
-	def plugin_manager(self):
-		return self.__plugin_manager
-
-	@plugin_manager.setter
-	def plugin_manager(self, plugin_manager):
-		self.__plugin_manager = plugin_manager
-
-	def initialize(self):
-		pass
-
-	def deinitialize(self):
-		pass
-
 class Settings(object):
 
 	CATEGORY = "Settings"

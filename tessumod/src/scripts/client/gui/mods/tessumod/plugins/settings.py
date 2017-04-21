@@ -18,6 +18,7 @@
 from gui.mods.tessumod import plugintypes
 from gui.mods.tessumod.lib import logutils
 from gui.mods.tessumod.lib.gameapi import Environment
+from gui.mods.tessumod.lib.pluginmanager import Plugin
 import BigWorld
 
 import os
@@ -32,7 +33,7 @@ logger = logutils.logger.getChild("settings")
 #  - Add writing into file
 # =============================================================================
 
-class SettingsPlugin(plugintypes.ModPlugin, plugintypes.Settings,
+class SettingsPlugin(Plugin, plugintypes.Settings,
 	plugintypes.SnapshotProvider):
 	"""
 	This plugin loads settings from tessu_mod.ini file and writes a default

@@ -16,12 +16,13 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 from gui.mods.tessumod import plugintypes
-from gui.mods.tessumod.models import g_player_model, FilterModel
 from gui.mods.tessumod.lib import logutils, gameapi
+from gui.mods.tessumod.lib.pluginmanager import Plugin
+from gui.mods.tessumod.models import g_player_model, FilterModel
 
 logger = logutils.logger.getChild("minimap")
 
-class MinimapPlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider, plugintypes.SettingsUIProvider):
+class MinimapPlugin(Plugin, plugintypes.SettingsProvider, plugintypes.SettingsUIProvider):
 	"""
 	This plugin renders speech notifications to minimap in battle when a player
 	who is in battle speaks in voice chat.

@@ -15,40 +15,53 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from lib.gameapi import Environment
-from lib import logutils
-import plugintypes
+import logutils
 
 import os
 import json
 import imp
-import inspect
 
 logger = logutils.logger.getChild("pluginmanager")
 
-class ModPluginManager(object):
+class Plugin(object):
 
-	def __init__(self, plugin_base_class):
-		self.__plugin_base_class = plugin_base_class
-		self.__mods_dirpath = os.path.join(Environment.find_res_mods_version_path(), "scripts/client/gui/mods")
-		with open(os.path.join(self.__mods_dirpath, "tessumod/config.json"), "rb") as file:
-			self.__plugins_list = json.loads(file.read())["plugins"]
+	CATEGORY = "Plugin"
 
-		self.__plugins_dir_path = os.path.join(self.__mods_dirpath, "tessumod/plugins")
-		self.__categories_filter = self.get_categories(plugintypes)
+	def __init__(self):
+		super(Plugin, self).__init__()
+
+	@property
+	def plugin_manager(self):
+		return self.__plugin_manager
+
+	@plugin_manager.setter
+	def plugin_manager(self, plugin_manager):
+		self.__plugin_manager = plugin_manager
+
+	def initialize(self):
+		pass
+
+	def deinitialize(self):
+		pass
+
+class PluginManager(object):
+
+	def __init__(self, plugins_list, plugins_dir, category_classes):
+		self.__plugins_list = plugins_list
+		self.__plugins_dir_path = plugins_dir
+		self.__categories_filter = self.get_categories(category_classes)
 		self.__plugin_infos_by_category = {name: [] for name in self.__categories_filter.iterkeys()}
 		self.__plugin_infos_all = []
 
-	def get_categories(self, module):
+	def get_categories(self, category_classes):
 		"""
-		Collects all classes in 'module' which has CATEGORY class member.
+		Collects all classes in 'category_classes' which has CATEGORY class member.
 		Returns categories as map of CATEGORY as key and the class as value.
 		"""
 		categories = {}
-		for name in dir(plugintypes):
-			attribute = getattr(plugintypes, name)
-			if inspect.isclass(attribute) and hasattr(attribute, "CATEGORY"):
-				categories[getattr(attribute, "CATEGORY")] = attribute
+		for cls in category_classes:
+			if hasattr(cls, "CATEGORY"):
+				categories[getattr(cls, "CATEGORY")] = cls
 		return categories
 
 	def collectPlugins(self):
@@ -68,8 +81,10 @@ class ModPluginManager(object):
 			elements = [getattr(plugin_module, element_name) for element_name in dir(plugin_module)]
 			for element in elements:
 				is_plugin = False
+				if element == Plugin:
+					continue
 				try:
-					is_plugin = issubclass(element, self.__plugin_base_class)
+					is_plugin = issubclass(element, Plugin)
 				except Exception:
 					pass
 				if is_plugin:
@@ -86,9 +101,6 @@ class ModPluginManager(object):
 
 	def getAllPlugins(self):
 		return list(self.__plugin_infos_all)
-
-	def activatePluginByName(self, name):
-		pass # DONE
 
 	def getPluginsOfCategory(self, name):
 		return list(self.__plugin_infos_by_category[name])

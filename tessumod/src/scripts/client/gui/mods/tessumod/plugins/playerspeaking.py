@@ -17,6 +17,7 @@
 
 from gui.mods.tessumod import plugintypes
 from gui.mods.tessumod.lib import logutils
+from gui.mods.tessumod.lib.pluginmanager import Plugin
 from gui.mods.tessumod.models import g_player_model, g_user_model, g_pairing_model, PlayerItem, FilterModel
 
 import functools
@@ -31,7 +32,7 @@ logger = logutils.logger.getChild("playerspeaking")
 #  - Add ability to remove matches (called from settingsui)
 # =============================================================================
 
-class PlayerSpeaking(plugintypes.ModPlugin, plugintypes.SettingsProvider,
+class PlayerSpeaking(Plugin, plugintypes.SettingsProvider,
 	plugintypes.SettingsUIProvider):
 	"""
 	This plugin ...

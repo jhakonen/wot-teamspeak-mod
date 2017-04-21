@@ -16,9 +16,10 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 from gui.mods.tessumod import plugintypes
-from gui.mods.tessumod.models import g_player_model, g_user_model, UserItem, FilterModel
 from gui.mods.tessumod.lib import logutils, clientquery
+from gui.mods.tessumod.lib.pluginmanager import Plugin
 from gui.mods.tessumod.lib.promise import Promise
+from gui.mods.tessumod.models import g_player_model, g_user_model, UserItem, FilterModel
 import re
 import collections
 import itertools
@@ -26,7 +27,7 @@ import itertools
 logger = logutils.logger.getChild("tscqplugin")
 UserTuple = collections.namedtuple('UserTuple', ('client_id', 'name', 'game_name', 'id', 'is_speaking', 'is_me', 'my_channel'))
 
-class TSCQPlugin(plugintypes.ModPlugin, plugintypes.SettingsProvider):
+class TSCQPlugin(Plugin, plugintypes.SettingsProvider):
 	"""
 	This plugin ...
 	"""

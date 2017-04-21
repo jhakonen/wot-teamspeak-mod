@@ -16,8 +16,9 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 from gui.mods.tessumod import plugintypes
-from gui.mods.tessumod.models import g_player_model, g_user_model, FilterModel
 from gui.mods.tessumod.lib import logutils, sharedmemory, timer, gameapi
+from gui.mods.tessumod.lib.pluginmanager import Plugin
+from gui.mods.tessumod.models import g_player_model, g_user_model, FilterModel
 
 from PlayerEvents import g_playerEvents
 import BigWorld
@@ -32,7 +33,7 @@ import subprocess
 
 logger = logutils.logger.getChild("tsmyplugin")
 
-class TSMyPluginPlugin(plugintypes.ModPlugin, plugintypes.VoiceClientListener,
+class TSMyPluginPlugin(Plugin, plugintypes.VoiceClientListener,
 	                   plugintypes.SettingsProvider, plugintypes.SettingsUIProvider,
 	                   timer.TimerMixin):
 	"""

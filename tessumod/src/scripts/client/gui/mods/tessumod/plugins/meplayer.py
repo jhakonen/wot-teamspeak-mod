@@ -15,8 +15,8 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes
 from gui.mods.tessumod.lib import logutils
+from gui.mods.tessumod.lib.pluginmanager import Plugin
 from gui.mods.tessumod.models import g_player_model, PlayerItem
 
 from PlayerEvents import g_playerEvents
@@ -24,7 +24,7 @@ import BigWorld
 
 logger = logutils.logger.getChild("meplayer")
 
-class MePlayerPlugin(plugintypes.ModPlugin):
+class MePlayerPlugin(Plugin):
 	"""
 	This plugin ...
 	"""
