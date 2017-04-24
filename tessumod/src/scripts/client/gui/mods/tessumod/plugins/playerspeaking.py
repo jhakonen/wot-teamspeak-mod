@@ -18,12 +18,11 @@
 from gui.mods.tessumod import plugintypes
 from gui.mods.tessumod.lib import logutils
 from gui.mods.tessumod.lib.pluginmanager import Plugin
+from gui.mods.tessumod.lib.timer import TimerMixin
 from gui.mods.tessumod.models import g_player_model, g_user_model, g_pairing_model, PlayerItem, FilterModel
 
 import functools
 from itertools import ifilter, imap
-
-import BigWorld
 
 logger = logutils.logger.getChild("playerspeaking")
 
@@ -32,7 +31,7 @@ logger = logutils.logger.getChild("playerspeaking")
 #  - Add ability to remove matches (called from settingsui)
 # =============================================================================
 
-class PlayerSpeaking(Plugin, plugintypes.SettingsProvider,
+class PlayerSpeaking(Plugin, TimerMixin, plugintypes.SettingsProvider,
 	plugintypes.SettingsUIProvider):
 	"""
 	This plugin ...
@@ -43,7 +42,7 @@ class PlayerSpeaking(Plugin, plugintypes.SettingsProvider,
 	def __init__(self):
 		super(PlayerSpeaking, self).__init__()
 		self.__speak_stop_delay = 0
-		self.__user_speak_state_timers = {}
+		self.__delayed_speak_stop_functions = {}
 		self.__delayed_user_speak_states = {}
 		g_player_model.add_namespace(self.NS)
 
@@ -119,25 +118,25 @@ class PlayerSpeaking(Plugin, plugintypes.SettingsProvider,
 	def __on_user_modified(self, old_user, new_user):
 		id = new_user.id
 		if old_user.is_speaking != new_user.is_speaking and id in g_pairing_model:
-			if id in self.__user_speak_state_timers:
-				BigWorld.cancelCallback(self.__user_speak_state_timers.pop(id))
+			if id in self.__delayed_speak_stop_functions:
+				self.off_timeout(self.__delayed_speak_stop_functions.pop(id))
 			if new_user.is_speaking:
 				self.__delayed_user_speak_states[id] = True
 			else:
-				self.__user_speak_state_timers[id] = BigWorld.callback(self.__speak_stop_delay,
-					functools.partial(self.__on_delayed_speak_stop, id))
+				self.__delayed_speak_stop_functions[id] = functools.partial(self.__on_delayed_speak_stop, id)
+				self.on_timeout(self.__speak_stop_delay, self.__delayed_speak_stop_functions[id])
 			self.__repopulate_voice_players()
 
 	def __on_delayed_speak_stop(self, id):
 		if id in self.__delayed_user_speak_states:
 			self.__delayed_user_speak_states[id] = False
-		self.__user_speak_state_timers.pop(id, None)
+		self.__delayed_speak_stop_functions.pop(id, None)
 		self.__repopulate_voice_players()
 
 	@logutils.trace_call(logger)
 	def __on_user_removed(self, user):
 		self.__delayed_user_speak_states.pop(user.id, None)
-		self.__user_speak_state_timers.pop(user.id, None)
+		self.__delayed_speak_stop_functions.pop(user.id, None)
 		self.__repopulate_voice_players()
 
 	@logutils.trace_call(logger)

@@ -16,14 +16,13 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 from gui.mods.tessumod import plugintypes
-from gui.mods.tessumod.lib import logutils
-from gui.mods.tessumod.lib.gameapi import Environment
+from gui.mods.tessumod.lib import logutils, gameapi
 from gui.mods.tessumod.lib.pluginmanager import Plugin
-import BigWorld
+from gui.mods.tessumod.lib.timer import TimerMixin
 
-import os
 import copy
 import json
+import os
 import uuid
 
 logger = logutils.logger.getChild("settings")
@@ -33,7 +32,7 @@ logger = logutils.logger.getChild("settings")
 #  - Add writing into file
 # =============================================================================
 
-class SettingsPlugin(Plugin, plugintypes.Settings,
+class SettingsPlugin(Plugin, TimerMixin, plugintypes.Settings,
 	plugintypes.SnapshotProvider):
 	"""
 	This plugin loads settings from tessu_mod.ini file and writes a default
@@ -51,13 +50,13 @@ class SettingsPlugin(Plugin, plugintypes.Settings,
 		super(SettingsPlugin, self).__init__()
 		self.__snapshots = {}
 		self.__previous_values = {}
-		self.__filepath = os.path.join(Environment.find_res_mods_version_path(),
+		self.__filepath = os.path.join(gameapi.find_res_mods_version_path(),
 			"..", "configs", "tessumod", "settings.json")
 
 	@logutils.trace_call(logger)
 	def initialize(self):
 		self.__load_settings_data()
-		BigWorld.callback(0, self.__notify_changed_settings)
+		self.on_timeout(0, self.__notify_changed_settings)
 
 	@logutils.trace_call(logger)
 	def deinitialize(self):

@@ -15,12 +15,9 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod.lib import logutils
+from gui.mods.tessumod.lib import logutils, gameapi
 from gui.mods.tessumod.lib.pluginmanager import Plugin
 from gui.mods.tessumod.models import g_player_model, PlayerItem
-
-from PlayerEvents import g_playerEvents
-import BigWorld
 
 logger = logutils.logger.getChild("meplayer")
 
@@ -37,29 +34,12 @@ class MePlayerPlugin(Plugin):
 
 	@logutils.trace_call(logger)
 	def initialize(self):
-		g_playerEvents.onAccountShowGUI += self.__on_account_show_gui
-		g_playerEvents.onAvatarReady += self.__on_avatar_ready
+		gameapi.events.on("my_player_id_received", self.__on_my_player_id_received)
 
 	@logutils.trace_call(logger)
 	def deinitialize(self):
-		g_playerEvents.onAccountShowGUI -= self.__on_account_show_gui
-		g_playerEvents.onAvatarReady -= self.__on_avatar_ready
-
+		gameapi.events.off("my_player_id_received", self.__on_my_player_id_received)
 
 	@logutils.trace_call(logger)
-	def __on_account_show_gui(self, ctx):
-		# databaseID is set when GUI is shown and will be available before
-		# onAccountShowGUI() is called
-		g_player_model.set(self.NS, PlayerItem(
-			id = int(BigWorld.player().databaseID),
-			is_me = True
-		))
-
-	@logutils.trace_call(logger)
-	def __on_avatar_ready(self):
-		vehicle_id = int(BigWorld.player().playerVehicleID)
-		vehicle = BigWorld.player().arena.vehicles[vehicle_id]
-		g_player_model.set(self.NS, PlayerItem(
-			id = int(vehicle["accountDBID"]),
-			is_me = True
-		))
+	def __on_my_player_id_received(self, player_id):
+		g_player_model.set(self.NS, PlayerItem(id=player_id, is_me=True))

@@ -16,17 +16,14 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 from gui.mods.tessumod import plugintypes
-from gui.mods.tessumod.lib import logutils
-from gui.mods.tessumod.lib.gameapi import Environment
+from gui.mods.tessumod.lib import logutils, gameapi
 from gui.mods.tessumod.lib.pluginmanager import Plugin
 from gui.mods.tessumod.models import g_player_model, g_user_model, g_pairing_model, PlayerItem, UserItem, Priority
 
-from BattleReplay import BattleReplay
-
-import os
-import json
-import uuid
 import itertools
+import json
+import os
+import uuid
 
 logger = logutils.logger.getChild("usercache")
 
@@ -45,13 +42,13 @@ class UserCachePlugin(Plugin, plugintypes.SettingsProvider,
 		self.__enabled_in_replays = False
 		self.__in_replay = False
 		self.__read_error = False
-		self.__config_dirpath = os.path.join(Environment.find_res_mods_version_path(), "..", "configs", "tessumod")
+		self.__config_dirpath = os.path.join(gameapi.find_res_mods_version_path(), "..", "configs", "tessumod")
 		self.__cache_filepath = os.path.join(self.__config_dirpath, "usercache.json")
 		self.__snapshots = {}
-		BattleReplay.play = self.__hook_battlereplay_play(BattleReplay.play)
 
 	@logutils.trace_call(logger)
 	def initialize(self):
+		gameapi.events.on("battle_replay_started", self.__on_battle_replay_started)
 		g_pairing_model.on("added", self.__on_pairings_changed)
 		g_pairing_model.on("modified", self.__on_pairings_changed)
 		g_pairing_model.on("removed", self.__on_pairings_changed)
@@ -64,6 +61,7 @@ class UserCachePlugin(Plugin, plugintypes.SettingsProvider,
 
 	@logutils.trace_call(logger)
 	def deinitialize(self):
+		gameapi.events.off("battle_replay_started", self.__on_battle_replay_started)
 		# write to cache file
 		self.__save_cache_file(self.__export_cache_structure())
 
@@ -147,14 +145,8 @@ class UserCachePlugin(Plugin, plugintypes.SettingsProvider,
 		if snapshot_name in self.__snapshots:
 			self.__import_cache_structure(self.__snapshots[snapshot_name])
 
-	def __hook_battlereplay_play(self, orig_method):
-		def wrapper(battlereplay_self, fileName=None):
-			self.on_battle_replay()
-			return orig_method(battlereplay_self, fileName)
-		return wrapper
-
 	@logutils.trace_call(logger)
-	def on_battle_replay(self):
+	def __on_battle_replay_started(self):
 		self.__in_replay = True
 
 	def __on_pairings_changed(self, *args, **kwargs):

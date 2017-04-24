@@ -20,16 +20,13 @@ from gui.mods.tessumod.lib import logutils, sharedmemory, timer, gameapi
 from gui.mods.tessumod.lib.pluginmanager import Plugin
 from gui.mods.tessumod.models import g_player_model, g_user_model, FilterModel
 
-from PlayerEvents import g_playerEvents
-import BigWorld
-
+import functools
 import os
 import sys
-import time
 import struct
-import functools
-import threading
 import subprocess
+import threading
+import time
 
 logger = logutils.logger.getChild("tsmyplugin")
 
@@ -45,7 +42,6 @@ class TSMyPluginPlugin(Plugin, plugintypes.VoiceClientListener,
 	def __init__(self):
 		super(TSMyPluginPlugin, self).__init__()
 		self.__advertisement_ignored = False
-		self.__current_schandlerid = None
 		self.__positional_data_api = PositionalDataAPI()
 		# filtered model with players who are alive in battle, has vehicle id
 		# and is matched to one or more users
@@ -65,13 +61,13 @@ class TSMyPluginPlugin(Plugin, plugintypes.VoiceClientListener,
 
 	@logutils.trace_call(logger)
 	def initialize(self):
-		g_playerEvents.onAvatarBecomePlayer += self.__on_avatar_become_player
-		g_playerEvents.onAvatarBecomeNonPlayer += self.__on_avatar_become_non_player
+		gameapi.events.on("battle_started", self.__on_battle_started)
+		gameapi.events.on("battle_finished", self.__on_battle_finished)
 
 	@logutils.trace_call(logger)
 	def deinitialize(self):
-		g_playerEvents.onAvatarBecomePlayer -= self.__on_avatar_become_player
-		g_playerEvents.onAvatarBecomeNonPlayer -= self.__on_avatar_become_non_player
+		gameapi.events.off("battle_started", self.__on_battle_started)
+		gameapi.events.off("battle_finished", self.__on_battle_finished)
 
 	@logutils.trace_call(logger)
 	def on_settings_changed(self, section, name, value):
@@ -122,7 +118,7 @@ class TSMyPluginPlugin(Plugin, plugintypes.VoiceClientListener,
 		Implemented from VoiceClientListener.
 		"""
 		# Check is plugin file included with mod, and offer to install it
-		mods_dirpath = gameapi.Environment.find_res_mods_version_path()
+		mods_dirpath = gameapi.find_res_mods_version_path()
 		self.__installer_path = os.path.normpath(os.path.join(mods_dirpath, "tessumod.ts3_plugin"))
 		# plugin doesn't work in WinXP so check that we are running on
 		# sufficiently recent Windows OS
@@ -197,11 +193,13 @@ class TSMyPluginPlugin(Plugin, plugintypes.VoiceClientListener,
 		"""
 		Implemented from VoiceClientListener.
 		"""
-		self.__current_schandlerid = server_id
 		self.__update_clid_lookup()
 
 	def __update_clid_lookup(self, *args, **kwargs):
 		self.__clid_lookup = {}
+		connection_id = (self.plugin_manager.getPluginsOfCategory("VoiceClientProvider")[0]
+			.plugin_object.get_my_connection_id())
+
 		for player in self.__player_model.itervalues():
 			for user_id in player.user_ids:
 				if player.id in self.__clid_lookup:
@@ -209,18 +207,18 @@ class TSMyPluginPlugin(Plugin, plugintypes.VoiceClientListener,
 				if user_id not in self.__user_model:
 					continue
 				for client_id in self.__user_model[user_id].client_ids:
-					if client_id[0] != self.__current_schandlerid:
+					if client_id[0] != connection_id:
 						continue
 					self.__clid_lookup[player.id] = client_id[1]
 					break
 
 	@logutils.trace_call(logger)
-	def __on_avatar_become_player(self):
+	def __on_battle_started(self):
 		self.__positional_data_api.open()
 		self.on_timeout(0.1, self.__write_positional_data, repeat=True)
 
 	@logutils.trace_call(logger)
-	def __on_avatar_become_non_player(self):
+	def __on_battle_finished(self):
 		self.__positional_data_api.close()
 		self.off_timeout(self.__write_positional_data)
 
@@ -234,24 +232,21 @@ class TSMyPluginPlugin(Plugin, plugintypes.VoiceClientListener,
 		if not self.__clid_lookup:
 			logger.debug("__write_positional_data: no clid lookup")
 			return
-		camera = BigWorld.camera()
-		camera_pos = camera.position
-		camera_dir = camera.direction
-		entities = BigWorld.entities
 		client_positions = {}
 		for player in self.__player_model.itervalues():
 			if player.id in self.__clid_lookup:
-				entity = entities.get(player.vehicle_id)
-				if not entity:
+				pos = gameapi.get_vehicle_position(player.vehicle_id)
+				if not pos:
 					continue
-				pos = entity.position
-				client_positions[self.__clid_lookup[player.id]] = (pos.x, pos.y, pos.z)
+				client_positions[self.__clid_lookup[player.id]] = pos
 		if not client_positions:
 			logger.debug("__write_positional_data: no client positions")
 			return
-		camera_pos = (camera_pos.x, camera_pos.y, camera_pos.z)
-		camera_dir = (camera_dir.x, camera_dir.y, camera_dir.z)
-		self.__positional_data_api.set_data(camera_pos, camera_dir, client_positions)
+		self.__positional_data_api.set_data(
+			camera_position = gameapi.get_camera_position(),
+			camera_direction = gameapi.get_camera_direction(),
+			positions = client_positions
+		)
 
 
 class InfoAPI(sharedmemory.SharedMemory):

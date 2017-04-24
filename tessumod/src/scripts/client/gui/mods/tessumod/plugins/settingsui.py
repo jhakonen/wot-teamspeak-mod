@@ -18,8 +18,7 @@
 from gui.mods.tessumod import plugintypes
 from gui.mods.tessumod.lib import logutils
 from gui.mods.tessumod.lib.pluginmanager import Plugin
-
-import BigWorld
+from gui.mods.tessumod.lib.timer import TimerMixin
 
 logger = logutils.logger.getChild("settingsui")
 
@@ -33,7 +32,7 @@ logger = logutils.logger.getChild("settingsui")
 #  - Handling events from flash (ok, apply, cancel, changes in controls)
 # =============================================================================
 
-class SettingsUIPlugin(Plugin, plugintypes.SettingsProvider):
+class SettingsUIPlugin(Plugin, TimerMixin, plugintypes.SettingsProvider):
 	"""
 	This plugin...
 	"""
@@ -44,7 +43,7 @@ class SettingsUIPlugin(Plugin, plugintypes.SettingsProvider):
 
 	@logutils.trace_call(logger)
 	def initialize(self):
-		BigWorld.callback(0, self.__load_descriptions)
+		self.on_timeout(0, self.__load_descriptions)
 
 	@logutils.trace_call(logger)
 	def on_settings_changed(self, section, name, value):

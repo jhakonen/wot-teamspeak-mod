@@ -189,7 +189,7 @@ class MinimapPlugin(Plugin, plugintypes.SettingsProvider, plugintypes.SettingsUI
 	def __set_vehicle_speaking(self, vehicle_id, speaking):
 		if speaking:
 			if vehicle_id not in self.__running_animations:
-				anim = gameapi.MinimapMarkerAnimation(vehicle_id, self.__interval, self.__action, self.__on_animation_done)
+				anim = gameapi.create_minimap_animation(vehicle_id, self.__interval, self.__action, self.__on_animation_done)
 				self.__running_animations[vehicle_id] = anim
 			self.__running_animations[vehicle_id].start()
 		else:

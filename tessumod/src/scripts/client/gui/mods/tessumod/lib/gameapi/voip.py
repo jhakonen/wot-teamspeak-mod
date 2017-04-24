@@ -15,31 +15,22 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes
-from gui.mods.tessumod.lib import logutils, gameapi
-from gui.mods.tessumod.lib.pluginmanager import Plugin
+from __future__ import absolute_import
+from messenger.proto.events import g_messengerEvents
+from VOIP.VOIPManager import VOIPManager
 
-logger = logutils.logger.getChild("notifications")
+from .hookutils import hook_method, CALL_WITH_ORIGINAL
+from .. import logutils
 
-class NotificationsPlugin(Plugin, plugintypes.Notifications):
-	"""
-	This plugin ...
-	"""
+logger = logutils.logger.getChild("gameapi")
 
-	def __init__(self):
-		super(NotificationsPlugin, self).__init__()
+_speak_states = {}
 
-	@logutils.trace_call(logger)
-	def initialize(self):
-		pass
+@logutils.trace_call(logger)
+def set_player_speaking(player_id, speaking):
+	_speak_states[player_id] = speaking
+	g_messengerEvents.voip.onPlayerSpeaking(player_id, speaking)
 
-	@logutils.trace_call(logger)
-	def deinitialize(self):
-		pass
-
-	@logutils.trace_call(logger)
-	def show_notification(self, data):
-		"""
-		Implemented from Notifications.
-		"""
-		gameapi.show_notification(data)
+@hook_method(VOIPManager, "isParticipantTalking", call_style=CALL_WITH_ORIGINAL)
+def _isParticipantTalking(original, self, dbid):
+	return _speak_states.get(dbid, False) or original(self, dbid)

@@ -89,6 +89,18 @@ class VoiceClientListener(object):
 	def on_current_voice_server_changed(self, server_id):
 		pass
 
+class VoiceClientProvider(object):
+	"""
+	"""
+
+	CATEGORY = "VoiceClientProvider"
+
+	def __init__(self):
+		super(VoiceClientProvider, self).__init__()
+
+	def get_my_connection_id(self):
+		pass
+
 class SnapshotProvider(object):
 	"""
 	"""

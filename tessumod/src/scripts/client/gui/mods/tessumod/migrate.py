@@ -15,8 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from lib import logutils
-from lib.gameapi import Environment
+from lib import logutils, gameapi
 
 import os
 import json
@@ -24,7 +23,7 @@ import ConfigParser
 import csv
 
 logger = logutils.logger.getChild("migrate")
-res_mods_dirpath = os.path.join(Environment.find_res_mods_version_path(), "..")
+res_mods_dirpath = os.path.join(gameapi.find_res_mods_version_path(), "..")
 
 def migrate():
 	migrate_user_cache_0_6_to_0_7()

@@ -20,14 +20,15 @@ from gui.mods.tessumod.lib import logutils, clientquery
 from gui.mods.tessumod.lib.pluginmanager import Plugin
 from gui.mods.tessumod.lib.promise import Promise
 from gui.mods.tessumod.models import g_player_model, g_user_model, UserItem, FilterModel
-import re
+
 import collections
 import itertools
+import re
 
 logger = logutils.logger.getChild("tscqplugin")
 UserTuple = collections.namedtuple('UserTuple', ('client_id', 'name', 'game_name', 'id', 'is_speaking', 'is_me', 'my_channel'))
 
-class TSCQPlugin(Plugin, plugintypes.SettingsProvider):
+class TSCQPlugin(Plugin, plugintypes.SettingsProvider, plugintypes.VoiceClientProvider):
 	"""
 	This plugin ...
 	"""
@@ -117,6 +118,13 @@ class TSCQPlugin(Plugin, plugintypes.SettingsProvider):
 				]
 			}
 		}
+
+
+	def get_my_connection_id(self):
+		"""
+		Implemented from VoiceClientProvider.
+		"""
+		return self.__ts.get_my_schandlerid()
 
 	@logutils.trace_call(logger)
 	def __connect(self):

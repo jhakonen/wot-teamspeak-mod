@@ -20,19 +20,23 @@ import logutils
 logger = logutils.logger.getChild("eventemitter")
 
 class EventEmitterMixin(object):
-	'''Mixin class which provides ability to emit and receive send events.'''
+	"""Mixin class which provides ability to emit and receive send events."""
 
 	def __init__(self):
 		self.__listeners = {}
 		super(EventEmitterMixin, self).__init__()
 
 	def emit(self, event, *args, **kwargs):
-		'''Emits given "event" name. Iterates through all event handlers
+		"""Emits given "event" name. Iterates through all event handlers
 		registered for that event passing given arguments for each handler.
 
 		Raising StopIteration exception from inside event handler prevents
 		calling of any further event handlers.
-		'''
+
+		:param event: event name
+		:param args: list of args to pass to handler functions
+		:param kwargs: dict of keyword arguments to pass to handler functions
+		"""
 		if event in self.__listeners:
 			for priority, function in self.__listeners[event]:
 				try:
@@ -43,14 +47,36 @@ class EventEmitterMixin(object):
 					logger.exception("Exception caught in eventemitter")
 
 	def on(self, event, function, priority=0):
-		'''Registers an event handler "function" for "event".
+		"""Registers an event handler "function" for "event".
 		When event is emitted each registered event handler is called in the
 		order of "priority".
 		Calling order of event handlers with same "priority" is undefined.
-		'''
+
+		:param event: event name
+		:param function: handler function
+		:param priority: call priority, highest priority value handler is
+		                 called first
+		:returns: self
+		"""
 		assert callable(function)
 		if event not in self.__listeners:
 			self.__listeners[event] = []
 		self.__listeners[event].append((priority, function))
 		self.__listeners[event].sort(reverse=True, key=lambda listener: listener[0])
+		return self
+
+	def off(self, event, function):
+		"""Unregisters an event handler "function" for "event".
+
+		:param event: event name
+		:param function: handler function
+		:returns: self
+		"""
+		assert callable(function)
+		if event in self.__listeners:
+			for item in self.__listeners[event]:
+				if function == item[1]:
+					self.__listeners[event].remove(item)
+			if not self.__listeners[event]:
+				del self.__listeners[event]
 		return self

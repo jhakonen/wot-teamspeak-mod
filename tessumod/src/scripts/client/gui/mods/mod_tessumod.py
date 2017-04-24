@@ -25,19 +25,20 @@ import os
 
 plugin_manager = None
 
-mods_path = gameapi.Environment.find_res_mods_version_path()
+mods_path = gameapi.find_res_mods_version_path()
 log_config_path = os.path.join(mods_path, "..", "configs", "tessu_mod", "logging.ini")
 config_path     = os.path.join(mods_path, "scripts", "client", "gui", "mods", "tessumod", "config.json")
 plugins_path    = os.path.join(mods_path, "scripts", "client", "gui", "mods", "tessumod", "plugins")
 
-logutils.init(log_config_path, gameapi.LogRedirectionHandler())
+logutils.init(log_config_path, gameapi.create_log_redirection_handler())
 logger = logutils.logger
 
 def init():
 	'''Mod's main entry point. Called by WoT's built-in mod loader.'''
 	global plugin_manager
 	try:
-		timer.set_eventloop(gameapi.EventLoop)
+		gameapi.init()
+		timer.set_eventloop(gameapi.create_event_loop())
 
 		try:
 			from tessumod import build_info
@@ -67,3 +68,4 @@ def fini():
 	if plugin_manager is not None:
 		for plugin_info in plugin_manager.getAllPlugins():
 			plugin_info.plugin_object.deinitialize()
+	gameapi.deinit()

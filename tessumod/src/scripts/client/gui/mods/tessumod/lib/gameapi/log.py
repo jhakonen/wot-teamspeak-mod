@@ -15,31 +15,24 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes
-from gui.mods.tessumod.lib import logutils, gameapi
-from gui.mods.tessumod.lib.pluginmanager import Plugin
+from __future__ import absolute_import
+import logging
+import sys
+import traceback
 
-logger = logutils.logger.getChild("notifications")
+import BWLogging
 
-class NotificationsPlugin(Plugin, plugintypes.Notifications):
+class LogRedirectionHandler(logging.Handler):
 	"""
-	This plugin ...
+	Specialized logging handler which redirects logging calls to BigWorld's
+	logging facility. In a difference to BWLogging.BWLogRedirectionHandler this
+	handles also exception information, printing it log output as well.
 	"""
 
-	def __init__(self):
-		super(NotificationsPlugin, self).__init__()
-
-	@logutils.trace_call(logger)
-	def initialize(self):
-		pass
-
-	@logutils.trace_call(logger)
-	def deinitialize(self):
-		pass
-
-	@logutils.trace_call(logger)
-	def show_notification(self, data):
-		"""
-		Implemented from Notifications.
-		"""
-		gameapi.show_notification(data)
+	def emit(self, record):
+		category = record.name.encode(sys.getdefaultencoding())
+		msg = record.getMessage()
+		if record.exc_info is not None:
+			msg += "\n" + "".join(traceback.format_exception(*record.exc_info))
+		msg = msg.encode(sys.getdefaultencoding())
+		BWLogging.logLevelToBigWorldFunction[record.levelno](category, msg, None)

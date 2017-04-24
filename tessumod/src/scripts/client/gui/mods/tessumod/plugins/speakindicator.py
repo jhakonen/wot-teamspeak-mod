@@ -16,14 +16,9 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 from gui.mods.tessumod import plugintypes
-from gui.mods.tessumod.lib import logutils
+from gui.mods.tessumod.lib import logutils, gameapi
 from gui.mods.tessumod.lib.pluginmanager import Plugin
 from gui.mods.tessumod.models import g_player_model, FilterModel
-
-from VOIP.VOIPManager import VOIPManager
-from messenger.proto.events import g_messengerEvents
-from PlayerEvents import g_playerEvents
-from constants import ARENA_PERIOD
 
 logger = logutils.logger.getChild("speakindicator")
 
@@ -34,11 +29,8 @@ class SpeakIndicatorPlugin(Plugin, plugintypes.SettingsProvider):
 	under player's name. There is also a speaker icon shown over tanks in battle.
 	"""
 
-	singleton = None
-
 	def __init__(self):
 		super(SpeakIndicatorPlugin, self).__init__()
-		SpeakIndicatorPlugin.singleton = self
 		self.__filter_model = None
 		self.__enabled = None
 		self.__self_enabled = None
@@ -55,11 +47,8 @@ class SpeakIndicatorPlugin(Plugin, plugintypes.SettingsProvider):
 		self.__filter_model.on("modified", self.__on_filter_model_modified)
 		self.__filter_model.on("removed", self.__on_filter_model_removed)
 
-		g_playerEvents.onArenaPeriodChange += self.__on_arena_period_change
-
 	@logutils.trace_call(logger)
 	def deinitialize(self):
-		g_playerEvents.onArenaPeriodChange -= self.__on_arena_period_change
 		self.__filter_model = None
 
 	@logutils.trace_call(logger)
@@ -99,43 +88,14 @@ class SpeakIndicatorPlugin(Plugin, plugintypes.SettingsProvider):
 		}
 
 	@logutils.trace_call(logger)
-	def is_player_id_speaking(self, id):
-		player = self.__filter_model.get(int(id), None)
-		if player:
-			logger.debug("is_player_id_speaking: User %s is %s", player.name, "speaking" if player.speaking else "not speaking")
-			return player.speaking
-		return None
-
-	@logutils.trace_call(logger)
 	def __on_filter_model_added(self, new_player):
-		if new_player.speaking:
-			g_messengerEvents.voip.onPlayerSpeaking(new_player.id, True)
+		gameapi.set_player_speaking(new_player.id, new_player.speaking)
 
 	@logutils.trace_call(logger)
 	def __on_filter_model_modified(self, old_player, new_player):
 		if new_player.speaking != old_player.speaking:
-			g_messengerEvents.voip.onPlayerSpeaking(new_player.id, new_player.speaking)
+			gameapi.set_player_speaking(new_player.id, new_player.speaking)
 
 	@logutils.trace_call(logger)
 	def __on_filter_model_removed(self, old_player):
-		if old_player.speaking:
-			g_messengerEvents.voip.onPlayerSpeaking(old_player.id, False)
-
-	@logutils.trace_call(logger)
-	def __on_arena_period_change(self, period, *args, **kwargs):
-		# WoT 0.9.15.1.1 has a bug where speech indicator is not shown in
-		# player panel at battle's start. Vehicles do have speaker icon in OTM,
-		# it is just the panels which don't update. As such try to overcome
-		# that by explictly notifying current speak state as soon as possible.
-		if period == ARENA_PERIOD.PREBATTLE:
-			for player in self.__filter_model.itervalues():
-				g_messengerEvents.voip.onPlayerSpeaking(player.id, player.speaking)
-
-def VOIPManager_isParticipantTalking(orig_method):
-	def wrapper(self, dbid):
-		speaking = SpeakIndicatorPlugin.singleton.is_player_id_speaking(dbid)
-		if speaking is None:
-			return orig_method(self, dbid)
-		return speaking
-	return wrapper
-VOIPManager.isParticipantTalking = VOIPManager_isParticipantTalking(VOIPManager.isParticipantTalking)
+		gameapi.set_player_speaking(old_player.id, False)

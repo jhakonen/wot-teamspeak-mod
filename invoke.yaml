@@ -151,6 +151,12 @@ projects:
       - py_compile:
           tags: ['build', 'clean']
           input_files:
+            - "{src_dir}/scripts/client/gui/mods/tessumod/lib/gameapi/*.py"
+          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/lib/gameapi"
+          dbg_dir: "scripts/client/gui/mods/tessumod/lib/gameapi"
+      - py_compile:
+          tags: ['build', 'clean']
+          input_files:
             - "{src_dir}/scripts/client/gui/mods/tessumod/lib/promise/*.py"
           target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/lib/promise"
           dbg_dir: "scripts/client/gui/mods/tessumod/lib/promise"

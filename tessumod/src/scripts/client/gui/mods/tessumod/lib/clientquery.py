@@ -605,9 +605,11 @@ class ClientQueryServerConnectionMixin(object):
 	def __init__(self):
 		super(ClientQueryServerConnectionMixin, self).__init__()
 		self.__scdata = {}
+		self.__schandlerid = None
 		self.on("authenticated", self.__on_authenticated)
 		self.on("notifyconnectstatuschange", self.__on_notifyconnectstatuschange)
 		self.on("notifyclientmoved", self.__on_notifyclientmoved)
+		self.on("notifycurrentserverconnectionchanged", self.__on_notifycurrentserverconnectionchanged)
 
 	def get_my_clid(self, schandlerid):
 		'''Returns the ts client's client ID at ts server indicated by
@@ -625,6 +627,10 @@ class ClientQueryServerConnectionMixin(object):
 		if data:
 			return data["cid"]
 
+	def get_my_schandlerid(self):
+		'''Returns current schandlerid.'''
+		return self.__schandlerid
+
 	def get_connected_schandlerids(self):
 		'''Returns list of server connection IDs which are currently connected
 		to ts server.
@@ -633,11 +639,17 @@ class ClientQueryServerConnectionMixin(object):
 
 	def __on_authenticated(self):
 		(Promise.resolve(None)
+			.then(lambda res: self.send_command("use", []))
+			.then(lambda res: self.__set_schandlerid(res[0]["schandlerid"]))
 			.then(lambda res: self.register_notify("notifyconnectstatuschange"))
 			.then(lambda res: self.register_notify("notifyclientmoved"))
+			.then(lambda res: self.register_notify("notifycurrentserverconnectionchanged"))
 			.then(lambda res: self.command_serverconnectionhandlerlist())
 			.then(lambda res: Promise.all([self.__execute_whoami(schandlerid) for schandlerid in res]))
 			.catch(lambda err: logger.error("Server connection setup failed: %s", err)))
+
+	def __set_schandlerid(self, schandlerid):
+		self.__schandlerid = int(schandlerid)
 
 	def __execute_whoami(self, schandlerid):
 		return (self.command_whoami(schandlerid=schandlerid)
@@ -675,6 +687,9 @@ class ClientQueryServerConnectionMixin(object):
 			if data["clid"] == entry["clid"]:
 				data["cid"] = entry["ctid"]
 				self.emit("my-cid-changed", schandlerid)
+
+	def __on_notifycurrentserverconnectionchanged(self, args):
+		self.__set_schandlerid(args[0]["schandlerid"])
 
 class ClientQueryServerUsersMixin(object):
 
