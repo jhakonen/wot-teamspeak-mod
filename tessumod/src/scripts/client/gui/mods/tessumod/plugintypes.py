@@ -118,15 +118,3 @@ class SnapshotProvider(object):
 
 	def restore_snapshot(self, snapshot_name):
 		pass
-
-class Notifications(object):
-	"""
-	"""
-
-	CATEGORY = "Notifications"
-
-	def __init__(self):
-		super(Notifications, self).__init__()
-
-	def show_notification(self, data):
-		pass

@@ -16,7 +16,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 from gui.mods.tessumod import plugintypes
-from gui.mods.tessumod.lib import logutils, clientquery
+from gui.mods.tessumod.lib import logutils, clientquery, gameapi
 from gui.mods.tessumod.lib.pluginmanager import Plugin
 from gui.mods.tessumod.lib.promise import Promise
 from gui.mods.tessumod.models import g_player_model, g_user_model, UserItem, FilterModel
@@ -139,11 +139,10 @@ class TSCQPlugin(Plugin, plugintypes.SettingsProvider, plugintypes.VoiceClientPr
 		'''
 		for plugin_info in self.plugin_manager.getPluginsOfCategory("VoiceClientListener"):
 			plugin_info.plugin_object.on_voice_client_connected()
-		for plugin_info in self.plugin_manager.getPluginsOfCategory("Notifications"):
-			plugin_info.plugin_object.show_notification({
-				"type": "info",
-				"message": [ "Connected to TeamSpeak client" ]
-			})
+		gameapi.show_notification({
+			"type": "info",
+			"message": [ "Connected to TeamSpeak client" ]
+		})
 
 	@logutils.trace_call(logger)
 	def __on_authentication_required(self):
@@ -156,11 +155,10 @@ class TSCQPlugin(Plugin, plugintypes.SettingsProvider, plugintypes.VoiceClientPr
 	@logutils.trace_call(logger)
 	def __on_disconnected_from_ts(self):
 		'''Called when TessuMod loses connection to TeamSpeak client.'''
-		for plugin_info in self.plugin_manager.getPluginsOfCategory("Notifications"):
-			plugin_info.plugin_object.show_notification({
-				"type": "warning",
-				"message": [ "Disconnected from TeamSpeak client" ]
-			})
+		gameapi.show_notification({
+			"type": "warning",
+			"message": [ "Disconnected from TeamSpeak client" ]
+		})
 
 	@logutils.trace_call(logger)
 	def __on_connected_to_ts_server(self, schandlerid):
@@ -173,20 +171,18 @@ class TSCQPlugin(Plugin, plugintypes.SettingsProvider, plugintypes.VoiceClientPr
 		self.__server_names[schandlerid] = name
 
 	def __notify_connected_to_server(self, schandlerid):
-		for plugin_info in self.plugin_manager.getPluginsOfCategory("Notifications"):
-			plugin_info.plugin_object.show_notification({
-				"type": "info",
-				"message": [ "Connected to TeamSpeak server '{0}'".format(self.__server_names[schandlerid]) ]
-			})
+		gameapi.show_notification({
+			"type": "info",
+			"message": [ "Connected to TeamSpeak server '{0}'".format(self.__server_names[schandlerid]) ]
+		})
 
 	@logutils.trace_call(logger)
 	def __on_disconnected_from_ts_server(self, schandlerid):
 		if schandlerid in self.__server_names:
-			for plugin_info in self.plugin_manager.getPluginsOfCategory("Notifications"):
-				plugin_info.plugin_object.show_notification({
-					"type": "info",
-					"message": [ "Disconnected from TeamSpeak server '{0}'".format(self.__server_names[schandlerid]) ]
-				})
+			gameapi.show_notification({
+				"type": "info",
+				"message": [ "Disconnected from TeamSpeak server '{0}'".format(self.__server_names[schandlerid]) ]
+			})
 			del self.__server_names[schandlerid]
 
 	@logutils.trace_call(logger)

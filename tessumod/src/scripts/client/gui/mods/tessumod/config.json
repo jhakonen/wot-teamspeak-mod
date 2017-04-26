@@ -1,10 +1,7 @@
 {
 	"plugins": [
-		"meplayer",
 		"minimap",
-		"notifications",
-		"playersinbattle",
-		"playersinprebattle",
+		"players",
 		"playerspeaking",
 		"settings",
 		"settingsui",

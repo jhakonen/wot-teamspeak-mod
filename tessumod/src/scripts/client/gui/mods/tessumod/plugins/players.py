@@ -19,39 +19,61 @@ from gui.mods.tessumod.lib import logutils, gameapi
 from gui.mods.tessumod.lib.pluginmanager import Plugin
 from gui.mods.tessumod.models import g_player_model, PlayerItem
 
-logger = logutils.logger.getChild("playersinbattle")
+logger = logutils.logger.getChild("players")
 
-class PlayersInBattlePlugin(Plugin):
+class PlayersPlugin(Plugin):
 	"""
-	This plugin provides a model for other plugins which contains players in battle.
+	This plugin provides models of players for other plugins.
 	"""
 
-	NS = "battle"
+	NS_ME = "me"
+	NS_BATTLE = "battle"
+	NS_PREBATTLE = "prebattle"
 
 	def __init__(self):
-		super(PlayersInBattlePlugin, self).__init__()
-		g_player_model.add_namespace(self.NS)
+		super(MePlayerPlugin, self).__init__()
+		g_player_model.add_namespace(self.NS_ME)
+		g_player_model.add_namespace(self.NS_BATTLE)
+		g_player_model.add_namespace(self.NS_PREBATTLE)
 
 	@logutils.trace_call(logger)
 	def initialize(self):
+		gameapi.events.on("my_player_id_received", self.__on_my_player_id_received)
 		gameapi.events.on("battle_player_added", self.__on_battle_player_added)
 		gameapi.events.on("battle_player_modified", self.__on_battle_player_modified)
 		gameapi.events.on("battle_player_removed", self.__on_battle_player_removed)
+		gameapi.events.on("prebattle_player_added", self.__on_prebattle_player_added)
+		gameapi.events.on("prebattle_player_removed", self.__on_prebattle_player_removed)
 
 	@logutils.trace_call(logger)
 	def deinitialize(self):
+		gameapi.events.off("my_player_id_received", self.__on_my_player_id_received)
 		gameapi.events.off("battle_player_added", self.__on_battle_player_added)
 		gameapi.events.off("battle_player_modified", self.__on_battle_player_modified)
 		gameapi.events.off("battle_player_removed", self.__on_battle_player_removed)
+		gameapi.events.off("prebattle_player_added", self.__on_prebattle_player_added)
+		gameapi.events.off("prebattle_player_removed", self.__on_prebattle_player_removed)
+
+	@logutils.trace_call(logger)
+	def __on_my_player_id_received(self, player_id):
+		g_player_model.set(self.NS_ME, PlayerItem(id=player_id, is_me=True))
 
 	@logutils.trace_call(logger)
 	def __on_battle_player_added(self, player):
-		g_player_model.set(self.NS, PlayerItem(**player))
+		g_player_model.set(self.NS_BATTLE, PlayerItem(**player))
 
 	@logutils.trace_call(logger)
 	def __on_battle_player_modified(self, player):
-		g_player_model.set(self.NS, PlayerItem(**player))
+		g_player_model.set(self.NS_BATTLE, PlayerItem(**player))
 
 	@logutils.trace_call(logger)
 	def __on_battle_player_removed(self, player):
-		g_player_model.remove(self.NS, player["id"])
+		g_player_model.remove(self.NS_BATTLE, player["id"])
+
+	@logutils.trace_call(logger)
+	def __on_prebattle_player_added(self, player):
+		g_player_model.set(self.NS_PREBATTLE, PlayerItem(**player))
+
+	@logutils.trace_call(logger)
+	def __on_prebattle_player_removed(self, player):
+		g_player_model.remove(self.NS_PREBATTLE, player["id"])

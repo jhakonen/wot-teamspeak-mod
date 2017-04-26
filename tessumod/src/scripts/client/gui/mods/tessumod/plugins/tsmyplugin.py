@@ -130,28 +130,27 @@ class TSMyPluginPlugin(Plugin, plugintypes.VoiceClientListener,
 			return
 		if self.__advertisement_ignored:
 			return
-		for plugin_info in self.plugin_manager.getPluginsOfCategory("Notifications"):
-			plugin_info.plugin_object.show_notification({
-				"icon": "scripts/client/gui/mods/tessumod/assets/ts_notification_icon.png",
-				"message": [
-					"Would you like to install TessuMod plugin for TeamSpeak?",
-					"With the plugin TessuMod supports 3D audio, positioning users voice in " +
-					"TeamSpeak so that their voices appear to come from their vehicle's " +
-					"direction on battlefield. <a href=\"event:moreinfo\">More info</a>"
-				],
-				"ignorable": "tsplugin_api_version_1",
-				"ignore_action": self.__on_notification_ignored,
-				"buttons": [
-					{
-						"label": "Install",
-						"action": "install"
-					}
-				],
-				"actions": {
-					"moreinfo": self.__on_notification_moreinfo_clicked,
-					"install": self.__on_notification_install_clicked
+		gameapi.show_notification({
+			"icon": "scripts/client/gui/mods/tessumod/assets/ts_notification_icon.png",
+			"message": [
+				"Would you like to install TessuMod plugin for TeamSpeak?",
+				"With the plugin TessuMod supports 3D audio, positioning users voice in " +
+				"TeamSpeak so that their voices appear to come from their vehicle's " +
+				"direction on battlefield. <a href=\"event:moreinfo\">More info</a>"
+			],
+			"ignorable": "tsplugin_api_version_1",
+			"ignore_action": self.__on_notification_ignored,
+			"buttons": [
+				{
+					"label": "Install",
+					"action": "install"
 				}
-			})
+			],
+			"actions": {
+				"moreinfo": self.__on_notification_moreinfo_clicked,
+				"install": self.__on_notification_install_clicked
+			}
+		})
 
 	def __is_vista_or_newer(self):
 		'''
