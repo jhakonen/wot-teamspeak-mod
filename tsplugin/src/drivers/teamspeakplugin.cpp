@@ -27,7 +27,7 @@
 #include <iostream>
 #include <cassert>
 #include <functional>
-#include <public_errors.h>
+#include <teamspeak/public_errors.h>
 #include <ts3_functions.h>
 #include <QApplication>
 #include <QDir>
@@ -35,6 +35,7 @@
 #include <QSet>
 #include <QTimer>
 #include <QWidget>
+#include <QMutex>
 
 #ifdef WIN32
 #define PLUGINS_EXPORTDLL __declspec(dllexport)
@@ -89,7 +90,7 @@ static QPointer<Driver::TeamSpeakPlugin> gTeamSpeakPlugin;
 static QList<Driver::TeamSpeakAudioBackend*> gAudioBackends;
 static QMutex audioBackendMutex( QMutex::Recursive );
 
-#define PLUGIN_API_VERSION 20
+#define PLUGIN_API_VERSION 22
 
 #ifdef _WIN32
 /* Helper function to convert wchar_T to Utf-8 encoded strings on Windows */
@@ -588,7 +589,7 @@ void TeamSpeakPlugin::setAudioSink( Interfaces::AudioSink *sink )
 QString TeamSpeakPlugin::getPluginDataPath() const
 {
 	char pluginPath[512];
-	gTs3Functions.getPluginPath( pluginPath, 512 );
+	gTs3Functions.getPluginPath( pluginPath, 512, gPluginID );
 	return QDir::cleanPath( QString( pluginPath ) + "/tessumod_plugin" );
 }
 

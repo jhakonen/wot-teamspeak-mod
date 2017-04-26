@@ -66,10 +66,7 @@ function BuildQt([string]$Architecture, [string]$InstallPrefix, [string]$SourceP
         Throw "Qt sources not available, cannot compile Qt libraries"
     }
     if (-Not(Test-Path $MSVCPATH)) {
-        Throw "Visual Studio 2013 not available, cannot compile Qt libraries"
-    }
-    if (-Not(Test-Path $JOMPATH)) {
-        Throw "Jom not available, cannot compile Qt libraries"
+        Throw "Visual Studio 2015 not available, cannot compile Qt libraries"
     }
     if (-Not(Test-Path $InstallPrefix)) {
         Throw "Install prefix failed to create, cannot compile Qt libraries"
@@ -80,7 +77,7 @@ function BuildQt([string]$Architecture, [string]$InstallPrefix, [string]$SourceP
     # Setup Qt environment
     $env:path = "$BUILDPATH\gnuwin32\bin;" + $env:path
     $env:path = "$BUILDPATH\qtbase\bin;" + $env:path
-    $env:QMAKESPEC = "win32-msvc2013"
+    $env:QMAKESPEC = "win32-msvc2015"
 
     # Setup VS2013 compiler environment
     pushd $MSVCPATH
@@ -93,15 +90,48 @@ function BuildQt([string]$Architecture, [string]$InstallPrefix, [string]$SourceP
     popd
 
     pushd $BUILDPATH
-    cmd /c "$SourcePath\configure -prefix $InstallPrefix -opensource -confirm-license -nomake tests -nomake examples -nomake tools -release -force-debug-info -skip qt3d -skip qtactiveqt -skip qtcanvas3d -skip qtconnectivity -skip qtdeclarative -skip qtdoc -skip qtenginio -skip qtgraphicaleffects -skip qtlocation -skip qtmultimedia -skip qtquick1 -skip qtquickcontrols -skip qtscript -skip qtsensors -skip qtserialport -skip qtsvg -skip qtwebchannel -skip qtwebengine -skip qtwebkit -skip qtwebkit-examples -skip qtwebsockets -skip qtxmlpatterns -no-opengl"
+    cmd /c ((
+        "$SourcePath\configure",
+            "-prefix", "$InstallPrefix",
+            "-opensource",
+            "-confirm-license",
+            "-nomake", "tests",
+            "-nomake", "examples",
+            "-nomake", "tools",
+            "-release",
+            "-force-debug-info",
+            "-skip", "qt3d",
+            "-skip", "qtactiveqt",
+            "-skip", "qtcanvas3d",
+            "-skip", "qtconnectivity",
+            "-skip", "qtdeclarative",
+            "-skip", "qtdoc",
+            "-skip", "qtenginio",
+            "-skip", "qtgraphicaleffects",
+            "-skip", "qtlocation",
+            "-skip", "qtmultimedia",
+            "-skip", "qtquickcontrols",
+            "-skip", "qtquickcontrols2",
+            "-skip", "qtscript",
+            "-skip", "qtsensors",
+            "-skip", "qtserialbus",
+            "-skip", "qtserialport",
+            "-skip", "qtsvg",
+            "-skip", "qtwebchannel",
+            "-skip", "qtwebengine",
+            "-skip", "qtwebsockets",
+            "-skip", "qtwebview",
+            "-skip", "qtxmlpatterns",
+            "-no-opengl"
+    ) -join " ")
     if ($LastExitCode -ne 0) {
         Throw "Qt Configure failed"
     }
-    & $JOMPATH "/C"
+    nmake
     if ($LastExitCode -ne 0) {
         Throw "Qt building failed"
     }
-    & $JOMPATH "install" "/C"
+    nmake install
     if ($LastExitCode -ne 0) {
         Throw "Qt install failed"
     }
@@ -115,6 +145,7 @@ function BuildQt([string]$Architecture, [string]$InstallPrefix, [string]$SourceP
 Remove-Item $OUTARCHIVEPATH -ErrorAction SilentlyContinue
 Remove-Item $PACKAGEBUILDPATH -ErrorAction SilentlyContinue
 Remove-Item $QTROOTPATH -Recurse -ErrorAction SilentlyContinue
+Remove-Item $QTSOURCEPATH -ErrorAction SilentlyContinue
 
 # Download sources
 Write-Host "Downloading '$QTARCHIVEURL'..."

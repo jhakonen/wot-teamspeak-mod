@@ -49,8 +49,16 @@ function Compile-OpenAL([string]$BuildPath, [string]$LibName, [string]$Architect
 
     Write-Host "Building OpenAL Soft..."
     Push-Location $BuildPath
+
     cmake -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=RelWithDebInfo "-DLIBNAME=$LibName" -DALSOFT_BACKEND_WINMM=OFF -DALSOFT_BACKEND_MMDEVAPI=OFF -DALSOFT_BACKEND_WAVE=OFF $SOURCEPATH
+    if ($LastExitCode -ne 0) {
+        Throw "Configuring failed"
+    }
+
     nmake
+    if ($LastExitCode -ne 0) {
+        Throw "Building failed"
+    }
     Pop-Location
 
     Write-Host "Tearing down build environment"
@@ -80,6 +88,8 @@ git clone $GITURL $SOURCEPATH
 Push-Location $SOURCEPATH
 git checkout openal-soft-1.16.0
 git apply "$ROOTPATH\changes.patch"
+git apply "$ROOTPATH\msvc2015-fix-1.patch"
+git apply "$ROOTPATH\msvc2015-fix-2.patch"
 Remove-Item "$SOURCEPATH\.git" -Recurse -Force -ErrorAction SilentlyContinue
 Pop-Location
 

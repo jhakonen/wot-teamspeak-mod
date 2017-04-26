@@ -20,7 +20,7 @@ This is a nuspec. It mostly adheres to https://docs.nuget.org/create/Nuspec-Refe
   <metadata>
     <!-- == PACKAGE SPECIFIC SECTION == -->
     <id>qt-everywhere-opensource</id>
-    <version>5.5.1</version>
+    <version>5.6.1</version>
     <owners>jhakonen</owners>
     <!-- ============================== -->
 

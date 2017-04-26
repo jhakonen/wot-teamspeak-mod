@@ -23,7 +23,7 @@ $SOURCEPATH      = "$INSTALLPATH\src"
 $BUILDPATH32     = "$INSTALLPATH\bin-32"
 $BUILDPATH64     = "$INSTALLPATH\bin-64"
 $ARCHIVEFILEPATH = "$ROOTPATH\archive.zip"
-$MSVCPATH        = "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC"
+$MSVCPATH        = "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC"
 $GITURL          = "https://github.com/kcat/openal-soft.git"
 
 Export-ModuleMember -Variable *
