@@ -31,7 +31,7 @@ class PlayersPlugin(Plugin):
 	NS_PREBATTLE = "prebattle"
 
 	def __init__(self):
-		super(MePlayerPlugin, self).__init__()
+		super(PlayersPlugin, self).__init__()
 		g_player_model.add_namespace(self.NS_ME)
 		g_player_model.add_namespace(self.NS_BATTLE)
 		g_player_model.add_namespace(self.NS_PREBATTLE)
