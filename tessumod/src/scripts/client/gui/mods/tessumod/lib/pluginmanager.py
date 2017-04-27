@@ -110,3 +110,13 @@ class PluginInfo(object):
 		self.plugin_cls = plugin_cls
 		self.name = name
 		self.plugin_object = plugin_cls()
+		self.__initialized = False
+
+	def initialize(self):
+		self.plugin_object.initialize()
+		self.__initialized = True
+
+	def deinitialize(self):
+		# Do not deinitialize if initialize() was not called or had raised an error
+		if self.__initialized:
+			self.plugin_object.deinitialize()

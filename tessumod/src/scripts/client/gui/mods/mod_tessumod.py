@@ -57,7 +57,7 @@ def init():
 		for plugin_info in plugin_manager.getAllPlugins():
 			plugin_info.plugin_object.plugin_manager = plugin_manager
 		for plugin_info in plugin_manager.getAllPlugins():
-			plugin_info.plugin_object.initialize()
+			plugin_info.initialize()
 
 	except:
 		logger.exception("TessuMod initialization failed")
@@ -67,5 +67,5 @@ def fini():
 	global plugin_manager
 	if plugin_manager is not None:
 		for plugin_info in plugin_manager.getAllPlugins():
-			plugin_info.plugin_object.deinitialize()
+			plugin_info.deinitialize()
 	gameapi.deinit()
