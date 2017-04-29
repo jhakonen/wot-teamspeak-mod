@@ -112,6 +112,8 @@ choco install cmake --version 3.6.0 -y
 choco install teamspeak --version 3.0.19 -y --allow-empty-checksums
 choco install vlc --version 2.2.4 -y
 choco install sqlite.shell --version 3.10.1 -y
+choco install firefox --version 48.0 -y
+choco install javaruntime --version 8.0.73 -y --allow-empty-checksums
 
 # Add programs to PATH
 Add-EnvPath -path $PYTHONSCRIPTSPATH
@@ -162,6 +164,32 @@ if (-Not (Test-ChocoLocalPackageExists virtual-audio-cable)) {
 # Install Virtual Audio Cable
 choco install virtual-audio-cable --version 4.15 -y
 
+# Create Chocolatey package for Adobe Flex SDK
+if (-Not (Test-ChocoLocalPackageExists adobe-flex-sdk)) {
+    powershell -NoProfile -Command "& $REPOPATH\chocolatey\adobe-flex-sdk\tools\pack.ps1"
+    if (Test-ChocoIsPackageInstalled adobe-flex-sdk) {
+        choco uninstall adobe-flex-sdk
+    }
+}
+
+# Install Adobe Flex SDK
+choco install adobe-flex-sdk --version 4.6.0 -y
+
+# Create Chocolatey package for Adobe Flash Player Debug for Firefox
+if (-Not (Test-ChocoLocalPackageExists adobe-flash-player-debug-firefox)) {
+    powershell -NoProfile -Command "& $REPOPATH\chocolatey\adobe-flash-player-debug-firefox\tools\pack.ps1"
+    if (Test-ChocoIsPackageInstalled adobe-flash-player-debug-firefox) {
+        choco uninstall adobe-flash-player-debug-firefox
+    }
+}
+
+# Install Adobe Flash Player Debug for Firefox
+choco install adobe-flash-player-debug-firefox --version 22.0 -y
+
+# Add TessuMod to Flash Player's trusted content
+New-Item -Path "$env:appdata\Macromedia\Flash Player\#Security\FlashPlayerTrust\tessumod.cfg" -Type File -Force
+"C:\Vagrant" > "$env:appdata\Macromedia\Flash Player\#Security\FlashPlayerTrust\tessumod.cfg"
+
 Update-SessionEnvironment
 
 cd $REPOPATH
@@ -176,6 +204,8 @@ python make.py configure --openal-x86=$env:OAL32PATH
 python make.py configure --openal-x64=$env:OAL64PATH
 python make.py configure --msvc-vars="$MSVCPATH\vcvarsall.bat"
 python make.py configure --wot-install=$WOTPATH
+python make.py configure --mxmlc="$env:FLEXSDKPATH\bin\mxmlc.exe"
+python make.py configure --webbrowser="C:\Program Files\Mozilla Firefox\firefox.exe"
 
 Write-Host "Add firewall rules for TeamSpeak server"
 netsh advfirewall firewall delete rule name=all program="$env:TSSERVERPATH\ts3server.exe" | Out-Null

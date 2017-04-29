@@ -9,19 +9,22 @@ vars:
   release_archive_path: "{cwd}/tessumod-{version}-bin.zip"
   symbol_archive_path: "{cwd}/tessumod-{version}-dbg.zip"
   root_build_dir: "{cwd}/build"
-  # You should define these values in config.yaml, see config.yaml.example
-  # for example definitions.
+  # You should define these with 'make.py configure':
   qmake_path_x86:
   qmake_path_x64:
   msvc_vars_path:
   wot_install_path:
   openal_x86:
   openal_x64:
+  mxmlc_path:
+  webbrowser_path:
 
 builders:
   - tailfile:
       tags: ['tail']
-      filepath: "{wot_install_path}/python.log"
+      input_files:
+        - '{wot_install_path}/python.log'
+        - '%APPDATA%/Macromedia/Flash Player/Logs/flashlog.txt'
 
 projects:
   tsplugin:
@@ -101,6 +104,35 @@ projects:
           tags: ['build', 'clean']
           contents_dir: "{symbols_dir}"
           archive_path: "{symbol_archive_path}"
+
+  settingsui:
+    tags: ['settingsui']
+    vars:
+      source_dir: "{root}/settingsui"
+      build_dir: "{root_build_dir}/settingsui"
+
+    builders:
+      - mxmlc:
+          tags: ['build', 'clean']
+          show_warnings: true
+          mxmlc_path: "{mxmlc_path}"
+          input: "{source_dir}/src/SettingsUI.as"
+          libraries:
+            - "{source_dir}/lib/wg.swc"
+          build_dir: "{build_dir}"
+          output_path: "{build_dir}/flash/SettingsUI.swf"
+      - compress:
+          tags: ['build', 'clean']
+          contents_dir: "{build_dir}/flash"
+          archive_path: "{release_archive_path}"
+          prefix: "res_mods/{game_version}/gui/flash/tessu_mod"
+      - openbrowser:
+          tags: ['preview-settingsui']
+          exepath: '{webbrowser_path}'
+          url: '{root_build_dir}/tools/LobbyViewPreview/LobbyViewPreview.html'
+          query:
+            verbose: on
+            swfpath: '{build_dir}/flash/SettingsUI.swf'
 
   tessumod:
     tags: ['tessumod']
@@ -199,3 +231,26 @@ projects:
           tags: ['install']
           archive_path: "{release_archive_path}"
           target_dir: "{wot_install_path}"
+
+  lobbyviewpreview:
+    tags: ['lobbyviewpreview']
+    vars:
+      source_dir: '{root}/tools/LobbyViewPreview'
+      build_dir: '{root_build_dir}/tools/LobbyViewPreview'
+    builders:
+      - mxmlc:
+          tags: ['build', 'clean']
+          show_warnings: true
+          mxmlc_path: '{mxmlc_path}'
+          input: '{source_dir}/src/LobbyViewPreview.as'
+          build_dir: '{build_dir}'
+          output_path: '{build_dir}/LobbyViewPreview.swf'
+      - uncompress:
+          tags: ['build', 'clean']
+          archive_path: '{wot_install_path}/res/packages/gui.pkg|gui/flash'
+          target_dir: '{build_dir}'
+      - copy:
+          tags: ['build', 'clean']
+          input_files:
+            - '{source_dir}/src/LobbyViewPreview.html'
+          target_dir: '{build_dir}'

@@ -17,6 +17,7 @@
 
 import io
 import os
+import re
 import sys
 import time
 import glob
@@ -30,7 +31,11 @@ import Queue
 import threading
 import warnings
 import codecs
+import tempfile
+import urllib
+import webbrowser
 from contextlib import contextmanager
+import base64
 import msvcrt
 
 # 3rd party libs
@@ -47,8 +52,10 @@ def init():
 		"compress":    CompressBuilder,
 		"uncompress":  UncompressBuilder,
 		"qmake":       QMakeBuilder,
+		"mxmlc":       MXMLCBuilder,
 		"nosetests":   NoseTestsBuilder,
-		"tailfile":    TailFileBuilder
+		"tailfile":    TailFileBuilder,
+		"openbrowser": OpenBrowserBuilder
 	}
 	colorama.init()
 
@@ -233,6 +240,7 @@ class AbstractBuilder(object):
 		prev_value = input
 		while True:
 			new_value = prev_value.format(**self.__variables)
+			new_value = os.path.expandvars(new_value) # expand env-variables, e.g: %FOO%
 			if prev_value == new_value:
 				return new_value
 			prev_value = new_value
@@ -275,9 +283,9 @@ class InputFilesMixin(object):
 	def __init__(self):
 		super(InputFilesMixin, self).__init__()
 
-	def get_input_files(self):
+	def get_input_files(self, variable_name="input_files"):
 		output = []
-		for input_path in self.config["input_files"]:
+		for input_path in self.config[variable_name]:
 			input_path = self.expand_path(input_path)
 			for input_filepath in glob.glob(input_path):
 				output.append(input_filepath)
@@ -301,6 +309,65 @@ class DefinesMixin(object):
 		for name, value in self.config["defines"].iteritems():
 			output[name] = self.expand_value(value)
 		return output
+
+class ExecuteMixin(object):
+
+	def __init__(self):
+		super(ExecuteMixin, self).__init__()
+		self.__threads = []
+
+	def execute_batch_contents(self, contents, cwd=None, wait=True):
+		proc = None
+		file = None
+		try:
+			self.logger.debug(contents)
+			file = tempfile.NamedTemporaryFile(suffix=".cmd", delete=False)
+			file.write(contents)
+			file.close()
+			command = [file.name]
+			if wait:
+				proc = subprocess.Popen(command, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+				stdout_queue = self.__stream_to_queue(proc.stdout)
+				stderr_queue = self.__stream_to_queue(proc.stderr)
+				while proc.poll() is None or not stdout_queue.empty() or not stderr_queue.empty():
+					try:
+						self.logger.debug(to_unicode(stdout_queue.get(timeout=0.01)))
+					except Queue.Empty:
+						pass
+					try:
+						self.logger.debug(to_unicode(stderr_queue.get(timeout=0.01)))
+					except Queue.Empty:
+						pass
+			else:
+				proc = subprocess.Popen(command, cwd=cwd)
+				# wait for process to startup before batch file is deleted
+				time.sleep(1)
+		except KeyboardInterrupt:
+			pass
+		finally:
+			if proc:
+				proc.terminate()
+				for thread in self.__threads:
+					thread.join()
+				self.__threads[:]
+				proc.wait()
+			if file:
+				file.close()
+				os.unlink(file.name)
+		return proc.returncode
+
+	def __stream_to_queue(self, stream):
+		queue = Queue.Queue()
+		def run():
+			for line in stream:
+				try:
+					queue.put(line.strip(), block=False)
+				except Queue.Full:
+					pass
+		thread = threading.Thread(target=run)
+		self.__threads.append(thread)
+		thread.start()
+		return queue
 
 class InGenerateBuilder(AbstractBuilder, InputFilesMixin, TargetDirMixin, DefinesMixin):
 
@@ -450,7 +517,13 @@ class UncompressBuilder(AbstractBuilder, TargetDirMixin):
 		super(UncompressBuilder, self).__init__()
 
 	def initialize(self):
-		self.__archive_path = self.expand_path(self.config["archive_path"])
+		self.__archive_path, _, self.__contents_path = self.config["archive_path"].partition("|")
+		# path to archive file
+		self.__archive_path = self.expand_path(self.__archive_path)
+		# path inside the archive from where files are extracted
+		if self.__contents_path:
+			self.__contents_path = self.expand_path(self.__contents_path)
+			self.__contents_path = self.__contents_path.replace("\\", "/")
 
 	def execute(self):
 		assert os.path.exists(self.__archive_path), \
@@ -458,10 +531,20 @@ class UncompressBuilder(AbstractBuilder, TargetDirMixin):
 		self.create_dirpath(self.get_target_dir())
 		with zipfile.ZipFile(self.__archive_path, "r") as package_file:
 			for input_path in package_file.namelist():
-				self.logger.debug("Extracting:", input_path, "to", self.get_target_dir())
-				package_file.extract(input_path, self.get_target_dir())
+				# skip files not in desired archive contents dir
+				if not input_path.startswith(self.__contents_path):
+					continue
+				# build target path
+				target_path = input_path.replace(self.__contents_path, "", 1)
+				target_path = target_path.strip("/")
+				target_path = os.path.join(self.get_target_dir(), target_path)
+				self.logger.debug("Extracting:", input_path, "to", target_path)
+				# extract file to target location
+				self.create_dirpath(os.path.dirname(target_path))
+				with open(target_path, "wb") as target_file:
+					target_file.write(package_file.read(input_path))
 
-class QMakeBuilder(AbstractBuilder, DefinesMixin):
+class QMakeBuilder(AbstractBuilder, DefinesMixin, ExecuteMixin):
 
 	def __init__(self):
 		super(QMakeBuilder, self).__init__()
@@ -474,8 +557,6 @@ class QMakeBuilder(AbstractBuilder, DefinesMixin):
 		self.__msvc_vars_path = self.expand_path(self.config["msvc_vars_path"])
 		self.__output_dll_path = self.expand_path(self.config["output_dll_path"])
 		self.__output_dbg_path = self.expand_path(self.config["output_dbg_path"])
-		self.__batch_path = os.path.join(self.__build_dir, "build.bat")
-		self.__threads = []
 
 	def execute(self):
 		self.logger.debug("Building:", self.__source_dir)
@@ -498,50 +579,19 @@ class QMakeBuilder(AbstractBuilder, DefinesMixin):
 		self.create_dirpath(self.__build_dir)
 		self.create_dirpath(os.path.dirname(self.__output_dbg_path))
 
-		# create build batch file
-		with open(self.__batch_path, "w") as file:
-			file.write("@echo off\r\n")
-			file.write("call \"{0}\" {1} \r\n".format(self.__msvc_vars_path, self.__architecture))
-			file.write("\"{qmake}\" \"{source_dir}\" -after {qmake_defs}\r\n".format(
-				qmake      = self.__qmake_path,
-				source_dir = self.__source_dir,
-				qmake_defs = " ".join("\"{0}{1}{2}\"".format(d, *qmake_defs[d]) for d in qmake_defs).replace("'", "\\'")
-			))
-			file.write("nmake\r\n")
-		# execute the batch file
-		proc = subprocess.Popen([self.__batch_path], cwd=self.__build_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-		stdout_queue = self.__stream_to_queue(proc.stdout)
-		stderr_queue = self.__stream_to_queue(proc.stderr)
-		try:
-			while proc.poll() is None or not stdout_queue.empty() or not stderr_queue.empty():
-				try:
-					self.logger.debug(to_unicode(stdout_queue.get(timeout=0.01)))
-				except Queue.Empty:
-					pass
-				try:
-					self.logger.debug(to_unicode(stderr_queue.get(timeout=0.01)))
-				except Queue.Empty:
-					pass
-		except KeyboardInterrupt:
-			proc.terminate()
-
-		for thread in self.__threads:
-			thread.join()
-		proc.wait()
-		assert proc.returncode == 0, "Compiling failed"
-
-	def __stream_to_queue(self, stream):
-		queue = Queue.Queue()
-		def run():
-			for line in stream:
-				try:
-					queue.put(line.strip(), block=False)
-				except Queue.Full:
-					pass
-
-		thread = threading.Thread(target=run)
-		thread.start()
-		return queue
+		result = self.execute_batch_contents(cwd=self.__build_dir, contents="""
+			@echo off
+			call "{msvc_vars_path}" {architecture}
+			"{qmake}" "{source_dir}" -after {qmake_defs}
+			nmake
+		""".format(
+			msvc_vars_path = self.__msvc_vars_path,
+			architecture = self.__architecture,
+			qmake      = self.__qmake_path,
+			source_dir = self.__source_dir,
+			qmake_defs = " ".join("\"{}{}{}\"".format(d, *qmake_defs[d]) for d in qmake_defs).replace("'", "\\'")
+		))
+		assert result == 0, "Compiling failed"
 
 	def clean(self):
 		self.safe_rmtree(self.__build_dir)
@@ -550,6 +600,51 @@ class QMakeBuilder(AbstractBuilder, DefinesMixin):
 		self.safe_file_remove(self.__output_dbg_path)
 		self.safe_remove_empty_dirpath(os.path.dirname(self.__output_dbg_path))
 		self.safe_remove_empty_dirpath(os.path.dirname(self.__build_dir))
+
+class MXMLCBuilder(AbstractBuilder, InputFilesMixin, ExecuteMixin):
+
+	def __init__(self):
+		super(MXMLCBuilder, self).__init__()
+
+	def initialize(self):
+		self.__show_warnings = self.config["show_warnings"]
+		self.__mxmlc_path = self.expand_path(self.config["mxmlc_path"])
+		self.__input_path = self.expand_path(self.config["input"])
+		if "libraries" in self.config:
+			self.__libraries = self.get_input_files("libraries")
+		else:
+			self.__libraries = []
+		self.__output_path = self.expand_path(self.config["output_path"])
+		self.__build_dir = self.expand_path(self.config["build_dir"])
+
+	def execute(self):
+		assert os.path.exists(self.__mxmlc_path), \
+			"mxmlc.exe executable doesn't exist, is '{}' correct?".format(self.__mxmlc_path)
+		assert os.path.exists(self.__input_path), \
+			"Input file doesn't exist, is '{}' correct?".format(self.__input_path)
+		for path in self.__libraries:
+			assert os.path.exists(path), \
+				"Library file doesn't exist, is '{}' correct?".format(path)
+
+		self.create_dirpath(self.__build_dir)
+		self.create_dirpath(os.path.dirname(self.__output_path))
+
+		args = [self.__mxmlc_path]
+		if self.__show_warnings:
+			args.extend(["-show-actionscript-warnings"])
+		if self.__libraries:
+			args.extend(["-external-library-path+="+path for path in self.__libraries])
+		args.extend(["-static-link-runtime-shared-libraries"])
+		args.extend(["-debug"])
+		args.extend(["-file-specs", self.__input_path])
+		args.extend(["-output", self.__output_path])
+		command = " ".join(args)
+		result = self.execute_batch_contents(contents="@{}".format(command), cwd=self.__build_dir)
+		assert result == 0, "Compiling failed"
+
+	def clean(self):
+		self.safe_file_remove(self.__output_path)
+		self.safe_rmtree(self.__build_dir)
 
 class NoseTestsBuilder(AbstractBuilder):
 
@@ -610,15 +705,15 @@ class MyNoseTestProgram(nose.core.TestProgram):
 		config.verbosity = 2
 		return config
 
-class TailFileBuilder(AbstractBuilder):
+class TailFileBuilder(AbstractBuilder, InputFilesMixin):
 
 	def __init__(self):
 		super(TailFileBuilder, self).__init__()
 		self.__files = []
 
 	def initialize(self):
-		self.__filepath = self.expand_path(self.config["filepath"])
-		self.__files.append(TailedFile(self.__filepath))
+		for filepath in self.get_input_files():
+			self.__files.append(TailedFile(filepath))
 
 	def execute(self):
 		self.logger.info("Tailing {}, press any key to cancel (ctrl+c from remote Powershell connection)"
@@ -682,5 +777,43 @@ class TailedFile(object):
 			if self.__cached_lines:
 				return self.__cached_lines.pop(0)
 		raise StopIteration
+
+
+class OpenBrowserBuilder(AbstractBuilder, ExecuteMixin):
+
+	def __init__(self):
+		super(OpenBrowserBuilder, self).__init__()
+
+	def execute(self):
+		self.__url = self.expand_value(self.config["url"])
+		self.__exepath = self.expand_path(self.config["exepath"])
+		assert os.path.exists(self.__exepath), \
+			"web browser's executable doesn't exist, is '{}' correct?".format(self.__exepath)
+		# try to determine if we are opening a local file and transform the
+		# url appropiately if so
+		if not re.search("^[a-z0-9]+://", self.__url, re.IGNORECASE):
+			self.__url = urllib.pathname2url(self.__url)
+			self.__url = "file:" + self.__url
+		# build query part if any
+		if "query" in self.config:
+			query = {}
+			for name, value in self.config["query"].iteritems():
+				query[name] = self.expand_value(value)
+			query = urllib.urlencode(query)
+			self.__url += "?" + query
+
+		# open url to browser
+		root = os.path.dirname(os.path.realpath(__file__))
+		command = " ".join([
+			"&", '"{}\\Start-GuiProcess.ps1"'.format(root),
+				"-Executable", '"{}"'.format(self.__exepath),
+				"-Argument", '"{}"'.format(self.__url)
+		])
+		os.system(" ".join([
+			"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+				"-NoProfile",
+				"-ExecutionPolicy", "Bypass",
+				"-EncodedCommand", base64.b64encode(command.encode("utf_16_le"))
+		]))
 
 init()

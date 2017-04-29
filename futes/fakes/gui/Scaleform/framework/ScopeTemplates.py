@@ -1,0 +1,2 @@
+
+DEFAULT_SCOPE = None

@@ -85,7 +85,7 @@ def log_task(title, verbose):
 		logger.info(colored("[ ok ]", "green"), lb_start=False)
 
 @task
-def configure(ctx, qmake_x86=None, qmake_x64=None, msvc_vars=None, wot_install=None, openal_x86=None, openal_x64=None):
+def configure(ctx, qmake_x86=None, qmake_x64=None, msvc_vars=None, wot_install=None, openal_x86=None, openal_x64=None, mxmlc=None, webbrowser=None):
 	with log_task("Configuring...", ctx.verbose):
 		config = {"vars": {}}
 		# read previous values
@@ -106,6 +106,10 @@ def configure(ctx, qmake_x86=None, qmake_x64=None, msvc_vars=None, wot_install=N
 				config["vars"]["openal_x86"] = openal_x86
 			if openal_x64:
 				config["vars"]["openal_x64"] = openal_x64
+			if mxmlc:
+				config["vars"]["mxmlc_path"] = mxmlc
+			if webbrowser:
+				config["vars"]["webbrowser_path"] = webbrowser
 			file.write(json.dumps(config))
 
 @task
@@ -158,10 +162,18 @@ def release(ctx):
 
 @task
 def tail(ctx):
-	with log_task("Tailing python.log...", ctx.verbose) as logger:
+	with log_task("Tailing log files:", ctx.verbose) as logger:
 		with make_tools.with_builders(logger, root, ctx.config, ctx["exclude-tags"]) as builders:
 			for builder in builders:
 				if "tail" in builder.tags:
+					builder.execute()
+
+@task
+def preview_settingsui(ctx):
+	with log_task("Opening url(s) to browser...", ctx.verbose) as logger:
+		with make_tools.with_builders(logger, root, ctx.config, ctx["exclude-tags"]) as builders:
+			for builder in builders:
+				if "preview-settingsui" in builder.tags:
 					builder.execute()
 
 ns = Collection(loaded_from=root)
@@ -174,6 +186,7 @@ ns.add_task(unittests)
 ns.add_task(futes)
 ns.add_task(release)
 ns.add_task(tail)
+ns.add_task(preview_settingsui)
 
 program = Make(version="1.0.0", name="Make", binary="make.py", namespace=ns, config_class=MakeConfig)
 

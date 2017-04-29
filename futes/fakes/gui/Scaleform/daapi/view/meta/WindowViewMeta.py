@@ -1,0 +1,3 @@
+
+class WindowViewMeta(object):
+	pass

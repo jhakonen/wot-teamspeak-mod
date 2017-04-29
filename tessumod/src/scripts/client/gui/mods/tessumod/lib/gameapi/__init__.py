@@ -29,6 +29,7 @@ from . import eventloop as _eventloop
 from . import minimap as _minimap
 from . import log as _log
 from . import paths as _paths
+from . import settingsuiwindow
 
 events = _eventemitter.EventEmitterMixin()
 

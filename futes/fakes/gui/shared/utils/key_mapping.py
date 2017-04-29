@@ -1,0 +1,3 @@
+
+def getBigworldNameFromKey(key):
+	pass
