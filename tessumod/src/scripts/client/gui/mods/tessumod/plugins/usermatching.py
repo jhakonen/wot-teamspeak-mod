@@ -77,7 +77,7 @@ class UserMatching(Plugin, plugintypes.SettingsProvider,
 			if name == "nick_extract_patterns":
 				self.__nick_extract_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in value]
 		if section == "NameMappings":
-			self.__name_mappings = {k.lower(): v.lower() for k, v in value.iteritems()}
+			self.__name_mappings[name.lower()] = value.lower()
 		self.__match_users_to_players(self.__filtered_user_model.values(), self.__filtered_player_model.values())
 
 	@logutils.trace_call(logger)
