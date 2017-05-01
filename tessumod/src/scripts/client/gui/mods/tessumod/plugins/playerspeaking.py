@@ -15,24 +15,29 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes
+from gui.mods.tessumod.items import get_items
 from gui.mods.tessumod.lib import logutils
-from gui.mods.tessumod.lib.pluginmanager import Plugin
+from gui.mods.tessumod.lib import pydash as _
 from gui.mods.tessumod.lib.timer import TimerMixin
-from gui.mods.tessumod.models import g_player_model, g_user_model, g_pairing_model, PlayerItem, FilterModel
+from gui.mods.tessumod.messages import UserMessage, PairingMessage, PlayerSpeakingMessage
+from gui.mods.tessumod.plugintypes import Plugin, SettingsProvider, SettingsUIProvider, EntityProvider
 
-import functools
-from itertools import ifilter, imap
+from copy import copy
 
 logger = logutils.logger.getChild("playerspeaking")
+
+def build_plugin():
+	"""
+	Called by plugin manager to build the plugin's object.
+	"""
+	return PlayerSpeakingPlugin()
 
 # =============================================================================
 #                          IMPLEMENTATION MISSING
 #  - Add ability to remove matches (called from settingsui)
 # =============================================================================
 
-class PlayerSpeaking(Plugin, TimerMixin, plugintypes.SettingsProvider,
-	plugintypes.SettingsUIProvider):
+class PlayerSpeakingPlugin(Plugin, SettingsProvider, SettingsUIProvider, EntityProvider):
 	"""
 	This plugin ...
 	"""
@@ -40,28 +45,19 @@ class PlayerSpeaking(Plugin, TimerMixin, plugintypes.SettingsProvider,
 	NS = "voice"
 
 	def __init__(self):
-		super(PlayerSpeaking, self).__init__()
+		super(PlayerSpeakingPlugin, self).__init__()
 		self.__speak_stop_delay = 0
-		self.__delayed_speak_stop_functions = {}
-		self.__delayed_user_speak_states = {}
-		g_player_model.add_namespace(self.NS)
+		self.__notifiers = {}
 
 	@logutils.trace_call(logger)
 	def initialize(self):
-		g_player_model.on('added', self.__repopulate_voice_players)
-		g_player_model.on('removed', self.__repopulate_voice_players)
-		user_model = FilterModel(g_user_model)
-		user_model.add_filter(lambda user: user.my_channel)
-		user_model.on("added", self.__on_user_added)
-		user_model.on("modified", self.__on_user_modified)
-		user_model.on("removed", self.__on_user_removed)
-		g_pairing_model.on('added', self.__repopulate_voice_players)
-		g_pairing_model.on("modified", self.__repopulate_voice_players)
-		g_pairing_model.on('removed', self.__repopulate_voice_players)
+		self.messages.subscribe(UserMessage, self.__on_user_event)
+		self.messages.subscribe(PairingMessage, self.__on_pairing_event)
 
 	@logutils.trace_call(logger)
 	def deinitialize(self):
-		pass
+		self.messages.unsubscribe(UserMessage, self.__on_user_event)
+		self.messages.unsubscribe(PairingMessage, self.__on_pairing_event)
 
 	@logutils.trace_call(logger)
 	def on_settings_changed(self, section, name, value):
@@ -90,6 +86,7 @@ class PlayerSpeaking(Plugin, TimerMixin, plugintypes.SettingsProvider,
 			}
 		}
 
+	@logutils.trace_call(logger)
 	def get_settingsui_content(self):
 		"""
 		Implemented from SettingsUIProvider.
@@ -110,69 +107,102 @@ class PlayerSpeaking(Plugin, TimerMixin, plugintypes.SettingsProvider,
 		}
 
 	@logutils.trace_call(logger)
-	def __on_user_added(self, user):
-		self.__delayed_user_speak_states[user.id] = user.is_speaking
-		self.__repopulate_voice_players()
+	def has_entity_source(self, name):
+		"""
+		Implemented from EntityProvider.
+		"""
+		return name == "speaking-players"
 
 	@logutils.trace_call(logger)
-	def __on_user_modified(self, old_user, new_user):
-		id = new_user.id
-		if old_user.is_speaking != new_user.is_speaking and id in g_pairing_model:
-			if id in self.__delayed_speak_stop_functions:
-				self.off_timeout(self.__delayed_speak_stop_functions.pop(id))
-			if new_user.is_speaking:
-				self.__delayed_user_speak_states[id] = True
-			else:
-				self.__delayed_speak_stop_functions[id] = functools.partial(self.__on_delayed_speak_stop, id)
-				self.on_timeout(self.__speak_stop_delay, self.__delayed_speak_stop_functions[id])
-			self.__repopulate_voice_players()
+	def get_entity_source(self, name):
+		"""
+		Implemented from EntityProvider.
+		"""
+		if name == "speaking-players":
+			players = []
+			for notifier in self.__notifiers.itervalues():
+				players.extend(notifier.get_speaking_player_ids())
+			return [{"id": p} for p in players]
 
-	def __on_delayed_speak_stop(self, id):
-		if id in self.__delayed_user_speak_states:
-			self.__delayed_user_speak_states[id] = False
-		self.__delayed_speak_stop_functions.pop(id, None)
-		self.__repopulate_voice_players()
+	def __get_paired_players(self, user_unique_id):
+		pairings = get_items(self.plugin_manager, ["pairings"], ["player-id", "user-unique-id"])
+		return [pairing["player-id"] for pairing in _.filter_(pairings, lambda p: p["user-unique-id"] == user_unique_id)]
 
 	@logutils.trace_call(logger)
-	def __on_user_removed(self, user):
-		self.__delayed_user_speak_states.pop(user.id, None)
-		self.__delayed_speak_stop_functions.pop(user.id, None)
-		self.__repopulate_voice_players()
+	def __on_user_event(self, action, data):
+		user_id = data["id"]
+		if action == "added":
+			self.__notifiers[user_id] = DelayedSpeakNotifier(user_id, data["unique-id"], self.messages)
+			self.__notifiers[user_id].set_stop_delay(self.__speak_stop_delay)
+			self.__notifiers[user_id].set_player_ids(self.__get_paired_players(data["unique-id"]))
+		if action in ["added", "modified"]:
+			self.__notifiers[user_id].set_speaking(data["speaking"])
+		if action == "removed":
+			self.__notifiers[user_id].force_stop()
+			del self.__notifiers[user_id]
 
 	@logutils.trace_call(logger)
-	def __repopulate_voice_players(self, *args, **kwargs):
-		pairing_data_iter = iter(reduce(self.__reduce_to_pairing_data, g_pairing_model.itervalues(), []))
-		pairing_data_iter = ifilter(self.__is_pairing_data_in_player_model, pairing_data_iter)
-		pairing_data_iter = imap(self.__add_speaking_status, pairing_data_iter)
-		player_data_iter = reduce(self.__combine_player_data, pairing_data_iter, {}).itervalues()
-		player_item_iter = imap(self.__convert_to_player_items, player_data_iter)
-		g_player_model.set_all(self.NS, player_item_iter)
+	def __on_pairing_event(self, action, data):
+		key = (data["user-unique-id"], data["player-id"])
+		if action == "added":
+			for notifier in _.filter_(self.__notifiers, lambda n: n.user_unique_id == data["user-unique-id"]):
+				notifier.set_player_ids(self.__get_paired_players(data["user-unique-id"]))
+		elif action == "removed":
+			for notifier in _.filter_(self.__notifiers, lambda n: n.user_unique_id == data["user-unique-id"]):
+				notifier.set_player_ids(self.__get_paired_players(data["user-unique-id"]))
 
-	def __reduce_to_pairing_data(self, results, pairing):
-		return results + [{ "user_id": pairing.id, "player_id": player_id } for player_id in pairing.player_ids]
+class DelayedSpeakNotifier(TimerMixin):
 
-	def __is_pairing_data_in_player_model(self, pairing_data):
-		return pairing_data["player_id"] in g_player_model
+	def __init__(self, user_id, user_unique_id, messages):
+		super(DelayedSpeakNotifier, self).__init__()
+		self.user_id = user_id
+		self.user_unique_id = user_unique_id
+		self.messages = messages
+		self.__stop_delay = 0
+		self.__player_ids = []
+		self.__speaking = False
+		self.__timeout_running = False
 
-	def __add_speaking_status(self, pairing_data):
-		return dict(pairing_data, speaking=self.__delayed_user_speak_states.get(pairing_data["user_id"], False))
+	def get_speaking_player_ids(self):
+		if self.__speaking or self.__timeout_running:
+			return self.__player_ids
+		return []
 
-	def __combine_player_data(self, players, pairing_data):
-		if pairing_data["player_id"] in players:
-			player_data = dict(players[pairing_data["player_id"]])
-			player_data["speaking"] |= pairing_data["speaking"]
-			player_data["user_ids"].add(pairing_data["user_id"])
+	def force_stop(self):
+		self.__speaking = False
+		self.off_timeout(self.__on_timeout)
+		self.__notify(self.__player_ids, self.__speaking)
+
+	def set_stop_delay(self, delay):
+		self.__stop_delay = delay
+
+	def set_player_ids(self, player_ids):
+		removed_ids = set(self.__player_ids) - set(player_ids)
+		added_ids = set(player_ids) - set(self.__player_ids)
+		self.__player_ids = player_ids
+		if self.__speaking:
+			self.__notify(added_ids, True)
+			self.__notify(removed_ids, False)
+		elif self.__timeout_running:
+			self.__notify(removed_ids, False)
+
+	def set_speaking(self, speaking):
+		if self.__speaking == speaking:
+			return
+		self.__speaking = speaking
+		if speaking:
+			self.off_timeout(self.__on_timeout)
+			self.__timeout_running = False
+			self.__notify(self.__player_ids, self.__speaking)
 		else:
-			player_data = {
-				"id": pairing_data["player_id"],
-				"user_ids": set([pairing_data["user_id"]]),
-				"speaking": pairing_data["speaking"]
-			}
-		return dict(players, **{player_data["id"]: player_data})
+			self.on_timeout(self.__stop_delay, self.__on_timeout)
+			self.__timeout_running = True
 
-	def __convert_to_player_items(self, player_data):
-		return PlayerItem(
-			id=player_data["id"],
-			user_ids=list(player_data["user_ids"]),
-			speaking=player_data["speaking"]
-		)
+	def __on_timeout(self):
+		self.__timeout_running = False
+		if not self.__speaking:
+			self.__notify(self.__player_ids, self.__speaking)
+
+	def __notify(self, player_ids, speaking):
+		for player_id in player_ids:
+			self.messages.publish(PlayerSpeakingMessage("added" if speaking else "removed", {"id": player_id}))

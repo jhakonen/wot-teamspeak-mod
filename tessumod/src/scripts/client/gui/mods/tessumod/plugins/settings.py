@@ -15,10 +15,9 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes
 from gui.mods.tessumod.lib import logutils, gameapi
-from gui.mods.tessumod.lib.pluginmanager import Plugin
 from gui.mods.tessumod.lib.timer import TimerMixin
+from gui.mods.tessumod.plugintypes import Plugin, Settings, SnapshotProvider
 
 import copy
 import json
@@ -27,13 +26,18 @@ import uuid
 
 logger = logutils.logger.getChild("settings")
 
+def build_plugin():
+	"""
+	Called by plugin manager to build the plugin's object.
+	"""
+	return SettingsPlugin()
+
 # =============================================================================
 #                          IMPLEMENTATION MISSING
 #  - Add writing into file
 # =============================================================================
 
-class SettingsPlugin(Plugin, TimerMixin, plugintypes.Settings,
-	plugintypes.SnapshotProvider):
+class SettingsPlugin(Plugin, TimerMixin, Settings, SnapshotProvider):
 	"""
 	This plugin loads settings from tessu_mod.ini file and writes a default
 	file when the config file is missing.

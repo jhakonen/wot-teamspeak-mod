@@ -15,20 +15,25 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes
 from gui.mods.tessumod.lib import logutils, clientquery, gameapi
-from gui.mods.tessumod.lib.pluginmanager import Plugin
 from gui.mods.tessumod.lib.promise import Promise
-from gui.mods.tessumod.models import g_player_model, g_user_model, UserItem, FilterModel
+from gui.mods.tessumod.messages import PlayerMeMessage, UserMessage
+from gui.mods.tessumod.plugintypes import Plugin, SettingsProvider, VoiceClientProvider, EntityProvider
 
 import collections
 import itertools
 import re
+from copy import copy
 
 logger = logutils.logger.getChild("tscqplugin")
-UserTuple = collections.namedtuple('UserTuple', ('client_id', 'name', 'game_name', 'id', 'is_speaking', 'is_me', 'my_channel'))
 
-class TSCQPlugin(Plugin, plugintypes.SettingsProvider, plugintypes.VoiceClientProvider):
+def build_plugin():
+	"""
+	Called by plugin manager to build the plugin's object.
+	"""
+	return TSCQPlugin()
+
+class TSCQPlugin(Plugin, SettingsProvider, VoiceClientProvider,	EntityProvider):
 	"""
 	This plugin ...
 	"""
@@ -52,16 +57,17 @@ class TSCQPlugin(Plugin, plugintypes.SettingsProvider, plugintypes.VoiceClientPr
 		self.__ts.on("user-changed-talking", self.__on_user_speaking_changed)
 		self.__ts.on("user-changed-my-channel", self.__on_user_my_channel_changed)
 		self.__ts.on("user-removed", self.__on_user_removed)
-		self.__users = {}
-		g_user_model.add_namespace(self.NS)
-		player_model = FilterModel(g_player_model)
-		player_model.add_filter(lambda player: player.has_attribute("name"))
-		player_model.add_filter(lambda player: player.is_me)
-		player_model.on("added", self.__on_me_player_added)
 		self.__server_names = {}
+		self.__users = {}
 
 	@logutils.trace_call(logger)
 	def initialize(self):
+		self.messages.subscribe(PlayerMeMessage, self.__on_player_is_me_event)
+		self.__connect()
+
+	@logutils.trace_call(logger)
+	def deinitialize(self):
+		self.messages.unsubscribe(PlayerMeMessage, self.__on_player_is_me_event)
 		self.__connect()
 
 	@logutils.trace_call(logger)
@@ -126,6 +132,19 @@ class TSCQPlugin(Plugin, plugintypes.SettingsProvider, plugintypes.VoiceClientPr
 		"""
 		return self.__ts.get_my_schandlerid()
 
+	def has_entity_source(self, name):
+		"""
+		Implemented from EntityProvider.
+		"""
+		return name == "users"
+
+	def get_entity_source(self, name):
+		"""
+		Implemented from EntityProvider.
+		"""
+		if name == "users":
+			return self.__users.values()
+
 	@logutils.trace_call(logger)
 	def __connect(self):
 		if self.__host and self.__port:
@@ -186,76 +205,60 @@ class TSCQPlugin(Plugin, plugintypes.SettingsProvider, plugintypes.VoiceClientPr
 			del self.__server_names[schandlerid]
 
 	@logutils.trace_call(logger)
-	def __on_me_player_added(self, player):
-		self.__ts.set_my_game_nick(player.name)
+	def __on_player_is_me_event(self, action, data):
+		self.__ts.set_my_game_nick(data["name"])
 
 	@logutils.trace_call(logger)
 	def __on_user_added(self, schandlerid, clid):
-		self.__users[(schandlerid, clid)] = UserTuple._make((
-			(schandlerid, clid),
-			self.__ts.get_user_parameter(schandlerid, clid, "client-nickname"),
-			self.__ts.get_user_parameter(schandlerid, clid, "game-nickname"),
-			self.__ts.get_user_parameter(schandlerid, clid, "client-unique-identifier"),
-			self.__ts.get_user_parameter(schandlerid, clid, "talking"),
-			self.__ts.get_user_parameter(schandlerid, clid, "is-me"),
-			self.__ts.get_user_parameter(schandlerid, clid, "my-channel")
-		))
-		self.__update_model()
+		user = self.__get_user(schandlerid, clid)
+		self.__users[user["id"]] = user
+		self.messages.publish(UserMessage("added", copy(user)))
 
 	@logutils.trace_call(logger)
 	def __on_user_removed(self, schandlerid, clid):
-		del self.__users[(schandlerid, clid)]
-		self.__update_model()
+		user = self.__get_user(schandlerid, clid)
+		del self.__users[user["id"]]
+		self.messages.publish(UserMessage("removed", user))
 
 	@logutils.trace_call(logger)
 	def __on_user_name_changed(self, schandlerid, clid, old_value, new_value):
-		self.__users[(schandlerid, clid)] = self.__users[(schandlerid, clid)]._replace(name=new_value)
-		self.__update_model()
+		user = self.__get_user(schandlerid, clid)
+		self.__users[user["id"]] = user
+		self.messages.publish(UserMessage("modified", copy(user)))
 
 	@logutils.trace_call(logger)
 	def __on_user_game_name_changed(self, schandlerid, clid, old_value, new_value):
-		self.__users[(schandlerid, clid)] = self.__users[(schandlerid, clid)]._replace(game_name=new_value)
-		self.__update_model()
+		user = self.__get_user(schandlerid, clid)
+		self.__users[user["id"]] = user
+		self.messages.publish(UserMessage("modified", copy(user)))
 
 	@logutils.trace_call(logger)
 	def __on_user_speaking_changed(self, schandlerid, clid, old_value, new_value):
-		self.__users[(schandlerid, clid)] = self.__users[(schandlerid, clid)]._replace(is_speaking=new_value)
-		self.__update_model()
+		user = self.__get_user(schandlerid, clid)
+		self.__users[user["id"]] = user
+		self.messages.publish(UserMessage("modified", copy(user)))
 
 	@logutils.trace_call(logger)
 	def __on_user_my_channel_changed(self, schandlerid, clid, old_value, new_value):
-		self.__users[(schandlerid, clid)] = self.__users[(schandlerid, clid)]._replace(my_channel=new_value)
-		self.__update_model()
+		user = self.__get_user(schandlerid, clid)
+		self.__users[user["id"]] = user
+		self.messages.publish(UserMessage("modified", copy(user)))
+
+	def __get_user(self, schandlerid, clid):
+		return {
+			"id": (schandlerid, clid),
+			"name": self.__ts.get_user_parameter(schandlerid, clid, "client-nickname"),
+			"game-name": self.__ts.get_user_parameter(schandlerid, clid, "game-nickname"),
+			"unique-id": self.__ts.get_user_parameter(schandlerid, clid, "client-unique-identifier"),
+			"speaking": self.__ts.get_user_parameter(schandlerid, clid, "talking"),
+			"is-me": self.__ts.get_user_parameter(schandlerid, clid, "is-me"),
+			"my-channel": self.__ts.get_user_parameter(schandlerid, clid, "my-channel")
+		}
 
 	@logutils.trace_call(logger)
 	def __on_server_tab_changed(self, schandlerid):
 		for plugin_info in self.plugin_manager.getPluginsOfCategory("VoiceClientListener"):
 			plugin_info.plugin_object.on_current_voice_server_changed(schandlerid)
-
-	def __update_model(self):
-		# Discard users which do not have id yet, may occur if user's speak
-		# status has come before 'clientlist' command has finished
-		users = itertools.ifilter(lambda user: user.id is not None, self.__users.itervalues())
-		g_user_model.set_all(self.NS, reduce(self.__combine_by_identity, users, {}).values())
-
-	def __combine_by_identity(self, combined_users, user_tuple):
-		kwargs = {
-			"id": user_tuple.id,
-			"client_ids": [user_tuple.client_id],
-			"is_speaking": user_tuple.is_speaking,
-			"is_me": user_tuple.is_me,
-			"my_channel": user_tuple.my_channel
-		}
-		if user_tuple.name:
-			kwargs["names"] = [user_tuple.name]
-		if user_tuple.game_name:
-			kwargs["game_names"] = [user_tuple.game_name]
-		new_user = UserItem(**kwargs)
-		if new_user.id in combined_users:
-			combined_users[new_user.id] = combined_users[new_user.id].get_updated(new_user)
-		else:
-			combined_users[new_user.id] = new_user
-		return combined_users
 
 class TeamSpeakClient(clientquery.ClientQuery):
 
@@ -277,7 +280,7 @@ class TeamSpeakClient(clientquery.ClientQuery):
 	def get_user_parameter(self, schandlerid, clid, parameter):
 		if parameter == "game-nickname":
 			client_id = (schandlerid, clid)
-			return self.__game_nicknames.get(client_id, None)
+			return self.__game_nicknames.get(client_id, "")
 		else:
 			return super(TeamSpeakClient, self).get_user_parameter(schandlerid, clid, parameter)
 

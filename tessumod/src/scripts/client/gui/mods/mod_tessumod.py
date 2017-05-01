@@ -15,13 +15,19 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from tessumod import migrate, plugintypes
-from tessumod.lib import logutils, gameapi, timer
-from tessumod.lib.pluginmanager import PluginManager
-
+import sys
 import inspect
 import json
 import os
+
+# Preload pydash library as it expects itself to be in module search path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "tessumod", "lib"))
+import tessumod.lib.pydash
+sys.path.pop(0)
+
+from tessumod import migrate, plugintypes
+from tessumod.lib import gameapi, logutils, messagepump, timer
+from tessumod.lib.pluginmanager import PluginManager
 
 plugin_manager = None
 
@@ -54,8 +60,10 @@ def init():
 		plugin_categories = [member[1] for member in inspect.getmembers(plugintypes, inspect.isclass)]
 		plugin_manager = PluginManager(config["plugins"], plugins_path, plugin_categories)
 		plugin_manager.collectPlugins()
+		messages = messagepump.MessagePump()
 		for plugin_info in plugin_manager.getAllPlugins():
 			plugin_info.plugin_object.plugin_manager = plugin_manager
+			plugin_info.plugin_object.messages = messages
 		for plugin_info in plugin_manager.getAllPlugins():
 			plugin_info.initialize()
 

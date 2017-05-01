@@ -15,12 +15,17 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes
 from gui.mods.tessumod.lib import logutils
-from gui.mods.tessumod.lib.pluginmanager import Plugin
 from gui.mods.tessumod.lib.timer import TimerMixin
+from gui.mods.tessumod.plugintypes import Plugin, SettingsProvider
 
 logger = logutils.logger.getChild("settingsui")
+
+def build_plugin():
+	"""
+	Called by plugin manager to build the plugin's object.
+	"""
+	return SettingsUIPlugin()
 
 # =============================================================================
 #                          IMPLEMENTATION MISSING
@@ -32,7 +37,7 @@ logger = logutils.logger.getChild("settingsui")
 #  - Handling events from flash (ok, apply, cancel, changes in controls)
 # =============================================================================
 
-class SettingsUIPlugin(Plugin, TimerMixin, plugintypes.SettingsProvider):
+class SettingsUIPlugin(Plugin, TimerMixin, SettingsProvider):
 	"""
 	This plugin...
 	"""

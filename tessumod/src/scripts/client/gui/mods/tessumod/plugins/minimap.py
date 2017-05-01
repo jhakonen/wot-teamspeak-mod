@@ -15,14 +15,21 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes
+from gui.mods.tessumod.items import get_items, match_id, match_player_id
 from gui.mods.tessumod.lib import logutils, gameapi
-from gui.mods.tessumod.lib.pluginmanager import Plugin
-from gui.mods.tessumod.models import g_player_model, FilterModel
+from gui.mods.tessumod.lib import pydash as _
+from gui.mods.tessumod.messages import VehicleMessage, PlayerSpeakingMessage, PlayerMeMessage
+from gui.mods.tessumod.plugintypes import Plugin, SettingsProvider, SettingsUIProvider
 
 logger = logutils.logger.getChild("minimap")
 
-class MinimapPlugin(Plugin, plugintypes.SettingsProvider, plugintypes.SettingsUIProvider):
+def build_plugin():
+	"""
+	Called by plugin manager to build the plugin's object.
+	"""
+	return MinimapPlugin()
+
+class MinimapPlugin(Plugin, SettingsProvider, SettingsUIProvider):
 	"""
 	This plugin renders speech notifications to minimap in battle when a player
 	who is in battle speaks in voice chat.
@@ -33,23 +40,21 @@ class MinimapPlugin(Plugin, plugintypes.SettingsProvider, plugintypes.SettingsUI
 		self.__action = "attackSender"
 		self.__interval = 2.0
 		self.__running_animations = {}
-		self.__players = {}
 		self.__enabled = False
 		self.__self_enabled = False
-		self.__filter_model = None
+		self.__my_player_id = None
 
 	@logutils.trace_call(logger)
 	def initialize(self):
-		self.__filter_model = FilterModel(g_player_model)
-		self.__filter_model.add_filter(lambda player: self.__enabled)
-		self.__filter_model.add_filter(lambda player: player.is_alive)
-		self.__filter_model.add_filter(lambda player: player.has_attribute("speaking"))
-		self.__filter_model.add_filter(lambda player: player.has_attribute("vehicle_id"))
-		self.__filter_model.add_filter(lambda player: self.__self_enabled or not player.is_me)
+		self.messages.subscribe(VehicleMessage, self.__on_vehicle_event)
+		self.messages.subscribe(PlayerSpeakingMessage, self.__on_player_speaking_event)
+		self.messages.subscribe(PlayerMeMessage, self.__on_player_is_me_event)
 
-		self.__filter_model.on("added", self.__on_model_added)
-		self.__filter_model.on("modified", self.__on_model_modified)
-		self.__filter_model.on("removed", self.__on_model_removed)
+	@logutils.trace_call(logger)
+	def deinitialize(self):
+		self.messages.unsubscribe(VehicleMessage, self.__on_vehicle_event)
+		self.messages.unsubscribe(PlayerSpeakingMessage, self.__on_player_speaking_event)
+		self.messages.unsubscribe(PlayerMeMessage, self.__on_player_is_me_event)
 
 	@logutils.trace_call(logger)
 	def on_settings_changed(self, section, name, value):
@@ -59,10 +64,10 @@ class MinimapPlugin(Plugin, plugintypes.SettingsProvider, plugintypes.SettingsUI
 		if section == "MinimapNotifications":
 			if name == "enabled":
 				self.__enabled = value
-				self.__filter_model.invalidate()
+				_.for_each(self.__get_vehicles(), lambda v: self.__set_vehicle_speaking(v))
 			if name == "self_enabled":
 				self.__self_enabled = value
-				self.__filter_model.invalidate()
+				self.__set_vehicle_speaking(self.__get_my_vehicle())
 			if name == "action":
 				self.__action = value
 			if name == "repeat_interval":
@@ -174,19 +179,37 @@ class MinimapPlugin(Plugin, plugintypes.SettingsProvider, plugintypes.SettingsUI
 			]
 		}
 
-	def __on_model_added(self, new_player):
-		logger.debug("__on_model_added: {}".format(new_player))
-		self.__set_vehicle_speaking(new_player.vehicle_id, new_player.speaking)
+	def __get_vehicles(self):
+		return get_items(self.plugin_manager, ["vehicles"], ["id"])
 
-	def __on_model_modified(self, old_player, new_player):
-		logger.debug("__on_model_modified: {}".format(new_player))
-		self.__set_vehicle_speaking(new_player.vehicle_id, new_player.speaking)
+	def __get_speaking_players(self):
+		return map(lambda p: p["id"], get_items(self.plugin_manager, ["speaking-players"], ["id"]))
 
-	def __on_model_removed(self, old_player):
-		logger.debug("__on_model_removed: {}".format(old_player))
-		self.__set_vehicle_speaking(old_player.vehicle_id, False)
+	def __get_my_vehicle(self):
+		return _.find(self.__get_vehicles(), lambda v: v["player-id"] == self.__my_player_id)
 
-	def __set_vehicle_speaking(self, vehicle_id, speaking):
+	@logutils.trace_call(logger)
+	def __on_vehicle_event(self, action, data):
+		self.__set_vehicle_speaking(data)
+
+	@logutils.trace_call(logger)
+	def __on_player_speaking_event(self, action, data):
+		self.__set_vehicle_speaking(_.find(self.__get_vehicles(), match_player_id(data["id"])))
+
+	@logutils.trace_call(logger)
+	def __on_player_is_me_event(self, action, data):
+		self.__my_player_id = data["id"]
+		self.__set_vehicle_speaking(self.__get_my_vehicle())
+
+	def __set_vehicle_speaking(self, vehicle):
+		if not vehicle:
+			return
+		vehicle_id = vehicle["id"]
+		speaking = \
+			self.__enabled and \
+			(self.__self_enabled or vehicle["player-id"] != self.__my_player_id) and \
+			vehicle["is-alive"] and \
+			vehicle["player-id"] in self.__get_speaking_players()
 		if speaking:
 			if vehicle_id not in self.__running_animations:
 				anim = gameapi.create_minimap_animation(vehicle_id, self.__interval, self.__action, self.__on_animation_done)

@@ -15,6 +15,35 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
+class Plugin(object):
+
+	CATEGORY = "Plugin"
+
+	def __init__(self):
+		super(Plugin, self).__init__()
+
+	def initialize(self):
+		pass
+
+	def deinitialize(self):
+		pass
+
+	@property
+	def messages(self):
+		return self.__messages
+
+	@messages.setter
+	def messages(self, messages):
+		self.__messages = messages
+
+	@property
+	def plugin_manager(self):
+		return self.__plugin_manager
+
+	@plugin_manager.setter
+	def plugin_manager(self, plugin_manager):
+		self.__plugin_manager = plugin_manager
+
 class Settings(object):
 
 	CATEGORY = "Settings"
@@ -117,4 +146,14 @@ class SnapshotProvider(object):
 		pass
 
 	def restore_snapshot(self, snapshot_name):
+		pass
+
+class EntityProvider(object):
+
+	CATEGORY = "EntityProvider"
+
+	def has_entity_source(self, name):
+		pass
+
+	def get_entity_source(self, name):
 		pass

@@ -23,27 +23,6 @@ import imp
 
 logger = logutils.logger.getChild("pluginmanager")
 
-class Plugin(object):
-
-	CATEGORY = "Plugin"
-
-	def __init__(self):
-		super(Plugin, self).__init__()
-
-	@property
-	def plugin_manager(self):
-		return self.__plugin_manager
-
-	@plugin_manager.setter
-	def plugin_manager(self, plugin_manager):
-		self.__plugin_manager = plugin_manager
-
-	def initialize(self):
-		pass
-
-	def deinitialize(self):
-		pass
-
 class PluginManager(object):
 
 	def __init__(self, plugins_list, plugins_dir, category_classes):
@@ -76,28 +55,17 @@ class PluginManager(object):
 					with open(full_plugin_path, "rb") as file:
 						plugin_module = imp.load_module("plugin_" + plugin_name, file, full_plugin_path, (ext, "rb", imp_type))
 			if not plugin_module:
-				logger.error("No such plugin '{}'".format(plugin_name))
+				logger.error("No such plugin: %s" % plugin_name)
 				continue
-			elements = [getattr(plugin_module, element_name) for element_name in dir(plugin_module)]
-			for element in elements:
-				is_plugin = False
-				if element == Plugin:
-					continue
-				try:
-					is_plugin = issubclass(element, Plugin)
-				except Exception:
-					pass
-				if is_plugin:
-					plugin_info = PluginInfo(element, plugin_name)
-					break
-			if not plugin_info:
-				logger.error("Plugin '{}' has no valid plugin classes".format(plugin_name))
+			if not hasattr(plugin_module, "build_plugin"):
+				logger.error("Plugin does not implement build_plugin(): %s" % plugin_name)
 				continue
+			plugin_info = PluginInfo(plugin_module.build_plugin(), plugin_name)
 			self.__plugin_infos_all.append(plugin_info)
 			for category_name, category_cls in self.__categories_filter.iteritems():
 				if issubclass(plugin_info.plugin_cls, category_cls):
 					self.__plugin_infos_by_category[category_name].append(plugin_info)
-			logger.info("Plugin '{}' loaded".format(plugin_name))
+			logger.info("Plugin loaded: %s" % plugin_name)
 
 	def getAllPlugins(self):
 		return list(self.__plugin_infos_all)
@@ -106,10 +74,10 @@ class PluginManager(object):
 		return list(self.__plugin_infos_by_category[name])
 
 class PluginInfo(object):
-	def __init__(self, plugin_cls, name):
-		self.plugin_cls = plugin_cls
+	def __init__(self, plugin_object, name):
 		self.name = name
-		self.plugin_object = plugin_cls()
+		self.plugin_object = plugin_object
+		self.plugin_cls = plugin_object.__class__
 		self.__initialized = False
 
 	def initialize(self):

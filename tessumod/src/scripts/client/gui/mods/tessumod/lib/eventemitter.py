@@ -16,8 +16,9 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 import logutils
+import traceback
 
-logger = logutils.logger.getChild("eventemitter")
+logger = logutils.logger.getChild("events")
 
 class EventEmitterMixin(object):
 	"""Mixin class which provides ability to emit and receive send events."""
@@ -45,6 +46,7 @@ class EventEmitterMixin(object):
 					return
 				except Exception:
 					logger.exception("Exception caught in eventemitter")
+					logger.info("Emit called from: %s", "".join(traceback.format_stack()))
 
 	def on(self, event, function, priority=0):
 		"""Registers an event handler "function" for "event".

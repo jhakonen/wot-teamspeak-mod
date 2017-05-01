@@ -17,11 +17,16 @@
 
 """
 This module listens for game events to determine my own player ID.
-Emits "my_player_id_received" event with player ID as int when available.
+Emits "my_player_received" event with player ID as int when available.
+
+The event has a dict argument which has following keys and values:
+ - id:         player's ID (int)
+ - name:       player's name (str)
 """
 
 from __future__ import absolute_import
 import BigWorld
+from messenger.storage import storage_getter
 from PlayerEvents import g_playerEvents
 
 from .. import logutils
@@ -29,6 +34,10 @@ from .. import logutils
 logger = logutils.logger.getChild("gameapi")
 
 _events = None
+
+@storage_getter('users')
+def users_storage(self):
+	return None
 
 def init(events):
 	global _events
@@ -44,10 +53,16 @@ def deinit():
 def _on_account_show_gui(ctx):
 	# databaseID is set when GUI is shown and will be available before
 	# onAccountShowGUI() is called
-	_events.emit("my_player_id_received", int(BigWorld.player().databaseID))
+	_events.emit("my_player_received", {
+		"id": int(BigWorld.player().databaseID),
+		"name": users_storage.getUser(BigWorld.player().databaseID)
+	})
 
 @logutils.trace_call(logger)
 def _on_avatar_ready():
 	vehicle_id = int(BigWorld.player().playerVehicleID)
 	vehicle = BigWorld.player().arena.vehicles[vehicle_id]
-	_events.emit("my_player_id_received", int(vehicle["accountDBID"]))
+	_events.emit("my_player_received", {
+		"id": int(vehicle["accountDBID"]),
+		"name": vehicle["name"]
+	})

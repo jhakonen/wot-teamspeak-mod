@@ -819,8 +819,8 @@ class ClientQueryServerUsersMixin(object):
 				self.emit("user-changed-"+key, schandlerid=user["schandlerid"], clid=user["clid"], old_value=old_value, new_value=value)
 
 	def __remove_server_user(self, schandlerid, clid, **kwargs):
-		del self.__scusers[schandlerid][clid]
 		self.emit("user-removed", schandlerid=schandlerid, clid=clid)
+		del self.__scusers[schandlerid][clid]
 
 class ClientQueryCommandsImplMixin(object):
 

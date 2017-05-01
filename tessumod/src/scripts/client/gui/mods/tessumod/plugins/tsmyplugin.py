@@ -15,10 +15,12 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes
+from gui.mods.tessumod.items import get_items, match_player_id, match_unique_id
 from gui.mods.tessumod.lib import logutils, sharedmemory, timer, gameapi
-from gui.mods.tessumod.lib.pluginmanager import Plugin
-from gui.mods.tessumod.models import g_player_model, g_user_model, FilterModel
+from gui.mods.tessumod.lib import pydash as _
+from gui.mods.tessumod.lib.timer import TimerMixin
+from gui.mods.tessumod.messages import UserMessage, PairingMessage, VehicleMessage
+from gui.mods.tessumod.plugintypes import Plugin, VoiceClientListener, SettingsProvider, SettingsUIProvider
 
 import functools
 import os
@@ -30,9 +32,13 @@ import time
 
 logger = logutils.logger.getChild("tsmyplugin")
 
-class TSMyPluginPlugin(Plugin, plugintypes.VoiceClientListener,
-	                   plugintypes.SettingsProvider, plugintypes.SettingsUIProvider,
-	                   timer.TimerMixin):
+def build_plugin():
+	"""
+	Called by plugin manager to build the plugin's object.
+	"""
+	return TSMyPluginPlugin()
+
+class TSMyPluginPlugin(Plugin, VoiceClientListener, SettingsProvider, SettingsUIProvider, TimerMixin):
 	"""
 	This plugin ...
 	"""
@@ -43,31 +49,23 @@ class TSMyPluginPlugin(Plugin, plugintypes.VoiceClientListener,
 		super(TSMyPluginPlugin, self).__init__()
 		self.__advertisement_ignored = False
 		self.__positional_data_api = PositionalDataAPI()
-		# filtered model with players who are alive in battle, has vehicle id
-		# and is matched to one or more users
-		self.__player_model = FilterModel(g_player_model)
-		self.__player_model.add_filter(lambda player: player.is_alive)
-		self.__player_model.add_filter(lambda player: player.has_attribute("vehicle_id"))
-		self.__player_model.add_filter(lambda player: player.has_attribute("user_ids"))
-		self.__player_model.on("added", self.__update_clid_lookup)
-		self.__player_model.on("modified", self.__update_clid_lookup)
-		self.__player_model.on("removed", self.__update_clid_lookup)
-		# filtered model with users who are on my channel
-		self.__user_model = FilterModel(g_user_model)
-		self.__user_model.add_filter(lambda user: user.my_channel)
-		self.__user_model.on("added", self.__update_clid_lookup)
-		self.__user_model.on("modified", self.__update_clid_lookup)
-		self.__user_model.on("removed", self.__update_clid_lookup)
+		self.__clid_vehicle_ids = {}
 
 	@logutils.trace_call(logger)
 	def initialize(self):
 		gameapi.events.on("battle_started", self.__on_battle_started)
 		gameapi.events.on("battle_finished", self.__on_battle_finished)
+		self.messages.subscribe(UserMessage, self.__on_user_event)
+		self.messages.subscribe(PairingMessage, self.__on_pairing_event)
+		self.messages.subscribe(VehicleMessage, self.__on_vehicle_event)
 
 	@logutils.trace_call(logger)
 	def deinitialize(self):
 		gameapi.events.off("battle_started", self.__on_battle_started)
 		gameapi.events.off("battle_finished", self.__on_battle_finished)
+		self.messages.unsubscribe(UserMessage, self.__on_user_event)
+		self.messages.unsubscribe(PairingMessage, self.__on_pairing_event)
+		self.messages.unsubscribe(VehicleMessage, self.__on_vehicle_event)
 
 	@logutils.trace_call(logger)
 	def on_settings_changed(self, section, name, value):
@@ -192,24 +190,7 @@ class TSMyPluginPlugin(Plugin, plugintypes.VoiceClientListener,
 		"""
 		Implemented from VoiceClientListener.
 		"""
-		self.__update_clid_lookup()
-
-	def __update_clid_lookup(self, *args, **kwargs):
-		self.__clid_lookup = {}
-		connection_id = (self.plugin_manager.getPluginsOfCategory("VoiceClientProvider")[0]
-			.plugin_object.get_my_connection_id())
-
-		for player in self.__player_model.itervalues():
-			for user_id in player.user_ids:
-				if player.id in self.__clid_lookup:
-					continue
-				if user_id not in self.__user_model:
-					continue
-				for client_id in self.__user_model[user_id].client_ids:
-					if client_id[0] != connection_id:
-						continue
-					self.__clid_lookup[player.id] = client_id[1]
-					break
+		self.__update_client_lookup()
 
 	@logutils.trace_call(logger)
 	def __on_battle_started(self):
@@ -221,23 +202,51 @@ class TSMyPluginPlugin(Plugin, plugintypes.VoiceClientListener,
 		self.__positional_data_api.close()
 		self.off_timeout(self.__write_positional_data)
 
+	@logutils.trace_call(logger)
+	def __on_user_event(self, action, data):
+		self.__update_client_lookup()
+
+	@logutils.trace_call(logger)
+	def __on_pairing_event(self, action, data):
+		self.__update_client_lookup()
+
+	@logutils.trace_call(logger)
+	def __on_vehicle_event(self, action, data):
+		self.__update_client_lookup()
+
+	def __get_pairings(self):
+		return get_items(self.plugin_manager, ["pairings"], ["player-id", "user-unique-id"])
+
+	def __get_users(self):
+		return get_items(self.plugin_manager, ["users"], ["id"])
+
+	def __get_vehicles(self):
+		return get_items(self.plugin_manager, ["vehicles"], ["id"])
+
+	def __update_client_lookup(self):
+		self.__clid_vehicle_ids.clear()
+		connection_id = (self.plugin_manager.getPluginsOfCategory("VoiceClientProvider")[0]
+			.plugin_object.get_my_connection_id())
+		for pairing in self.__get_pairings():
+			vehicle = _.find(self.__get_vehicles(), match_player_id(pairing["player-id"]))
+			if not vehicle:
+				continue
+			for user in _.filter_(self.__get_users(), match_unique_id(pairing["user-unique-id"])):
+				if user["id"][0] != connection_id:
+					continue
+				self.__clid_vehicle_ids[user["id"][1]] = vehicle["id"]
+
 	def __write_positional_data(self):
 		if not self.__positional_data_api.is_open():
 			logger.debug("__write_positional_data: data api is not open")
 			return
-		if not self.__player_model:
-			logger.debug("__write_positional_data: no players")
-			return
-		if not self.__clid_lookup:
-			logger.debug("__write_positional_data: no clid lookup")
-			return
+
 		client_positions = {}
-		for player in self.__player_model.itervalues():
-			if player.id in self.__clid_lookup:
-				pos = gameapi.get_vehicle_position(player.vehicle_id)
-				if not pos:
-					continue
-				client_positions[self.__clid_lookup[player.id]] = pos
+		for clid, vehicle_id in self.__clid_vehicle_ids.iteritems():
+			pos = gameapi.get_vehicle_position(vehicle_id)
+			if not pos:
+				continue
+			client_positions[clid] = pos
 		if not client_positions:
 			logger.debug("__write_positional_data: no client positions")
 			return

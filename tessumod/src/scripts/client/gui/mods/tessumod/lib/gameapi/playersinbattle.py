@@ -96,5 +96,5 @@ def _on_vehicle_added(vehicle_id):
 
 @logutils.trace_call(logger)
 def _on_vehicle_killed(vehicle_id, *args, **kwargs):
-	player = _players[vehicle_id]["is_alive"] = False
-	_events.emit("battle_player_modified", copy(player))
+	_players[vehicle_id]["is_alive"] = False
+	_events.emit("battle_player_modified", copy(_players[vehicle_id]))

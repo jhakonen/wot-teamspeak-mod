@@ -15,17 +15,25 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes
+from gui.mods.tessumod.items import get_items
 from gui.mods.tessumod.lib import logutils
-from gui.mods.tessumod.lib.pluginmanager import Plugin
-from gui.mods.tessumod.models import g_player_model, g_user_model, g_pairing_model, PairingItem, FilterModel
+from gui.mods.tessumod.lib import pydash as _
+from gui.mods.tessumod.messages import (BattlePlayerMessage, PrebattlePlayerMessage,
+	PairingMessage, UserMessage)
+from gui.mods.tessumod.plugintypes import Plugin, SettingsProvider, UserCache, EntityProvider
 
 import re
+from copy import copy
 
 logger = logutils.logger.getChild("usermatching")
 
-class UserMatching(Plugin, plugintypes.SettingsProvider,
-	plugintypes.UserCache):
+def build_plugin():
+	"""
+	Called by plugin manager to build the plugin's object.
+	"""
+	return UserMatchingPlugin()
+
+class UserMatchingPlugin(Plugin, SettingsProvider, UserCache, EntityProvider):
 	"""
 	This plugin ...
 	"""
@@ -33,20 +41,12 @@ class UserMatching(Plugin, plugintypes.SettingsProvider,
 	NS = "matching"
 
 	def __init__(self):
-		super(UserMatching, self).__init__()
+		super(UserMatchingPlugin, self).__init__()
 		self.__get_wot_nick_from_ts_metadata = True
 		self.__ts_nick_search_enabled = True
 		self.__nick_extract_patterns = []
 		self.__name_mappings = {}
-
-		self.__filtered_player_model = FilterModel(g_player_model)
-		self.__filtered_player_model.allow_namespaces(["battle", "prebattle"])
-		self.__filtered_player_model.on("added", self.__on_player_added)
-
-		self.__filtered_user_model = FilterModel(g_user_model)
-		self.__filtered_user_model.add_filter(lambda user: user.my_channel)
-		self.__filtered_user_model.on("added", self.__on_user_added)
-		self.__filtered_user_model.on("modified", self.__on_user_modified)
+		self.__pairings = {}
 
 		self.__matchers = [
 			self.__find_matching_with_metadata,
@@ -54,15 +54,18 @@ class UserMatching(Plugin, plugintypes.SettingsProvider,
 			self.__find_matching_with_mappings,
 			self.__find_matching_with_name_comparison
 		]
-		g_pairing_model.add_namespace(self.NS)
 
 	@logutils.trace_call(logger)
 	def initialize(self):
-		pass
+		self.messages.subscribe(BattlePlayerMessage, self.__on_player_event)
+		self.messages.subscribe(PrebattlePlayerMessage, self.__on_player_event)
+		self.messages.subscribe(UserMessage, self.__on_user_event)
 
 	@logutils.trace_call(logger)
 	def deinitialize(self):
-		pass
+		self.messages.unsubscribe(BattlePlayerMessage, self.__on_player_event)
+		self.messages.unsubscribe(PrebattlePlayerMessage, self.__on_player_event)
+		self.messages.unsubscribe(UserMessage, self.__on_user_event)
 
 	@logutils.trace_call(logger)
 	def on_settings_changed(self, section, name, value):
@@ -78,7 +81,7 @@ class UserMatching(Plugin, plugintypes.SettingsProvider,
 				self.__nick_extract_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in value]
 		if section == "NameMappings":
 			self.__name_mappings[name.lower()] = value.lower()
-		self.__match_users_to_players(self.__filtered_user_model.values(), self.__filtered_player_model.values())
+		self.__match_users_to_players(self.__get_users(), self.__get_players())
 
 	@logutils.trace_call(logger)
 	def get_settings_content(self):
@@ -165,53 +168,66 @@ class UserMatching(Plugin, plugintypes.SettingsProvider,
 		"""
 		Implemented from UserCache.
 		"""
-		if user_id not in g_pairing_model:
-			g_pairing_model.set(self.NS, PairingItem(id=user_id, player_ids=[player_id]))
-		else:
-			pairing = g_pairing_model[user_id]
-			g_pairing_model.set(self.NS, PairingItem(
-				id = user_id,
-				player_ids = list(set(pairing.player_ids + [player_id])),
-			))
+		id = (user_id, player_id)
+		if id not in self.__pairings:
+			self.__pairings[id] = {"player-id": player_id, "user-unique-id": user_id}
+			self.messages.publish(PairingMessage("added" , copy(self.__pairings[id])))
 
 	@logutils.trace_call(logger)
 	def remove_pairing(self, user_id, player_id):
 		"""
 		Implemented from UserCache.
 		"""
-		if user_id in g_pairing_model:
-			pairing = g_pairing_model[user_id]
-			pairing.player_ids -= set([player_id])
-			g_pairing_model.set(self.NS, PairingItem(
-				id = user_id,
-				player_ids = list(set(pairing.player_ids) - set([player_id]))
-			))
+		id = (user_id, player_id)
+		if id in self.__pairings:
+			self.messages.publish(PairingMessage("removed" , copy(self.__pairings[id])))
 
 	def reset_pairings(self, pairings):
 		"""
 		Implemented from UserCache.
 		"""
-		data = {}
-		for pair in pairings:
-			if pair[0] not in data:
-				data[pair[0]] = {"id": pair[0], "player_ids": set()}
-			data[pair[0]]["player_ids"].add(int(pair[1]))
-		g_pairing_model.set_all(self.NS, [PairingItem(id=e["id"], player_ids=list(e["player_ids"])) for e in data.values()])
+		new_ids = set((p["user-unique-id"], p["player-id"]) for p in pairings)
+		old_ids = set((p["user-unique-id"], p["player-id"]) for p in self.__pairings)
+		added_ids = new_ids - old_ids
+		removed_ids = old_ids - new_ids
+		for id in added_ids:
+			self.add_pairing(id[0], id[1])
+		for id in removed_ids:
+			self.remove_pairing(id[0], id[1])
 
-	def __on_player_added(self, new_player):
-		self.__match_users_to_players(self.__filtered_user_model.values(), [new_player])
+	def has_entity_source(self, name):
+		"""
+		Implemented from EntityProvider.
+		"""
+		return name == "pairings"
 
-	def __on_user_added(self, new_user):
-		self.__match_users_to_players([new_user], self.__filtered_player_model.values())
+	def get_entity_source(self, name):
+		"""
+		Implemented from EntityProvider.
+		"""
+		if name == "pairings":
+			return self.__pairings.values()
 
-	def __on_user_modified(self, old_user, new_user):
-		if old_user.names != new_user.names or old_user.game_names != new_user.game_names:
-			self.__match_users_to_players([new_user], self.__filtered_player_model.values())
+	def __get_players(self):
+		return get_items(self.plugin_manager, ["battle-players", "prebattle-players"], ["id"])
+
+	def __get_users(self):
+		return _.filter_(get_items(self.plugin_manager, ["users"], ["id"]), lambda u: u["my-channel"])
+
+	@logutils.trace_call(logger)
+	def __on_player_event(self, action, data):
+		if action == "added":
+			self.__match_users_to_players(self.__get_users(), [data])
+
+	@logutils.trace_call(logger)
+	def __on_user_event(self, action, data):
+		if action in ["added", "modified"]:
+			self.__match_users_to_players([data], self.__get_players())
 
 	def __match_users_to_players(self, users, players):
 		for user, matching_players in self.__find_matching_candidates(users, players):
 			for player in matching_players:
-				self.add_pairing(user.id, player.id)
+				self.add_pairing(user["unique-id"], player["id"])
 
 	def __find_matching_candidates(self, users, players):
 		results = []
@@ -227,12 +243,9 @@ class UserMatching(Plugin, plugintypes.SettingsProvider,
 		results = []
 		if not self.__get_wot_nick_from_ts_metadata:
 			return results
-		for usergamename in user.game_names:
-			usergamename = usergamename.lower()
-			for player in players:
-				playername = player.name.lower()
-				if usergamename == playername:
-					results.append(player)
+		for player in players:
+			if user["game-name"].lower() == player["name"].lower():
+				results.append(player)
 		return results
 
 	def __find_matching_with_patterns(self, user, players):
@@ -241,40 +254,34 @@ class UserMatching(Plugin, plugintypes.SettingsProvider,
 			return results
 
 		for pattern in self.__nick_extract_patterns:
-			for username in user.names:
-				matches = pattern.match(username.lower())
-				if matches is None or not matches.groups():
-					continue
-				extracted_playername = matches.group(1).strip()
-				# find extracted playername from players
-				for player in players:
-					playername = player.name.lower()
-					if playername == extracted_playername:
-						results.append(player)
+			matches = pattern.match(user["name"].lower())
+			if matches is None or not matches.groups():
+				continue
+			extracted_playername = matches.group(1).strip()
+			# find extracted playername from players
+			for player in players:
+				playername = player["name"].lower()
+				if playername == extracted_playername:
+					results.append(player)
 		return results
 
 	def __find_matching_with_mappings(self, user, players):
-		results = []
-		for username in user.names:
-			username = username.lower()
-			if username not in self.__name_mappings:
-				return results
-			playername = self.__name_mappings[username]
-			for player in players:
-				if player.name.lower() == playername:
-					return [player]
-		return results
+		playername = self.__name_mappings.get(user["name"].lower(), None)
+		if playername is None:
+			return []
+		for player in players:
+			if player["name"].lower() == playername:
+				return [player]
+		return []
 
 	def __find_matching_with_name_comparison(self, user, players):
 		results = []
-		for username in user.names:
-			username = username.lower()
-			if self.__ts_nick_search_enabled:
-				for player in players:
-					if player.name.lower() in username:
-						results.append(player)
-			else:
-				for player in players:
-					if player.name.lower() == username:
-						results.append(player)
+		if self.__ts_nick_search_enabled:
+			for player in players:
+				if player["name"].lower() in user["name"].lower():
+					results.append(player)
+		else:
+			for player in players:
+				if player["name"].lower() == user["name"].lower():
+					results.append(player)
 		return results

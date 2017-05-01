@@ -15,14 +15,20 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import plugintypes
+from gui.mods.tessumod.items import get_items
 from gui.mods.tessumod.lib import logutils, gameapi
-from gui.mods.tessumod.lib.pluginmanager import Plugin
-from gui.mods.tessumod.models import g_player_model, FilterModel
+from gui.mods.tessumod.messages import PlayerSpeakingMessage, PlayerMeMessage
+from gui.mods.tessumod.plugintypes import Plugin, SettingsProvider
 
 logger = logutils.logger.getChild("speakindicator")
 
-class SpeakIndicatorPlugin(Plugin, plugintypes.SettingsProvider):
+def build_plugin():
+	"""
+	Called by plugin manager to build the plugin's object.
+	"""
+	return SpeakIndicatorPlugin()
+
+class SpeakIndicatorPlugin(Plugin, SettingsProvider):
 	"""
 	This plugin renders speech indicator notifications in game when a user
 	matched a player speaks. The indicator is shown as a green ripple effect
@@ -31,25 +37,19 @@ class SpeakIndicatorPlugin(Plugin, plugintypes.SettingsProvider):
 
 	def __init__(self):
 		super(SpeakIndicatorPlugin, self).__init__()
-		self.__filter_model = None
 		self.__enabled = None
 		self.__self_enabled = None
+		self.__my_player_id = None
 
 	@logutils.trace_call(logger)
 	def initialize(self):
-		self.__filter_model = FilterModel(g_player_model)
-		self.__filter_model.allow_namespaces(["battle", "prebattle"])
-		self.__filter_model.add_filter(lambda player: self.__enabled)
-		self.__filter_model.add_filter(lambda player: player.has_attribute("speaking"))
-		self.__filter_model.add_filter(lambda player: self.__self_enabled or not player.is_me)
-
-		self.__filter_model.on("added", self.__on_filter_model_added)
-		self.__filter_model.on("modified", self.__on_filter_model_modified)
-		self.__filter_model.on("removed", self.__on_filter_model_removed)
+		self.messages.subscribe(PlayerSpeakingMessage, self.__on_player_speaking_event)
+		self.messages.subscribe(PlayerMeMessage, self.__on_player_is_me_event)
 
 	@logutils.trace_call(logger)
 	def deinitialize(self):
-		self.__filter_model = None
+		self.messages.unsubscribe(PlayerSpeakingMessage, self.__on_player_speaking_event)
+		self.messages.unsubscribe(PlayerMeMessage, self.__on_player_is_me_event)
 
 	@logutils.trace_call(logger)
 	def on_settings_changed(self, section, name, value):
@@ -59,10 +59,9 @@ class SpeakIndicatorPlugin(Plugin, plugintypes.SettingsProvider):
 		if section == "VoiceChatNotifications":
 			if name == "enabled":
 				self.__enabled = value
-				self.__filter_model.invalidate()
 			if name == "self_enabled":
 				self.__self_enabled = value
-				self.__filter_model.invalidate()
+				self.__update_player_speaking(self.__my_player_id)
 
 	@logutils.trace_call(logger)
 	def get_settings_content(self):
@@ -88,14 +87,22 @@ class SpeakIndicatorPlugin(Plugin, plugintypes.SettingsProvider):
 		}
 
 	@logutils.trace_call(logger)
-	def __on_filter_model_added(self, new_player):
-		gameapi.set_player_speaking(new_player.id, new_player.speaking)
+	def __on_player_speaking_event(self, action, data):
+		self.__update_player_speaking(data["id"])
 
 	@logutils.trace_call(logger)
-	def __on_filter_model_modified(self, old_player, new_player):
-		if new_player.speaking != old_player.speaking:
-			gameapi.set_player_speaking(new_player.id, new_player.speaking)
+	def __on_player_is_me_event(self, action, data):
+		self.__my_player_id = data["id"]
+		self.__update_player_speaking(self.__my_player_id)
 
-	@logutils.trace_call(logger)
-	def __on_filter_model_removed(self, old_player):
-		gameapi.set_player_speaking(old_player.id, False)
+	def __update_player_speaking(self, player_id):
+		gameapi.set_player_speaking(player_id, self.__is_player_speaking(player_id))
+
+	def __is_player_speaking(self, player_id):
+		return \
+			self.__enabled and \
+			(self.__self_enabled or player_id != self.__my_player_id) and \
+			player_id in self.__get_speaking_players()
+
+	def __get_speaking_players(self):
+		return map(lambda p: p["id"], get_items(self.plugin_manager, ["speaking-players"], ["id"]))

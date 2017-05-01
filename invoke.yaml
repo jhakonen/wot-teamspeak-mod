@@ -195,6 +195,12 @@ projects:
       - py_compile:
           tags: ['build', 'clean']
           input_files:
+            - "{src_dir}/scripts/client/gui/mods/tessumod/lib/pydash/*.py"
+          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/lib/pydash"
+          dbg_dir: "scripts/client/gui/mods/tessumod/lib/pydash"
+      - py_compile:
+          tags: ['build', 'clean']
+          input_files:
             - "{src_dir}/scripts/client/gui/mods/tessumod/lib/promise/pyutils/*.py"
           target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/lib/promise/pyutils"
           dbg_dir: "scripts/client/gui/mods/tessumod/lib/promise/pyutils"
