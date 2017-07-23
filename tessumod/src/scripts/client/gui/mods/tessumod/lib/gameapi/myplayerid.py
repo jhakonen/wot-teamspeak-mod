@@ -55,7 +55,7 @@ def _on_account_show_gui(ctx):
 	# onAccountShowGUI() is called
 	_events.emit("my_player_received", {
 		"id": int(BigWorld.player().databaseID),
-		"name": users_storage.getUser(BigWorld.player().databaseID)
+		"name": BigWorld.player().name
 	})
 
 @logutils.trace_call(logger)
