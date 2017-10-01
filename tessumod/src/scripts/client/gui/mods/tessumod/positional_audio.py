@@ -92,6 +92,8 @@ class PositionalAudio(object):
 		Builds a lookup table for converting player ID to vehicle ID.
 		'''
 		self._player_vehicle_ids.clear()
+		if not self._arena():
+			return
 		for vehicle_id in self._arena().vehicles:
 			vehicle = self._arena().vehicles[vehicle_id]
 			if vehicle["isAlive"]:
@@ -105,6 +107,8 @@ class PositionalAudio(object):
 		Seems to be only those vehicles which are close by. Updates a lookup
 		table for converting vehicle ID to position.
 		'''
+		if not self._arena():
+			return
 		for vehicle_id in self._arena().positions:
 			self._vehicle_positions[vehicle_id] = mytsplugin.Vector(*self._arena().positions[vehicle_id])
 		self._data_updated = True
@@ -115,6 +119,8 @@ class PositionalAudio(object):
 		Updates positions of ALL vehicles in the arena to a loopkup table for
 		converting vehicle ID to position.
 		'''
+		if not self._arena():
+			return
 		for vehicle_id in self._arena().vehicles:
 			if BigWorld.entities.has_key(vehicle_id):
 				self._vehicle_positions[vehicle_id] = BigWorld.entities[vehicle_id].position
