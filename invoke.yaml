@@ -1,6 +1,6 @@
 vars:
   version: 0.7.0
-  game_version: 0.9.19.1.1
+  game_version: 0.9.20.0
   plugin_name: TessuMod Plugin
   plugin_author: Janne Hakonen (jhakonen @ WOT EU server)
   plugin_version: "{version}"
