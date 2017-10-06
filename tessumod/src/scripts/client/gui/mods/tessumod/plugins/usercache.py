@@ -162,9 +162,9 @@ class UserCachePlugin(Plugin, SettingsProvider, SettingsUIProvider, SnapshotProv
 		Implemented from EntityProvider.
 		"""
 		if name == "cached-users":
-			return database.cached_users.clone()
+			return database.get_all_cached_users()
 		if name == "cached-players":
-			return database.cached_players.clone()
+			return database.get_all_cached_players()
 
 	@logutils.trace_call(logger)
 	def __on_battle_replay_started(self):
@@ -174,12 +174,12 @@ class UserCachePlugin(Plugin, SettingsProvider, SettingsUIProvider, SnapshotProv
 		if action == "added":
 			user = _.find(self.__get_live_users(), match_unique_id(data["user-unique-id"]))
 			if user:
-				database.cached_users.delete(unique_id=data["user-unique-id"])
-				database.cached_users.insert(database.DictDataObject(user))
+				database.remove_cached_user(unique_id=user["unique_id"])
+				database.insert_cached_user(unique_id=user["unique_id"], name=user["name"])
 			player = _.find(self.__get_live_players(), match_id(data["player-id"]))
 			if player:
-				database.cached_players.delete(id=data["player-id"])
-				database.cached_players.insert(database.DictDataObject(player))
+				database.remove_cached_player(id=player["id"])
+				database.insert_cached_player(id=player["id"], name=player["name"])
 		elif action == "removed":
 			raise RuntimeError("Not implemented")
 
@@ -229,20 +229,17 @@ class UserCachePlugin(Plugin, SettingsProvider, SettingsUIProvider, SnapshotProv
 		cached_players = {}
 		cached_pairings = []
 		for pairing in cache_structure["pairings"]:
-			cached_users[pairing[0]["id"]] = database.DictDataObject(
-				{"unique-id": pairing[0]["id"], "name": pairing[0]["name"]})
-			cached_players[pairing[1]["id"]] = database.DictDataObject(
-				{"id": int(pairing[1]["id"]), "name": pairing[1]["name"]})
-			cached_pairings.append(database.DictDataObject(
-				{"user-unique-id": pairing[0]["id"], "player-id": int(pairing[1]["id"])}))
+			cached_users[pairing[0]["id"]] = {"unique-id": pairing[0]["id"], "name": pairing[0]["name"]}
+			cached_players[pairing[1]["id"]] = {"id": int(pairing[1]["id"]), "name": pairing[1]["name"]}
+			cached_pairings.append({"user-unique-id": pairing[0]["id"], "player-id": int(pairing[1]["id"])})
 
 		for new_user in cached_users.values():
-			database.cached_users.delete(unique_id=new_user.unique_id)
-			database.cached_users.insert(new_user)
+			database.remove_cached_user(unique_id=new_user["unique-id"])
+			database.insert_cached_user(unique_id=new_user["unique-id"], name=new_user["name"])
 
 		for new_player in cached_players.values():
-			database.cached_players.delete(id=new_player.id)
-			database.cached_players.insert(new_player)
+			database.remove_cached_player(id=new_player["id"])
+			database.insert_cached_player(id=new_player["id"], name=new_player["name"])
 
 		for plugin_info in self.plugin_manager.getPluginsOfCategory("UserCache"):
 			plugin_info.plugin_object.reset_pairings(cached_pairings)

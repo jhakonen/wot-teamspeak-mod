@@ -17,15 +17,13 @@
 
 from gui.mods.tessumod import database
 from gui.mods.tessumod.lib import logutils, clientquery, gameapi
-from gui.mods.tessumod.lib import pydash as _
 from gui.mods.tessumod.lib.promise import Promise
-from gui.mods.tessumod.messages import PlayerMeMessage, UserMessage
+from gui.mods.tessumod.messages import PlayerMeMessage
 from gui.mods.tessumod.plugintypes import Plugin, SettingsProvider, VoiceClientProvider, EntityProvider
 
 import collections
 import itertools
 import re
-from copy import copy
 
 logger = logutils.logger.getChild("tscqplugin")
 
@@ -144,7 +142,7 @@ class TSCQPlugin(Plugin, SettingsProvider, VoiceClientProvider,	EntityProvider):
 		Implemented from EntityProvider.
 		"""
 		if name == "users":
-			return database.users.clone()
+			return database.get_all_users()
 
 	@logutils.trace_call(logger)
 	def __connect(self):
@@ -211,64 +209,38 @@ class TSCQPlugin(Plugin, SettingsProvider, VoiceClientProvider,	EntityProvider):
 
 	@logutils.trace_call(logger)
 	def __on_user_added(self, schandlerid, clid):
-		user_id = self.__get_user_id(schandlerid, clid)
-		if database.users.where(id=user_id):
-			return
-		new_user = self.__create_db_user(schandlerid, clid)
-		database.users.insert(new_user)
-		self.messages.publish(UserMessage("added", copy(new_user)))
+		database.insert_user(**self.__create_db_user(schandlerid, clid))
 
 	@logutils.trace_call(logger)
 	def __on_user_removed(self, schandlerid, clid):
-		user_id = self.__get_user_id(schandlerid, clid)
-		old_user = _.head(database.users.where(id=user_id))
-		if not old_user:
-			return
-		database.users.remove(old_user)
-		self.messages.publish(UserMessage("removed", old_user))
+		database.remove_user(id=self.__get_user_id(schandlerid, clid))
 
 	@logutils.trace_call(logger)
 	def __on_user_name_changed(self, schandlerid, clid, old_value, new_value):
-		user_id = self.__get_user_id(schandlerid, clid)
-		if database.users.delete(id=user_id):
-			new_user = self.__create_db_user(schandlerid, clid)
-			database.users.insert(new_user)
-			self.messages.publish(UserMessage("modified", copy(new_user)))
+		database.update_user(**self.__create_db_user(schandlerid, clid))
 
 	@logutils.trace_call(logger)
 	def __on_user_game_name_changed(self, schandlerid, clid, old_value, new_value):
-		user_id = self.__get_user_id(schandlerid, clid)
-		if database.users.delete(id=user_id):
-			new_user = self.__create_db_user(schandlerid, clid)
-			database.users.insert(new_user)
-			self.messages.publish(UserMessage("modified", copy(new_user)))
+		database.update_user(**self.__create_db_user(schandlerid, clid))
 
 	@logutils.trace_call(logger)
 	def __on_user_speaking_changed(self, schandlerid, clid, old_value, new_value):
-		user_id = self.__get_user_id(schandlerid, clid)
-		if database.users.delete(id=user_id):
-			new_user = self.__create_db_user(schandlerid, clid)
-			database.users.insert(new_user)
-			self.messages.publish(UserMessage("modified", copy(new_user)))
+		database.update_user(**self.__create_db_user(schandlerid, clid))
 
 	@logutils.trace_call(logger)
 	def __on_user_my_channel_changed(self, schandlerid, clid, old_value, new_value):
-		user_id = self.__get_user_id(schandlerid, clid)
-		if database.users.delete(id=user_id):
-			new_user = self.__create_db_user(schandlerid, clid)
-			database.users.insert(new_user)
-			self.messages.publish(UserMessage("modified", copy(new_user)))
+		database.update_user(**self.__create_db_user(schandlerid, clid))
 
 	def __create_db_user(self, schandlerid, clid):
-		return database.DictDataObject({
+		return {
 			"id": self.__get_user_id(schandlerid, clid),
 			"name": self.__ts.get_user_parameter(schandlerid, clid, "client-nickname"),
-			"game-name": self.__ts.get_user_parameter(schandlerid, clid, "game-nickname"),
-			"unique-id": self.__ts.get_user_parameter(schandlerid, clid, "client-unique-identifier"),
+			"game_name": self.__ts.get_user_parameter(schandlerid, clid, "game-nickname"),
+			"unique_id": self.__ts.get_user_parameter(schandlerid, clid, "client-unique-identifier"),
 			"speaking": self.__ts.get_user_parameter(schandlerid, clid, "talking"),
-			"is-me": self.__ts.get_user_parameter(schandlerid, clid, "is-me"),
-			"my-channel": self.__ts.get_user_parameter(schandlerid, clid, "my-channel")
-		})
+			"is_me": self.__ts.get_user_parameter(schandlerid, clid, "is-me"),
+			"my_channel": self.__ts.get_user_parameter(schandlerid, clid, "my-channel")
+		}
 
 	def __get_user_id(self, schandlerid, clid):
 		return (schandlerid, clid)

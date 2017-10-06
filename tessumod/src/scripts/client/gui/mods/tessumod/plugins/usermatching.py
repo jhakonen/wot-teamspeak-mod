@@ -20,7 +20,7 @@ from gui.mods.tessumod.items import get_items
 from gui.mods.tessumod.lib import logutils
 from gui.mods.tessumod.lib import pydash as _
 from gui.mods.tessumod.messages import (BattlePlayerMessage, PrebattlePlayerMessage,
-	PairingMessage, UserMessage)
+                                        UserMessage)
 from gui.mods.tessumod.plugintypes import Plugin, SettingsProvider, UserCache, EntityProvider
 
 import re
@@ -168,27 +168,21 @@ class UserMatchingPlugin(Plugin, SettingsProvider, UserCache, EntityProvider):
 		"""
 		Implemented from UserCache.
 		"""
-		if not database.pairings.where(player_id=player_id, user_unique_id=user_id):
-			pairing = database.DictDataObject({"player-id": player_id, "user-unique-id": user_id})
-			database.pairings.insert(pairing)
-			self.messages.publish(PairingMessage("added" , copy(pairing)))
+		database.insert_pairing(user_unique_id=user_id, player_id=player_id)
 
 	@logutils.trace_call(logger)
 	def remove_pairing(self, user_id, player_id):
 		"""
 		Implemented from UserCache.
 		"""
-		pairing = _.head(database.pairings.where(player_id=player_id, user_unique_id=user_id))
-		if pairing:
-			database.pairings.remove(pairing)
-			self.messages.publish(PairingMessage("removed" , pairing))
+		database.remove_pairing(user_unique_id=user_id, player_id=player_id)
 
 	def reset_pairings(self, pairings):
 		"""
 		Implemented from UserCache.
 		"""
 		new_ids = set((p["user-unique-id"], p["player-id"]) for p in pairings)
-		old_ids = set((p["user-unique-id"], p["player-id"]) for p in database.pairings)
+		old_ids = set((p["user-unique-id"], p["player-id"]) for p in database.get_all_pairings())
 		added_ids = new_ids - old_ids
 		removed_ids = old_ids - new_ids
 		for id in added_ids:
@@ -207,7 +201,7 @@ class UserMatchingPlugin(Plugin, SettingsProvider, UserCache, EntityProvider):
 		Implemented from EntityProvider.
 		"""
 		if name == "pairings":
-			return database.pairings.clone()
+			return database.get_all_pairings()
 
 	def __get_players(self):
 		return get_items(self.plugin_manager, ["battle-players", "prebattle-players"], ["id"])

@@ -18,11 +18,7 @@
 from gui.mods.tessumod import database
 from gui.mods.tessumod.lib import logutils, gameapi
 from gui.mods.tessumod.lib import pydash as _
-from gui.mods.tessumod.messages import (PlayerMeMessage, BattlePlayerMessage,
-	VehicleMessage, PrebattlePlayerMessage)
 from gui.mods.tessumod.plugintypes import Plugin, EntityProvider
-
-from copy import copy
 
 logger = logutils.logger.getChild("players")
 
@@ -74,65 +70,36 @@ class PlayersPlugin(Plugin, EntityProvider):
 		Implemented from EntityProvider.
 		"""
 		if name == "battle-players":
-			return database.battle_players.clone()
+			return database.get_all_battle_players()
 		if name == "prebattle-players":
-			return database.prebattle_players.clone()
+			return database.get_all_prebattle_players()
 		if name == "vehicles":
-			return database.vehicles.clone()
+			return database.get_all_vehicles()
 		if name == "me-player":
-			return [self.__is_me] if self.__is_me else []
+			return database.get_me_players()
 
 	@logutils.trace_call(logger)
 	def __on_my_player_received(self, player):
-		db_player = self.__to_internal_player(player)
-		self.__is_me = db_player
-		self.messages.publish(PlayerMeMessage("added", copy(db_player)))
+		database.set_me_player(**player)
 
 	@logutils.trace_call(logger)
 	def __on_battle_player_added(self, player):
-		if not database.battle_players.where(id=player["id"]):
-			new_player = self.__to_internal_player(player)
-			database.battle_players.insert(new_player)
-			self.messages.publish(BattlePlayerMessage("added", copy(new_player)))
-		if not database.vehicles.where(id=player["vehicle_id"]):
-			new_vehicle = self.__to_internal_vehicle(player)
-			database.vehicles.insert(new_vehicle)
-			self.messages.publish(VehicleMessage("added", copy(new_vehicle)))
+		database.insert_battle_player(**_.pick(player, 'id', 'name'))
+		database.insert_vehicle(id=player['vehicle_id'], player_id=player['id'], is_alive=player['is_alive'])
 
 	@logutils.trace_call(logger)
 	def __on_battle_player_modified(self, player):
-		if database.vehicles.delete(id=player["vehicle_id"]):
-			new_vehicle = self.__to_internal_vehicle(player)
-			database.vehicles.insert(new_vehicle)
-			self.messages.publish(VehicleMessage("modified", copy(new_vehicle)))
+		database.update_vehicle(id=player['vehicle_id'], player_id=player['id'], is_alive=player['is_alive'])
 
 	@logutils.trace_call(logger)
 	def __on_battle_player_removed(self, player):
-		old_player = _.head(database.battle_players.where(id=player["id"]))
-		if old_player:
-			database.battle_players.remove(old_player)
-			self.messages.publish(BattlePlayerMessage("removed", old_player))
-		old_vehicle = _.head(database.vehicles.where(id=player["vehicle_id"]))
-		if old_vehicle:
-			database.vehicles.remove(old_vehicle)
-			self.messages.publish(VehicleMessage("removed", old_vehicle))
+		database.remove_battle_player(id=player['id'])
+		database.remove_vehicle(id=player['vehicle_id'])
 
 	@logutils.trace_call(logger)
 	def __on_prebattle_player_added(self, player):
-		if not database.prebattle_players.where(id=player["id"]):
-			new_player = self.__to_internal_player(player)
-			database.prebattle_players.insert(new_player)
-			self.messages.publish(PrebattlePlayerMessage("added", copy(new_player)))
+		database.insert_prebattle_player(**player)
 
 	@logutils.trace_call(logger)
 	def __on_prebattle_player_removed(self, player):
-		old_player = _.head(database.prebattle_players.where(id=player["id"]))
-		if old_player:
-			database.prebattle_players.remove(old_player)
-			self.messages.publish(PrebattlePlayerMessage("removed", old_player))
-
-	def __to_internal_player(self, player):
-		return database.DictDataObject({"id": player["id"], "name": player["name"]})
-
-	def __to_internal_vehicle(self, player):
-		return database.DictDataObject({"id": player["vehicle_id"], "player-id": player["id"], "is-alive": player["is_alive"]})
+		database.remove_prebattle_player(id=player['id'])

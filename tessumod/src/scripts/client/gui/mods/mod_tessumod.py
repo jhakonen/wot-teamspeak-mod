@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "tessumod", "lib"))
 import tessumod.lib.pydash
 sys.path.pop(0)
 
-from tessumod import migrate, plugintypes
+from tessumod import database, migrate, plugintypes
 from tessumod.lib import gameapi, logutils, messagepump, timer
 from tessumod.lib.pluginmanager import PluginManager
 
@@ -61,6 +61,7 @@ def init():
 		plugin_manager = PluginManager(config["plugins"], plugins_path, plugin_categories)
 		plugin_manager.collectPlugins()
 		messages = messagepump.MessagePump()
+		database.messages = messages
 		for plugin_info in plugin_manager.getAllPlugins():
 			plugin_info.plugin_object.plugin_manager = plugin_manager
 			plugin_info.plugin_object.messages = messages

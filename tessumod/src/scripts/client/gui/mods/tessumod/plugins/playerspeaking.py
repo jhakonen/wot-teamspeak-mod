@@ -20,7 +20,7 @@ from gui.mods.tessumod.items import get_items
 from gui.mods.tessumod.lib import logutils
 from gui.mods.tessumod.lib import pydash as _
 from gui.mods.tessumod.lib.timer import TimerMixin
-from gui.mods.tessumod.messages import UserMessage, PairingMessage, PlayerSpeakingMessage
+from gui.mods.tessumod.messages import UserMessage, PairingMessage
 from gui.mods.tessumod.plugintypes import Plugin, SettingsProvider, SettingsUIProvider, EntityProvider
 
 from copy import copy
@@ -120,7 +120,7 @@ class PlayerSpeakingPlugin(Plugin, SettingsProvider, SettingsUIProvider, EntityP
 		Implemented from EntityProvider.
 		"""
 		if name == "speaking-players":
-			return database.speaking_players.clone()
+			return database.get_all_speaking_players()
 
 	def __get_paired_players(self, user_unique_id):
 		pairings = get_items(self.plugin_manager, ["pairings"], ["player-id", "user-unique-id"])
@@ -169,7 +169,7 @@ class DelayedSpeakNotifier(TimerMixin):
 	def force_stop(self):
 		self.__speaking = False
 		self.off_timeout(self.__on_timeout)
-		self.__notify(self.__player_ids, self.__speaking)
+		database.set_players_speaking(self.__player_ids, self.__speaking)
 
 	def set_stop_delay(self, delay):
 		self.__stop_delay = delay
@@ -179,10 +179,10 @@ class DelayedSpeakNotifier(TimerMixin):
 		added_ids = set(player_ids) - set(self.__player_ids)
 		self.__player_ids = player_ids
 		if self.__speaking:
-			self.__notify(added_ids, True)
-			self.__notify(removed_ids, False)
+			database.set_players_speaking(added_ids, True)
+			database.set_players_speaking(removed_ids, False)
 		elif self.__timeout_running:
-			self.__notify(removed_ids, False)
+			database.set_players_speaking(removed_ids, False)
 
 	def set_speaking(self, speaking):
 		if self.__speaking == speaking:
@@ -191,7 +191,7 @@ class DelayedSpeakNotifier(TimerMixin):
 		if speaking:
 			self.off_timeout(self.__on_timeout)
 			self.__timeout_running = False
-			self.__notify(self.__player_ids, self.__speaking)
+			database.set_players_speaking(self.__player_ids, self.__speaking)
 		else:
 			self.on_timeout(self.__stop_delay, self.__on_timeout)
 			self.__timeout_running = True
@@ -199,15 +199,4 @@ class DelayedSpeakNotifier(TimerMixin):
 	def __on_timeout(self):
 		self.__timeout_running = False
 		if not self.__speaking:
-			self.__notify(self.__player_ids, self.__speaking)
-
-	def __notify(self, player_ids, speaking):
-		for player_id in player_ids:
-			old_player = _.head(database.speaking_players.where(id=player_id))
-			if speaking and not old_player:
-				new_player = database.DictDataObject({"id": player_id})
-				database.speaking_players.insert(new_player)
-				self.messages.publish(PlayerSpeakingMessage("added", copy(new_player)))
-			elif not speaking and old_player:
-				database.speaking_players.remove(old_player)
-				self.messages.publish(PlayerSpeakingMessage("removed", old_player))
+			database.set_players_speaking(self.__player_ids, self.__speaking)
