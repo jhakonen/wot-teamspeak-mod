@@ -201,6 +201,12 @@ projects:
       - py_compile:
           tags: ['build', 'clean']
           input_files:
+            - "{src_dir}/scripts/client/gui/mods/tessumod/lib/littletable/*.py"
+          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/lib/littletable"
+          dbg_dir: "scripts/client/gui/mods/tessumod/lib/littletable"
+      - py_compile:
+          tags: ['build', 'clean']
+          input_files:
             - "{src_dir}/scripts/client/gui/mods/tessumod/lib/promise/pyutils/*.py"
           target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/lib/promise/pyutils"
           dbg_dir: "scripts/client/gui/mods/tessumod/lib/promise/pyutils"

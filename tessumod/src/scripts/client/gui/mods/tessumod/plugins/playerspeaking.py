@@ -15,6 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
+from gui.mods.tessumod import database
 from gui.mods.tessumod.items import get_items
 from gui.mods.tessumod.lib import logutils
 from gui.mods.tessumod.lib import pydash as _
@@ -119,10 +120,7 @@ class PlayerSpeakingPlugin(Plugin, SettingsProvider, SettingsUIProvider, EntityP
 		Implemented from EntityProvider.
 		"""
 		if name == "speaking-players":
-			players = []
-			for notifier in self.__notifiers.itervalues():
-				players.extend(notifier.get_speaking_player_ids())
-			return [{"id": p} for p in players]
+			return database.speaking_players.clone()
 
 	def __get_paired_players(self, user_unique_id):
 		pairings = get_items(self.plugin_manager, ["pairings"], ["player-id", "user-unique-id"])
@@ -205,4 +203,11 @@ class DelayedSpeakNotifier(TimerMixin):
 
 	def __notify(self, player_ids, speaking):
 		for player_id in player_ids:
-			self.messages.publish(PlayerSpeakingMessage("added" if speaking else "removed", {"id": player_id}))
+			old_player = _.head(database.speaking_players.where(id=player_id))
+			if speaking and not old_player:
+				new_player = database.DictDataObject({"id": player_id})
+				database.speaking_players.insert(new_player)
+				self.messages.publish(PlayerSpeakingMessage("added", copy(new_player)))
+			elif not speaking and old_player:
+				database.speaking_players.remove(old_player)
+				self.messages.publish(PlayerSpeakingMessage("removed", old_player))

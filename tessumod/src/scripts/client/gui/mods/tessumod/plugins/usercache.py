@@ -15,6 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
+from gui.mods.tessumod import database
 from gui.mods.tessumod.items import get_items, match_id, match_unique_id
 from gui.mods.tessumod.lib import logutils, gameapi
 from gui.mods.tessumod.lib import pydash as _
@@ -51,8 +52,6 @@ class UserCachePlugin(Plugin, SettingsProvider, SettingsUIProvider, SnapshotProv
 		self.__config_dirpath = os.path.join(gameapi.find_res_mods_version_path(), "..", "configs", "tessumod")
 		self.__cache_filepath = os.path.join(self.__config_dirpath, "usercache.json")
 		self.__snapshots = {}
-		self.__cached_players = {}
-		self.__cached_users = {}
 
 	@logutils.trace_call(logger)
 	def initialize(self):
@@ -163,9 +162,9 @@ class UserCachePlugin(Plugin, SettingsProvider, SettingsUIProvider, SnapshotProv
 		Implemented from EntityProvider.
 		"""
 		if name == "cached-users":
-			return self.__cached_users.values()
+			return database.cached_users.clone()
 		if name == "cached-players":
-			return self.__cached_players.values()
+			return database.cached_players.clone()
 
 	@logutils.trace_call(logger)
 	def __on_battle_replay_started(self):
@@ -175,10 +174,12 @@ class UserCachePlugin(Plugin, SettingsProvider, SettingsUIProvider, SnapshotProv
 		if action == "added":
 			user = _.find(self.__get_live_users(), match_unique_id(data["user-unique-id"]))
 			if user:
-				self.__cached_users[user["unique-id"]] = copy(user)
+				database.cached_users.delete(unique_id=data["user-unique-id"])
+				database.cached_users.insert(database.DictDataObject(user))
 			player = _.find(self.__get_live_players(), match_id(data["player-id"]))
 			if player:
-				self.__cached_players[player["id"]] = copy(player)
+				database.cached_players.delete(id=data["player-id"])
+				database.cached_players.insert(database.DictDataObject(player))
 		elif action == "removed":
 			raise RuntimeError("Not implemented")
 
@@ -228,11 +229,21 @@ class UserCachePlugin(Plugin, SettingsProvider, SettingsUIProvider, SnapshotProv
 		cached_players = {}
 		cached_pairings = []
 		for pairing in cache_structure["pairings"]:
-			cached_users[pairing[0]["id"]] = {"unique-id": pairing[0]["id"], "name": pairing[0]["name"]}
-			cached_players[pairing[1]["id"]] = {"id": int(pairing[1]["id"]), "name": pairing[1]["name"]}
-			cached_pairings.append({"user-unique-id": pairing[0]["id"], "player-id": int(pairing[1]["id"])})
-		self.__cached_users = cached_users
-		self.__cached_players = cached_players
+			cached_users[pairing[0]["id"]] = database.DictDataObject(
+				{"unique-id": pairing[0]["id"], "name": pairing[0]["name"]})
+			cached_players[pairing[1]["id"]] = database.DictDataObject(
+				{"id": int(pairing[1]["id"]), "name": pairing[1]["name"]})
+			cached_pairings.append(database.DictDataObject(
+				{"user-unique-id": pairing[0]["id"], "player-id": int(pairing[1]["id"])}))
+
+		for new_user in cached_users.values():
+			database.cached_users.delete(unique_id=new_user.unique_id)
+			database.cached_users.insert(new_user)
+
+		for new_player in cached_players.values():
+			database.cached_players.delete(id=new_player.id)
+			database.cached_players.insert(new_player)
+
 		for plugin_info in self.plugin_manager.getPluginsOfCategory("UserCache"):
 			plugin_info.plugin_object.reset_pairings(cached_pairings)
 

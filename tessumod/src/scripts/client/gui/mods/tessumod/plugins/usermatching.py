@@ -15,6 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
+from gui.mods.tessumod import database
 from gui.mods.tessumod.items import get_items
 from gui.mods.tessumod.lib import logutils
 from gui.mods.tessumod.lib import pydash as _
@@ -46,7 +47,6 @@ class UserMatchingPlugin(Plugin, SettingsProvider, UserCache, EntityProvider):
 		self.__ts_nick_search_enabled = True
 		self.__nick_extract_patterns = []
 		self.__name_mappings = {}
-		self.__pairings = {}
 
 		self.__matchers = [
 			self.__find_matching_with_metadata,
@@ -168,26 +168,27 @@ class UserMatchingPlugin(Plugin, SettingsProvider, UserCache, EntityProvider):
 		"""
 		Implemented from UserCache.
 		"""
-		id = (user_id, player_id)
-		if id not in self.__pairings:
-			self.__pairings[id] = {"player-id": player_id, "user-unique-id": user_id}
-			self.messages.publish(PairingMessage("added" , copy(self.__pairings[id])))
+		if not database.pairings.where(player_id=player_id, user_unique_id=user_id):
+			pairing = database.DictDataObject({"player-id": player_id, "user-unique-id": user_id})
+			database.pairings.insert(pairing)
+			self.messages.publish(PairingMessage("added" , copy(pairing)))
 
 	@logutils.trace_call(logger)
 	def remove_pairing(self, user_id, player_id):
 		"""
 		Implemented from UserCache.
 		"""
-		id = (user_id, player_id)
-		if id in self.__pairings:
-			self.messages.publish(PairingMessage("removed" , copy(self.__pairings[id])))
+		pairing = _.head(database.pairings.where(player_id=player_id, user_unique_id=user_id))
+		if pairing:
+			database.pairings.remove(pairing)
+			self.messages.publish(PairingMessage("removed" , pairing))
 
 	def reset_pairings(self, pairings):
 		"""
 		Implemented from UserCache.
 		"""
 		new_ids = set((p["user-unique-id"], p["player-id"]) for p in pairings)
-		old_ids = set((p["user-unique-id"], p["player-id"]) for p in self.__pairings)
+		old_ids = set((p["user-unique-id"], p["player-id"]) for p in database.pairings)
 		added_ids = new_ids - old_ids
 		removed_ids = old_ids - new_ids
 		for id in added_ids:
@@ -206,7 +207,7 @@ class UserMatchingPlugin(Plugin, SettingsProvider, UserCache, EntityProvider):
 		Implemented from EntityProvider.
 		"""
 		if name == "pairings":
-			return self.__pairings.values()
+			return database.pairings.clone()
 
 	def __get_players(self):
 		return get_items(self.plugin_manager, ["battle-players", "prebattle-players"], ["id"])
