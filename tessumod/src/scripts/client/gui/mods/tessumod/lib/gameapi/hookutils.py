@@ -32,6 +32,11 @@ def CALL_BEFORE(original_func, hook_func, *args, **kwargs):
 	hook_func(*args, **kwargs)
 	return original_func(*args, **kwargs)
 
+def CALL_AFTER(original_func, hook_func, *args, **kwargs):
+	result = original_func(*args, **kwargs)
+	hook_func(*args, **kwargs)
+	return result
+
 def CALL_WITH_ORIGINAL(original_func, hook_func, *args, **kwargs):
 	return hook_func(original_func, *args, **kwargs)
 

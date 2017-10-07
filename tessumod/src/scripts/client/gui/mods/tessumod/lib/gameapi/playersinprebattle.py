@@ -32,10 +32,10 @@ Each event has a dict argument which has following keys and values:
 from __future__ import absolute_import
 from copy import copy
 
-from gui.prb_control.dispatcher import _PrbControlLoader
+from gui.prb_control.dispatcher import _PrbControlLoader, g_prbLoader
 from gui.prb_control.entities.listener import IGlobalListener
 
-from .hookutils import hook_method
+from .hookutils import hook_method, CALL_AFTER
 from .. import logutils
 
 logger = logutils.logger.getChild("gameapi")
@@ -47,11 +47,15 @@ def init(events):
 	_notifier = PlayersInPrebattleNotifier(events)
 
 def deinit():
-	_notifier.stopGlobalListening()
+	if g_prbLoader.getDispatcher():
+		g_prbLoader.getDispatcher().removeListener(_notifier)
 
-@hook_method(_PrbControlLoader, "onAccountShowGUI")
+@hook_method(_PrbControlLoader, "onAccountShowGUI", call_style=CALL_AFTER)
 def _onAccountShowGUI(self, ctx):
-	_notifier.startGlobalListening()
+	if g_prbLoader.getDispatcher():
+		g_prbLoader.getDispatcher().addListener(_notifier)
+	else:
+		logger.error('Event dispatcher not available, tessumod might not work in prebattle rooms')
 
 class PlayersInPrebattleNotifier(IGlobalListener):
 
