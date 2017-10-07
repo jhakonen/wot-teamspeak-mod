@@ -18,7 +18,7 @@
 from gui.mods.tessumod import database
 from gui.mods.tessumod.lib import logutils, gameapi
 from gui.mods.tessumod.lib import pydash as _
-from gui.mods.tessumod.plugintypes import Plugin, EntityProvider
+from gui.mods.tessumod.plugintypes import Plugin
 
 logger = logutils.logger.getChild("players")
 
@@ -28,7 +28,7 @@ def build_plugin():
 	"""
 	return PlayersPlugin()
 
-class PlayersPlugin(Plugin, EntityProvider):
+class PlayersPlugin(Plugin):
 	"""
 	This plugin provides models of players for other plugins.
 	"""
@@ -58,25 +58,6 @@ class PlayersPlugin(Plugin, EntityProvider):
 		gameapi.events.off("battle_player_removed", self.__on_battle_player_removed)
 		gameapi.events.off("prebattle_player_added", self.__on_prebattle_player_added)
 		gameapi.events.off("prebattle_player_removed", self.__on_prebattle_player_removed)
-
-	def has_entity_source(self, name):
-		"""
-		Implemented from EntityProvider.
-		"""
-		return name in ["battle-players", "prebattle-players", "vehicles", "me-player"]
-
-	def get_entity_source(self, name):
-		"""
-		Implemented from EntityProvider.
-		"""
-		if name == "battle-players":
-			return database.get_all_battle_players()
-		if name == "prebattle-players":
-			return database.get_all_prebattle_players()
-		if name == "vehicles":
-			return database.get_all_vehicles()
-		if name == "me-player":
-			return database.get_me_players()
 
 	@logutils.trace_call(logger)
 	def __on_my_player_received(self, player):

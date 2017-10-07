@@ -16,12 +16,11 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 from gui.mods.tessumod import database
-from gui.mods.tessumod.items import get_items
 from gui.mods.tessumod.lib import logutils
 from gui.mods.tessumod.lib import pydash as _
 from gui.mods.tessumod.lib.timer import TimerMixin
 from gui.mods.tessumod.messages import UserMessage, PairingMessage
-from gui.mods.tessumod.plugintypes import Plugin, SettingsProvider, SettingsUIProvider, EntityProvider
+from gui.mods.tessumod.plugintypes import Plugin, SettingsProvider, SettingsUIProvider
 
 from copy import copy
 
@@ -38,7 +37,7 @@ def build_plugin():
 #  - Add ability to remove matches (called from settingsui)
 # =============================================================================
 
-class PlayerSpeakingPlugin(Plugin, SettingsProvider, SettingsUIProvider, EntityProvider):
+class PlayerSpeakingPlugin(Plugin, SettingsProvider, SettingsUIProvider):
 	"""
 	This plugin ...
 	"""
@@ -108,31 +107,12 @@ class PlayerSpeakingPlugin(Plugin, SettingsProvider, SettingsUIProvider, EntityP
 		}
 
 	@logutils.trace_call(logger)
-	def has_entity_source(self, name):
-		"""
-		Implemented from EntityProvider.
-		"""
-		return name == "speaking-players"
-
-	@logutils.trace_call(logger)
-	def get_entity_source(self, name):
-		"""
-		Implemented from EntityProvider.
-		"""
-		if name == "speaking-players":
-			return database.get_all_speaking_players()
-
-	def __get_paired_players(self, user_unique_id):
-		pairings = get_items(self.plugin_manager, ["pairings"], ["player-id", "user-unique-id"])
-		return [pairing["player-id"] for pairing in _.filter_(pairings, lambda p: p["user-unique-id"] == user_unique_id)]
-
-	@logutils.trace_call(logger)
 	def __on_user_event(self, action, data):
 		user_id = data["id"]
 		if action == "added":
 			self.__notifiers[user_id] = DelayedSpeakNotifier(user_id, data["unique-id"], self.messages)
 			self.__notifiers[user_id].set_stop_delay(self.__speak_stop_delay)
-			self.__notifiers[user_id].set_player_ids(self.__get_paired_players(data["unique-id"]))
+			self.__notifiers[user_id].set_player_ids(database.get_user_paired_player_ids(data["unique-id"]))
 		if action in ["added", "modified"]:
 			self.__notifiers[user_id].set_speaking(data["speaking"])
 		if action == "removed":
@@ -144,10 +124,10 @@ class PlayerSpeakingPlugin(Plugin, SettingsProvider, SettingsUIProvider, EntityP
 		key = (data["user-unique-id"], data["player-id"])
 		if action == "added":
 			for notifier in _.filter_(self.__notifiers, lambda n: n.user_unique_id == data["user-unique-id"]):
-				notifier.set_player_ids(self.__get_paired_players(data["user-unique-id"]))
+				notifier.set_player_ids(database.get_user_paired_player_ids(data["user-unique-id"]))
 		elif action == "removed":
 			for notifier in _.filter_(self.__notifiers, lambda n: n.user_unique_id == data["user-unique-id"]):
-				notifier.set_player_ids(self.__get_paired_players(data["user-unique-id"]))
+				notifier.set_player_ids(database.get_user_paired_player_ids(data["user-unique-id"]))
 
 class DelayedSpeakNotifier(TimerMixin):
 

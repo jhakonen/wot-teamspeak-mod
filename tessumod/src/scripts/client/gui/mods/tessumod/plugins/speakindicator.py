@@ -15,7 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod.items import get_items
+from gui.mods.tessumod import database
 from gui.mods.tessumod.lib import logutils, gameapi
 from gui.mods.tessumod.messages import PlayerSpeakingMessage, PlayerMeMessage
 from gui.mods.tessumod.plugintypes import Plugin, SettingsProvider
@@ -39,7 +39,6 @@ class SpeakIndicatorPlugin(Plugin, SettingsProvider):
 		super(SpeakIndicatorPlugin, self).__init__()
 		self.__enabled = None
 		self.__self_enabled = None
-		self.__my_player_id = None
 
 	@logutils.trace_call(logger)
 	def initialize(self):
@@ -61,7 +60,7 @@ class SpeakIndicatorPlugin(Plugin, SettingsProvider):
 				self.__enabled = value
 			if name == "self_enabled":
 				self.__self_enabled = value
-				self.__update_player_speaking(self.__my_player_id)
+				self.__update_player_speaking(database.get_my_player_id())
 
 	@logutils.trace_call(logger)
 	def get_settings_content(self):
@@ -92,8 +91,7 @@ class SpeakIndicatorPlugin(Plugin, SettingsProvider):
 
 	@logutils.trace_call(logger)
 	def __on_player_is_me_event(self, action, data):
-		self.__my_player_id = data["id"]
-		self.__update_player_speaking(self.__my_player_id)
+		self.__update_player_speaking(database.get_my_player_id())
 
 	def __update_player_speaking(self, player_id):
 		gameapi.set_player_speaking(player_id, self.__is_player_speaking(player_id))
@@ -101,8 +99,5 @@ class SpeakIndicatorPlugin(Plugin, SettingsProvider):
 	def __is_player_speaking(self, player_id):
 		return \
 			self.__enabled and \
-			(self.__self_enabled or player_id != self.__my_player_id) and \
-			player_id in self.__get_speaking_players()
-
-	def __get_speaking_players(self):
-		return map(lambda p: p["id"], get_items(self.plugin_manager, ["speaking-players"], ["id"]))
+			(self.__self_enabled or player_id != database.get_my_player_id()) and \
+			database.is_player_speaking(player_id)

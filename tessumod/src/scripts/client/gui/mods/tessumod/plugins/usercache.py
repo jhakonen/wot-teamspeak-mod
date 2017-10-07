@@ -16,12 +16,11 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 from gui.mods.tessumod import database
-from gui.mods.tessumod.items import get_items, match_id, match_unique_id
 from gui.mods.tessumod.lib import logutils, gameapi
 from gui.mods.tessumod.lib import pydash as _
 from gui.mods.tessumod.messages import PairingMessage
 from gui.mods.tessumod.plugintypes import (Plugin, SettingsProvider, SettingsUIProvider,
-	SnapshotProvider, EntityProvider)
+										   SnapshotProvider)
 
 import itertools
 import json
@@ -37,7 +36,7 @@ def build_plugin():
 	"""
 	return UserCachePlugin()
 
-class UserCachePlugin(Plugin, SettingsProvider, SettingsUIProvider, SnapshotProvider, EntityProvider):
+class UserCachePlugin(Plugin, SettingsProvider, SettingsUIProvider, SnapshotProvider):
 	"""
 	This plugin ...
 	"""
@@ -151,52 +150,16 @@ class UserCachePlugin(Plugin, SettingsProvider, SettingsUIProvider, SnapshotProv
 		if snapshot_name in self.__snapshots:
 			self.__import_cache_structure(self.__snapshots[snapshot_name])
 
-	def has_entity_source(self, name):
-		"""
-		Implemented from EntityProvider.
-		"""
-		return name in ["cached-users", "cached-players"]
-
-	def get_entity_source(self, name):
-		"""
-		Implemented from EntityProvider.
-		"""
-		if name == "cached-users":
-			return database.get_all_cached_users()
-		if name == "cached-players":
-			return database.get_all_cached_players()
-
 	@logutils.trace_call(logger)
 	def __on_battle_replay_started(self):
 		self.__in_replay = True
 
 	def __on_pairing_event(self, action, data):
 		if action == "added":
-			user = _.find(self.__get_live_users(), match_unique_id(data["user-unique-id"]))
-			if user:
-				database.remove_cached_user(unique_id=user["unique_id"])
-				database.insert_cached_user(unique_id=user["unique_id"], name=user["name"])
-			player = _.find(self.__get_live_players(), match_id(data["player-id"]))
-			if player:
-				database.remove_cached_player(id=player["id"])
-				database.insert_cached_player(id=player["id"], name=player["name"])
+			database.upsert_live_user_to_cache(unique_id=data["user-unique-id"])
+			database.upsert_live_player_to_cache(id=data["player-id"])
 		elif action == "removed":
 			raise RuntimeError("Not implemented")
-
-	def __get_pairings(self):
-		return get_items(self.plugin_manager, ["pairings"], ["player-id", "user-unique-id"])
-
-	def __get_live_users(self):
-		return get_items(self.plugin_manager, ["users"], ["id"])
-
-	def __get_all_users(self):
-		return get_items(self.plugin_manager, ["users", "cached-users"], ["unique-id"])
-
-	def __get_live_players(self):
-		return get_items(self.plugin_manager, ["battle-players", "prebattle-players", "me-player"], ["id"])
-
-	def __get_all_players(self):
-		return get_items(self.plugin_manager, ["battle-players", "prebattle-players", "me-player", "cached-players"], ["id"])
 
 	def __has_cache_file(self):
 		return os.path.isfile(self.__cache_filepath)
@@ -245,24 +208,15 @@ class UserCachePlugin(Plugin, SettingsProvider, SettingsUIProvider, SnapshotProv
 			plugin_info.plugin_object.reset_pairings(cached_pairings)
 
 	def __export_cache_structure(self):
-		users = self.__get_all_users()
-		players = self.__get_all_players()
-		pairings = self.__get_pairings()
 		pairing_results = []
-
-		for pairing in pairings.itervalues():
-			user_id = pairing["user-unique-id"]
-			user_name = _.find(users, match_unique_id(user_id))["name"]
-			player_id = pairing["player-id"]
-			player_name = players[player_id]["name"]
+		for pairing in database.get_all_pairings():
 			pairing_results.append(({
-				"id": user_id,
-				"name": user_name
+				"id": pairing.user_unique_id,
+				"name": database.get_user_name(unique_id=pairing.user_unique_id)
 			}, {
-				"id": player_id,
-				"name": player_name
+				"id": pairing.player_id,
+				"name": database.get_player_name(id=pairing.player_id)
 			}))
-
 		return {
 			"version": 1,
 			"pairings": pairing_results

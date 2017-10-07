@@ -16,12 +16,11 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 from gui.mods.tessumod import database
-from gui.mods.tessumod.items import get_items
 from gui.mods.tessumod.lib import logutils
 from gui.mods.tessumod.lib import pydash as _
 from gui.mods.tessumod.messages import (BattlePlayerMessage, PrebattlePlayerMessage,
                                         UserMessage)
-from gui.mods.tessumod.plugintypes import Plugin, SettingsProvider, UserCache, EntityProvider
+from gui.mods.tessumod.plugintypes import Plugin, SettingsProvider, UserCache
 
 import re
 from copy import copy
@@ -34,7 +33,7 @@ def build_plugin():
 	"""
 	return UserMatchingPlugin()
 
-class UserMatchingPlugin(Plugin, SettingsProvider, UserCache, EntityProvider):
+class UserMatchingPlugin(Plugin, SettingsProvider, UserCache):
 	"""
 	This plugin ...
 	"""
@@ -81,7 +80,7 @@ class UserMatchingPlugin(Plugin, SettingsProvider, UserCache, EntityProvider):
 				self.__nick_extract_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in value]
 		if section == "NameMappings":
 			self.__name_mappings[name.lower()] = value.lower()
-		self.__match_users_to_players(self.__get_users(), self.__get_players())
+		self.__match_users_to_players(database.get_live_users_in_my_channel(), database.get_live_players())
 
 	@logutils.trace_call(logger)
 	def get_settings_content(self):
@@ -190,34 +189,15 @@ class UserMatchingPlugin(Plugin, SettingsProvider, UserCache, EntityProvider):
 		for id in removed_ids:
 			self.remove_pairing(id[0], id[1])
 
-	def has_entity_source(self, name):
-		"""
-		Implemented from EntityProvider.
-		"""
-		return name == "pairings"
-
-	def get_entity_source(self, name):
-		"""
-		Implemented from EntityProvider.
-		"""
-		if name == "pairings":
-			return database.get_all_pairings()
-
-	def __get_players(self):
-		return get_items(self.plugin_manager, ["battle-players", "prebattle-players"], ["id"])
-
-	def __get_users(self):
-		return _.filter_(get_items(self.plugin_manager, ["users"], ["id"]), lambda u: u["my-channel"])
-
 	@logutils.trace_call(logger)
 	def __on_player_event(self, action, data):
 		if action == "added":
-			self.__match_users_to_players(self.__get_users(), [data])
+			self.__match_users_to_players(database.get_live_users_in_my_channel(), [data])
 
 	@logutils.trace_call(logger)
 	def __on_user_event(self, action, data):
 		if action in ["added", "modified"]:
-			self.__match_users_to_players([data], self.__get_players())
+			self.__match_users_to_players([data], database.get_live_players())
 
 	def __match_users_to_players(self, users, players):
 		for user, matching_players in self.__find_matching_candidates(users, players):

@@ -147,13 +147,3 @@ class SnapshotProvider(object):
 
 	def restore_snapshot(self, snapshot_name):
 		pass
-
-class EntityProvider(object):
-
-	CATEGORY = "EntityProvider"
-
-	def has_entity_source(self, name):
-		pass
-
-	def get_entity_source(self, name):
-		pass

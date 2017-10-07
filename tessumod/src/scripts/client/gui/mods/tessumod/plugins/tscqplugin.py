@@ -19,7 +19,7 @@ from gui.mods.tessumod import database
 from gui.mods.tessumod.lib import logutils, clientquery, gameapi
 from gui.mods.tessumod.lib.promise import Promise
 from gui.mods.tessumod.messages import PlayerMeMessage
-from gui.mods.tessumod.plugintypes import Plugin, SettingsProvider, VoiceClientProvider, EntityProvider
+from gui.mods.tessumod.plugintypes import Plugin, SettingsProvider, VoiceClientProvider
 
 import collections
 import itertools
@@ -33,7 +33,7 @@ def build_plugin():
 	"""
 	return TSCQPlugin()
 
-class TSCQPlugin(Plugin, SettingsProvider, VoiceClientProvider,	EntityProvider):
+class TSCQPlugin(Plugin, SettingsProvider, VoiceClientProvider):
 	"""
 	This plugin ...
 	"""
@@ -130,19 +130,6 @@ class TSCQPlugin(Plugin, SettingsProvider, VoiceClientProvider,	EntityProvider):
 		Implemented from VoiceClientProvider.
 		"""
 		return self.__ts.get_my_schandlerid()
-
-	def has_entity_source(self, name):
-		"""
-		Implemented from EntityProvider.
-		"""
-		return name == "users"
-
-	def get_entity_source(self, name):
-		"""
-		Implemented from EntityProvider.
-		"""
-		if name == "users":
-			return database.get_all_users()
 
 	@logutils.trace_call(logger)
 	def __connect(self):

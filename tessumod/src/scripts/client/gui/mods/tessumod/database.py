@@ -24,28 +24,6 @@ from collections import Mapping
 
 messages = None
 
-class DictDataObject(Mapping):
-	def __init__(self, data):
-		self.__data = data
-
-	def __repr__(self):
-		return repr(self.__data)
-
-	def __getattr__(self, name):
-		try:
-			return self.__data[name.replace('_', '-')]
-		except KeyError, e:
-			raise AttributeError(e)
-
-	def __getitem__(self, key):
-		return self.__data[key]
-
-	def __iter__(self):
-		return iter(self.__data)
-
-	def __len__(self):
-		return len(self.__data)
-
 # HACK: Remove once Item/Message classes attributes are safe to change
 def message_data(self):
 	return {k.replace('_', '-'): v for k, v in self.__dict__.iteritems()}
@@ -55,26 +33,114 @@ def new__getitem__(self, k):
 orig__getitem__ = DataObject.__getitem__
 DataObject.__getitem__ = new__getitem__
 
-# ======================
-# Me player table
-# ======================
 _me_player = Table('me_player')
 _me_player.create_index('id', unique=True)
+_battle_players = Table('battle_players')
+_battle_players.create_index('id', unique=True)
+_vehicles = Table('vehicles')
+_vehicles.create_index('id', unique=True)
+_vehicles.create_index('player_id', unique=True)
+_prebattle_players = Table('prebattle_players')
+_prebattle_players.create_index('id', unique=True)
+_speaking_players = Table('speaking_players')
+_speaking_players.create_index('id', unique=True)
+_users = Table('users')
+_users.create_index('id', unique=True)
+_users.create_index('unique_id')
+_cached_users = Table('cached_users')
+_cached_users.create_index('unique_id', unique=True)
+_cached_players = Table('cached_players')
+_cached_players.create_index('id', unique=True)
+_pairings = Table('pairings')
+_pairings.create_index('player_id')
+_pairings.create_index('user_unique_id')
+
+
+def get_my_player_id():
+	player = _.head(_me_player)
+	if player:
+		return player.id
+
+def get_my_vehicle():
+	player = _.head(_me_player)
+	if player:
+		return _.head(_vehicles.where(player_id=player.id))
+
+def get_player_vehicle(player_id):
+	return _.head(_vehicles.where(player_id=player_id))
+
+def get_user_paired_player_ids(user_unique_id):
+	return _.pluck(_pairings.where(user_unique_id=user_unique_id), 'player_id')
+
+def is_player_speaking(player_id):
+	return bool(_speaking_players.where(id=player_id))
+
+def get_user_id_vehicle_id_pairs():
+	'''
+	Joins _vehicles, _users and _pairings tables.
+	Returns list of user_id and vehicle_id pairs.
+	'''
+	join1 = _pairings.join(_vehicles, [(_vehicles,'id','vehicle_id'), (_pairings,'user_unique_id')], player_id='player_id')
+	join2 = join1.join(_users, [(join1,'vehicle_id'), (_users,'id','user_id')], user_unique_id='unique_id')
+	return [(row.user_id, row.vehicle_id) for row in join2]
+
+def upsert_live_user_to_cache(unique_id):
+	user = _.head(_users.where(unique_id=unique_id))
+	if user:
+		remove_cached_user(unique_id=unique_id)
+		insert_cached_user(unique_id=unique_id, name=user.name)
+
+def upsert_live_player_to_cache(id):
+	result = _battle_players.where(id=id)
+	if not result:
+		result = _prebattle_players.where(id=id)
+	if not result:
+		result = _me_player.where(id=id)
+	player = _.head(result)
+	if player:
+		remove_cached_player(id=id)
+		insert_cached_player(id=id, name=player.name)
+
+def get_user_name(unique_id):
+	result = _users.where(unique_id=unique_id)
+	if not result:
+		result = _cached_users.where(unique_id=unique_id)
+	for row in result:
+		if row.name:
+			return row.name
+
+def get_player_name(id):
+	result = _battle_players.where(id=id)
+	if not result:
+		result = _prebattle_players.where(id=id)
+	if not result:
+		result = _me_player.where(id=id)
+	if not result:
+		result = _cached_players.where(id=id)
+	for row in result:
+		if row.name:
+			return row.name
+
+def get_live_users_in_my_channel():
+	return _users.where(my_channel=True)
+
+def get_live_players():
+	players = _battle_players
+	players = players.union(_prebattle_players.where(lambda o: o.id not in _.pluck(players, 'id')))
+	players = players.union(_me_player.where(lambda o: o.id not in _.pluck(players, 'id')))
+	return players
+
+def get_all_pairings():
+	return _pairings.clone()
+
+def get_all_vehicles():
+	return _vehicles.clone()
 
 def set_me_player(id, name):
 	_me_player.remove_many(_me_player)
 	player = DataObject(id=id, name=name)
 	_me_player.insert(player)
 	messages.publish(PlayerMeMessage("added", player.message_data()))
-
-def get_me_players():
-	return _me_player.clone()
-
-# ======================
-# Battle players table
-# ======================
-_battle_players = Table('battle_players')
-_battle_players.create_index('id', unique=True)
 
 def insert_battle_player(id, name):
 	if not _battle_players.where(id=id):
@@ -87,15 +153,6 @@ def remove_battle_player(id):
 	if player:
 		_battle_players.remove(player)
 		messages.publish(BattlePlayerMessage("removed", player.message_data()))
-
-def get_all_battle_players():
-	return _battle_players.clone()
-
-# ======================
-# Vehicles table
-# ======================
-_vehicles = Table('vehicles')
-_vehicles.create_index('id', unique=True)
 
 def insert_vehicle(id, player_id, is_alive):
 	if not _vehicles.where(id=id):
@@ -115,15 +172,6 @@ def remove_vehicle(id):
 		_vehicles.remove(vehicle)
 		messages.publish(VehicleMessage("removed", vehicle.message_data()))
 
-def get_all_vehicles():
-	return _vehicles.clone()
-
-# ======================
-# Prebattle players table
-# ======================
-_prebattle_players = Table('prebattle_players')
-_prebattle_players.create_index('id', unique=True)
-
 def insert_prebattle_player(id, name):
 	if not _prebattle_players.where(id=id):
 		player = DataObject(id=id, name=name)
@@ -136,15 +184,6 @@ def remove_prebattle_player(id):
 		_prebattle_players.remove(player)
 		messages.publish(PrebattlePlayerMessage("removed", player.message_data()))
 
-def get_all_prebattle_players():
-	return _prebattle_players.clone()
-
-# ======================
-# Speaking players table
-# ======================
-_speaking_players = Table('speaking_players')
-_speaking_players.create_index('id', unique=True)
-
 def set_players_speaking(player_ids, speaking):
 	for player_id in player_ids:
 		old_player = _.head(_speaking_players.where(id=player_id))
@@ -155,15 +194,6 @@ def set_players_speaking(player_ids, speaking):
 		elif not speaking and old_player:
 			_speaking_players.remove(old_player)
 			messages.publish(PlayerSpeakingMessage("removed", old_player.message_data()))
-
-def get_all_speaking_players():
-	return _speaking_players.clone()
-
-# ======================
-# Users table
-# ======================
-_users = Table('users')
-_users.create_index('id', unique=True)
 
 def insert_user(id, name, game_name, unique_id, speaking, is_me, my_channel):
 	if _users.where(id=id):
@@ -191,45 +221,17 @@ def remove_user(id):
 	_users.remove(old_user)
 	messages.publish(UserMessage("removed", old_user.message_data()))
 
-def get_all_users():
-	return _users.clone()
-
-# ======================
-# Cached users table
-# ======================
-_cached_users = Table('cached_users')
-_cached_users.create_index('unique_id', unique=True)
-
 def insert_cached_user(unique_id, name):
 	_cached_users.insert(DataObject(unique_id=unique_id, name=name))
 
 def remove_cached_user(unique_id):
 	_cached_users.delete(unique_id=unique_id)
 
-def get_all_cached_users():
-	return _cached_users.clone()
-
-# ======================
-# Cached players table
-# ======================
-_cached_players = Table('cached_players')
-_cached_players.create_index('id', unique=True)
-
 def insert_cached_player(id, name):
 	_cached_players.insert(DataObject(id=id, name=name))
 
 def remove_cached_player(id):
 	_cached_players.delete(id=id)
-
-def get_all_cached_players():
-	return _cached_players.clone()
-
-# ======================
-# Pairings table
-# ======================
-_pairings = Table('pairings')
-_pairings.create_index('player_id')
-_pairings.create_index('user_unique_id')
 
 def insert_pairing(user_unique_id, player_id):
 	if not _pairings.where(user_unique_id=user_unique_id, player_id=player_id):
@@ -242,6 +244,3 @@ def remove_pairing(user_unique_id, player_id):
 	if pairing:
 		_pairings.remove(pairing)
 		messages.publish(PairingMessage("removed" , pairing.message_data()))
-
-def get_all_pairings():
-	return _pairings.clone()

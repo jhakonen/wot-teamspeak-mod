@@ -15,7 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod.items import get_items, match_id, match_player_id
+from gui.mods.tessumod import database
 from gui.mods.tessumod.lib import logutils, gameapi
 from gui.mods.tessumod.lib import pydash as _
 from gui.mods.tessumod.messages import VehicleMessage, PlayerSpeakingMessage, PlayerMeMessage
@@ -42,7 +42,6 @@ class MinimapPlugin(Plugin, SettingsProvider, SettingsUIProvider):
 		self.__running_animations = {}
 		self.__enabled = False
 		self.__self_enabled = False
-		self.__my_player_id = None
 
 	@logutils.trace_call(logger)
 	def initialize(self):
@@ -64,10 +63,10 @@ class MinimapPlugin(Plugin, SettingsProvider, SettingsUIProvider):
 		if section == "MinimapNotifications":
 			if name == "enabled":
 				self.__enabled = value
-				_.for_each(self.__get_vehicles(), lambda v: self.__set_vehicle_speaking(v))
+				_.for_each(database.get_all_vehicles(), lambda v: self.__render_to_minimap(v))
 			if name == "self_enabled":
 				self.__self_enabled = value
-				self.__set_vehicle_speaking(self.__get_my_vehicle())
+				self.__render_to_minimap(database.get_my_vehicle())
 			if name == "action":
 				self.__action = value
 			if name == "repeat_interval":
@@ -179,45 +178,34 @@ class MinimapPlugin(Plugin, SettingsProvider, SettingsUIProvider):
 			]
 		}
 
-	def __get_vehicles(self):
-		return get_items(self.plugin_manager, ["vehicles"], ["id"])
-
-	def __get_speaking_players(self):
-		return map(lambda p: p["id"], get_items(self.plugin_manager, ["speaking-players"], ["id"]))
-
-	def __get_my_vehicle(self):
-		return _.find(self.__get_vehicles(), lambda v: v["player-id"] == self.__my_player_id)
-
 	@logutils.trace_call(logger)
 	def __on_vehicle_event(self, action, data):
-		self.__set_vehicle_speaking(data)
+		self.__render_to_minimap(database.get_player_vehicle(player_id=data["player-id"]))
 
 	@logutils.trace_call(logger)
 	def __on_player_speaking_event(self, action, data):
-		self.__set_vehicle_speaking(_.find(self.__get_vehicles(), match_player_id(data["id"])))
+		self.__render_to_minimap(database.get_player_vehicle(player_id=data["id"]))
 
 	@logutils.trace_call(logger)
 	def __on_player_is_me_event(self, action, data):
-		self.__my_player_id = data["id"]
-		self.__set_vehicle_speaking(self.__get_my_vehicle())
+		self.__render_to_minimap(database.get_my_vehicle())
 
-	def __set_vehicle_speaking(self, vehicle):
+	def __render_to_minimap(self, vehicle):
 		if not vehicle:
 			return
-		vehicle_id = vehicle["id"]
 		speaking = \
 			self.__enabled and \
-			(self.__self_enabled or vehicle["player-id"] != self.__my_player_id) and \
-			vehicle["is-alive"] and \
-			vehicle["player-id"] in self.__get_speaking_players()
+			(self.__self_enabled or vehicle.player_id != database.get_my_player_id()) and \
+			vehicle.is_alive and \
+			database.is_player_speaking(vehicle.player_id)
 		if speaking:
-			if vehicle_id not in self.__running_animations:
-				anim = gameapi.create_minimap_animation(vehicle_id, self.__interval, self.__action, self.__on_animation_done)
-				self.__running_animations[vehicle_id] = anim
-			self.__running_animations[vehicle_id].start()
+			if vehicle.id not in self.__running_animations:
+				anim = gameapi.create_minimap_animation(vehicle.id, self.__interval, self.__action, self.__on_animation_done)
+				self.__running_animations[vehicle.id] = anim
+			self.__running_animations[vehicle.id].start()
 		else:
-			if vehicle_id in self.__running_animations:
-				self.__running_animations[vehicle_id].stop()
+			if vehicle.id in self.__running_animations:
+				self.__running_animations[vehicle.id].stop()
 
 	def __on_animation_done(self, vehicle_id):
 		self.__running_animations.pop(vehicle_id, None)

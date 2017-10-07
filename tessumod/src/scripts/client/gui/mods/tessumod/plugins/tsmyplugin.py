@@ -15,7 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod.items import get_items, match_player_id, match_unique_id
+from gui.mods.tessumod import database
 from gui.mods.tessumod.lib import logutils, sharedmemory, timer, gameapi
 from gui.mods.tessumod.lib import pydash as _
 from gui.mods.tessumod.lib.timer import TimerMixin
@@ -214,27 +214,14 @@ class TSMyPluginPlugin(Plugin, VoiceClientListener, SettingsProvider, SettingsUI
 	def __on_vehicle_event(self, action, data):
 		self.__update_client_lookup()
 
-	def __get_pairings(self):
-		return get_items(self.plugin_manager, ["pairings"], ["player-id", "user-unique-id"])
-
-	def __get_users(self):
-		return get_items(self.plugin_manager, ["users"], ["id"])
-
-	def __get_vehicles(self):
-		return get_items(self.plugin_manager, ["vehicles"], ["id"])
-
 	def __update_client_lookup(self):
 		self.__clid_vehicle_ids.clear()
 		connection_id = (self.plugin_manager.getPluginsOfCategory("VoiceClientProvider")[0]
 			.plugin_object.get_my_connection_id())
-		for pairing in self.__get_pairings():
-			vehicle = _.find(self.__get_vehicles(), match_player_id(pairing["player-id"]))
-			if not vehicle:
+		for user_id, vehicle_id in database.get_user_id_vehicle_id_pairs():
+			if user_id[0] != connection_id:
 				continue
-			for user in _.filter_(self.__get_users(), match_unique_id(pairing["user-unique-id"])):
-				if user["id"][0] != connection_id:
-					continue
-				self.__clid_vehicle_ids[user["id"][1]] = vehicle["id"]
+			self.__clid_vehicle_ids[user_id[1]] = vehicle_id
 
 	def __write_positional_data(self):
 		if not self.__positional_data_api.is_open():
