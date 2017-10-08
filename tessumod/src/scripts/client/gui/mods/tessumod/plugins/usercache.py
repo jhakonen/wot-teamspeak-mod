@@ -55,7 +55,6 @@ class UserCachePlugin(Plugin, SettingsProvider, SettingsUIProvider, SnapshotProv
 	@logutils.trace_call(logger)
 	def initialize(self):
 		gameapi.events.on("battle_replay_started", self.__on_battle_replay_started)
-		self.messages.subscribe(PairingMessage, self.__on_pairing_event)
 		# create cache directory if it doesn't exist yet
 		if not os.path.isdir(self.__config_dirpath):
 			os.makedirs(self.__config_dirpath)
@@ -66,7 +65,6 @@ class UserCachePlugin(Plugin, SettingsProvider, SettingsUIProvider, SnapshotProv
 	@logutils.trace_call(logger)
 	def deinitialize(self):
 		gameapi.events.off("battle_replay_started", self.__on_battle_replay_started)
-		self.messages.unsubscribe(PairingMessage, self.__on_pairing_event)
 		# write to cache file
 		self.__save_cache_file(self.__export_cache_structure())
 
@@ -153,13 +151,6 @@ class UserCachePlugin(Plugin, SettingsProvider, SettingsUIProvider, SnapshotProv
 	@logutils.trace_call(logger)
 	def __on_battle_replay_started(self):
 		self.__in_replay = True
-
-	def __on_pairing_event(self, action, pairing):
-		if action == "added":
-			database.upsert_live_user_to_cache(unique_id=pairing.user_unique_id)
-			database.upsert_live_player_to_cache(id=pairing.player_id)
-		elif action == "removed":
-			raise RuntimeError("Not implemented")
 
 	def __has_cache_file(self):
 		return os.path.isfile(self.__cache_filepath)
