@@ -191,8 +191,9 @@ class TSCQPlugin(Plugin, SettingsProvider, VoiceClientProvider):
 			del self.__server_names[schandlerid]
 
 	@logutils.trace_call(logger)
-	def __on_player_is_me_event(self, action, data):
-		self.__ts.set_my_game_nick(data["name"])
+	def __on_player_is_me_event(self, action, player):
+		if action == "added":
+			self.__ts.set_my_game_nick(player.name)
 
 	@logutils.trace_call(logger)
 	def __on_user_added(self, schandlerid, clid):

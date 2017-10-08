@@ -24,15 +24,6 @@ from collections import Mapping
 
 messages = None
 
-# HACK: Remove once Item/Message classes attributes are safe to change
-def message_data(self):
-	return {k.replace('_', '-'): v for k, v in self.__dict__.iteritems()}
-DataObject.message_data = message_data
-def new__getitem__(self, k):
-	return orig__getitem__(self, k.replace('-', '_'))
-orig__getitem__ = DataObject.__getitem__
-DataObject.__getitem__ = new__getitem__
-
 _me_player = Table('me_player')
 _me_player.create_index('id', unique=True)
 _battle_players = Table('battle_players')
@@ -140,49 +131,49 @@ def set_me_player(id, name):
 	_me_player.remove_many(_me_player)
 	player = DataObject(id=id, name=name)
 	_me_player.insert(player)
-	messages.publish(PlayerMeMessage("added", player.message_data()))
+	messages.publish(PlayerMeMessage("added", player))
 
 def insert_battle_player(id, name):
 	if not _battle_players.where(id=id):
 		player = DataObject(id=id, name=name)
 		_battle_players.insert(player)
-		messages.publish(BattlePlayerMessage("added", player.message_data()))
+		messages.publish(BattlePlayerMessage("added", player))
 
 def remove_battle_player(id):
 	player = _.head(_battle_players.where(id=id))
 	if player:
 		_battle_players.remove(player)
-		messages.publish(BattlePlayerMessage("removed", player.message_data()))
+		messages.publish(BattlePlayerMessage("removed", player))
 
 def insert_vehicle(id, player_id, is_alive):
 	if not _vehicles.where(id=id):
 		vehicle = DataObject(id=id, player_id=player_id, is_alive=is_alive)
 		_vehicles.insert(vehicle)
-		messages.publish(VehicleMessage("added", vehicle.message_data()))
+		messages.publish(VehicleMessage("added", vehicle))
 
 def update_vehicle(id, player_id, is_alive):
 	if _vehicles.delete(id=id):
 		vehicle = DataObject(id=id, player_id=player_id, is_alive=is_alive)
 		_vehicles.insert(vehicle)
-		messages.publish(VehicleMessage("modified", vehicle.message_data()))
+		messages.publish(VehicleMessage("modified", vehicle))
 
 def remove_vehicle(id):
 	vehicle = _.head(_vehicles.where(id=id))
 	if vehicle:
 		_vehicles.remove(vehicle)
-		messages.publish(VehicleMessage("removed", vehicle.message_data()))
+		messages.publish(VehicleMessage("removed", vehicle))
 
 def insert_prebattle_player(id, name):
 	if not _prebattle_players.where(id=id):
 		player = DataObject(id=id, name=name)
 		_prebattle_players.insert(player)
-		messages.publish(PrebattlePlayerMessage("added", player.message_data()))
+		messages.publish(PrebattlePlayerMessage("added", player))
 
 def remove_prebattle_player(id):
 	player = _.head(_prebattle_players.where(id=id))
 	if player:
 		_prebattle_players.remove(player)
-		messages.publish(PrebattlePlayerMessage("removed", player.message_data()))
+		messages.publish(PrebattlePlayerMessage("removed", player))
 
 def set_players_speaking(player_ids, speaking):
 	for player_id in player_ids:
@@ -190,10 +181,10 @@ def set_players_speaking(player_ids, speaking):
 		if speaking and not old_player:
 			new_player = DataObject(id=player_id)
 			_speaking_players.insert(new_player)
-			messages.publish(PlayerSpeakingMessage("added", new_player.message_data()))
+			messages.publish(PlayerSpeakingMessage("added", new_player))
 		elif not speaking and old_player:
 			_speaking_players.remove(old_player)
-			messages.publish(PlayerSpeakingMessage("removed", old_player.message_data()))
+			messages.publish(PlayerSpeakingMessage("removed", old_player))
 
 def insert_user(id, name, game_name, unique_id, speaking, is_me, my_channel):
 	if _users.where(id=id):
@@ -202,7 +193,7 @@ def insert_user(id, name, game_name, unique_id, speaking, is_me, my_channel):
 		unique_id=unique_id, speaking=speaking, is_me=is_me,
 		my_channel=my_channel)
 	_users.insert(new_user)
-	messages.publish(UserMessage("added", new_user.message_data()))
+	messages.publish(UserMessage("added", new_user))
 
 def update_user(id, name, game_name, unique_id, speaking, is_me, my_channel):
 	old_user = _.head(_users.where(id=id))
@@ -212,14 +203,14 @@ def update_user(id, name, game_name, unique_id, speaking, is_me, my_channel):
 			unique_id=unique_id, speaking=speaking, is_me=is_me,
 			my_channel=my_channel)
 		_users.insert(new_user)
-		messages.publish(UserMessage("modified", new_user.message_data()))
+		messages.publish(UserMessage("modified", new_user))
 
 def remove_user(id):
 	old_user = _.head(_users.where(id=id))
 	if not old_user:
 		return
 	_users.remove(old_user)
-	messages.publish(UserMessage("removed", old_user.message_data()))
+	messages.publish(UserMessage("removed", old_user))
 
 def insert_cached_user(unique_id, name):
 	_cached_users.insert(DataObject(unique_id=unique_id, name=name))
@@ -237,10 +228,10 @@ def insert_pairing(user_unique_id, player_id):
 	if not _pairings.where(user_unique_id=user_unique_id, player_id=player_id):
 		pairing = DataObject(user_unique_id=user_unique_id, player_id=player_id)
 		_pairings.insert(pairing)
-		messages.publish(PairingMessage("added" , pairing.message_data()))
+		messages.publish(PairingMessage("added", pairing))
 
 def remove_pairing(user_unique_id, player_id):
 	pairing = _.head(_pairings.where(user_unique_id=user_unique_id, player_id=player_id))
 	if pairing:
 		_pairings.remove(pairing)
-		messages.publish(PairingMessage("removed" , pairing.message_data()))
+		messages.publish(PairingMessage("removed", pairing))

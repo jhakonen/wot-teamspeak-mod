@@ -180,8 +180,8 @@ class UserMatchingPlugin(Plugin, SettingsProvider, UserCache):
 		"""
 		Implemented from UserCache.
 		"""
-		new_ids = set((p["user-unique-id"], p["player-id"]) for p in pairings)
-		old_ids = set((p["user-unique-id"], p["player-id"]) for p in database.get_all_pairings())
+		new_ids = set((p["user_unique_id"], p["player_id"]) for p in pairings)
+		old_ids = set((p["user_unique_id"], p["player_id"]) for p in database.get_all_pairings())
 		added_ids = new_ids - old_ids
 		removed_ids = old_ids - new_ids
 		for id in added_ids:
@@ -190,19 +190,19 @@ class UserMatchingPlugin(Plugin, SettingsProvider, UserCache):
 			self.remove_pairing(id[0], id[1])
 
 	@logutils.trace_call(logger)
-	def __on_player_event(self, action, data):
+	def __on_player_event(self, action, player):
 		if action == "added":
-			self.__match_users_to_players(database.get_live_users_in_my_channel(), [data])
+			self.__match_users_to_players(database.get_live_users_in_my_channel(), [player])
 
 	@logutils.trace_call(logger)
-	def __on_user_event(self, action, data):
+	def __on_user_event(self, action, user):
 		if action in ["added", "modified"]:
-			self.__match_users_to_players([data], database.get_live_players())
+			self.__match_users_to_players([user], database.get_live_players())
 
 	def __match_users_to_players(self, users, players):
 		for user, matching_players in self.__find_matching_candidates(users, players):
 			for player in matching_players:
-				self.add_pairing(user["unique-id"], player["id"])
+				self.add_pairing(user["unique_id"], player["id"])
 
 	def __find_matching_candidates(self, users, players):
 		results = []
@@ -219,7 +219,7 @@ class UserMatchingPlugin(Plugin, SettingsProvider, UserCache):
 		if not self.__get_wot_nick_from_ts_metadata:
 			return results
 		for player in players:
-			if user["game-name"].lower() == player["name"].lower():
+			if user["game_name"].lower() == player["name"].lower():
 				results.append(player)
 		return results
 

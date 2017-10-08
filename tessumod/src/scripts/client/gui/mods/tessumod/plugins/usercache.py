@@ -154,10 +154,10 @@ class UserCachePlugin(Plugin, SettingsProvider, SettingsUIProvider, SnapshotProv
 	def __on_battle_replay_started(self):
 		self.__in_replay = True
 
-	def __on_pairing_event(self, action, data):
+	def __on_pairing_event(self, action, pairing):
 		if action == "added":
-			database.upsert_live_user_to_cache(unique_id=data["user-unique-id"])
-			database.upsert_live_player_to_cache(id=data["player-id"])
+			database.upsert_live_user_to_cache(unique_id=pairing.user_unique_id)
+			database.upsert_live_player_to_cache(id=pairing.player_id)
 		elif action == "removed":
 			raise RuntimeError("Not implemented")
 
@@ -192,13 +192,13 @@ class UserCachePlugin(Plugin, SettingsProvider, SettingsUIProvider, SnapshotProv
 		cached_players = {}
 		cached_pairings = []
 		for pairing in cache_structure["pairings"]:
-			cached_users[pairing[0]["id"]] = {"unique-id": pairing[0]["id"], "name": pairing[0]["name"]}
+			cached_users[pairing[0]["id"]] = {"unique_id": pairing[0]["id"], "name": pairing[0]["name"]}
 			cached_players[pairing[1]["id"]] = {"id": int(pairing[1]["id"]), "name": pairing[1]["name"]}
-			cached_pairings.append({"user-unique-id": pairing[0]["id"], "player-id": int(pairing[1]["id"])})
+			cached_pairings.append({"user_unique_id": pairing[0]["id"], "player_id": int(pairing[1]["id"])})
 
 		for new_user in cached_users.values():
-			database.remove_cached_user(unique_id=new_user["unique-id"])
-			database.insert_cached_user(unique_id=new_user["unique-id"], name=new_user["name"])
+			database.remove_cached_user(unique_id=new_user["unique_id"])
+			database.insert_cached_user(unique_id=new_user["unique_id"], name=new_user["name"])
 
 		for new_player in cached_players.values():
 			database.remove_cached_player(id=new_player["id"])

@@ -107,27 +107,26 @@ class PlayerSpeakingPlugin(Plugin, SettingsProvider, SettingsUIProvider):
 		}
 
 	@logutils.trace_call(logger)
-	def __on_user_event(self, action, data):
-		user_id = data["id"]
+	def __on_user_event(self, action, user):
 		if action == "added":
-			self.__notifiers[user_id] = DelayedSpeakNotifier(user_id, data["unique-id"], self.messages)
-			self.__notifiers[user_id].set_stop_delay(self.__speak_stop_delay)
-			self.__notifiers[user_id].set_player_ids(database.get_user_paired_player_ids(data["unique-id"]))
+			self.__notifiers[user.id] = DelayedSpeakNotifier(user.id, user.unique_id, self.messages)
+			self.__notifiers[user.id].set_stop_delay(self.__speak_stop_delay)
+			self.__notifiers[user.id].set_player_ids(database.get_user_paired_player_ids(user.unique_id))
 		if action in ["added", "modified"]:
-			self.__notifiers[user_id].set_speaking(data["speaking"])
+			self.__notifiers[user.id].set_speaking(user.speaking)
 		if action == "removed":
-			self.__notifiers[user_id].force_stop()
-			del self.__notifiers[user_id]
+			self.__notifiers[user.id].force_stop()
+			del self.__notifiers[user.id]
 
 	@logutils.trace_call(logger)
-	def __on_pairing_event(self, action, data):
-		key = (data["user-unique-id"], data["player-id"])
+	def __on_pairing_event(self, action, pairing):
+		key = (pairing.user_unique_id, pairing.player_id)
 		if action == "added":
-			for notifier in _.filter_(self.__notifiers, lambda n: n.user_unique_id == data["user-unique-id"]):
-				notifier.set_player_ids(database.get_user_paired_player_ids(data["user-unique-id"]))
+			for notifier in _.filter_(self.__notifiers, lambda n: n.user_unique_id == pairing.user_unique_id):
+				notifier.set_player_ids(database.get_user_paired_player_ids(pairing.user_unique_id))
 		elif action == "removed":
-			for notifier in _.filter_(self.__notifiers, lambda n: n.user_unique_id == data["user-unique-id"]):
-				notifier.set_player_ids(database.get_user_paired_player_ids(data["user-unique-id"]))
+			for notifier in _.filter_(self.__notifiers, lambda n: n.user_unique_id == pairing.user_unique_id):
+				notifier.set_player_ids(database.get_user_paired_player_ids(pairing.user_unique_id))
 
 class DelayedSpeakNotifier(TimerMixin):
 

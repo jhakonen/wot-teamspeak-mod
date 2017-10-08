@@ -22,11 +22,15 @@ logger = logutils.logger.getChild("events")
 
 class Message(object):
 	ACTIONS = None
-	ITEM = None
+	PARAMETERS = None
+
 	def __init__(self, action, parameters):
 		assert action in self.ACTIONS, "Action not supported: %s" % action
 		self.__action = action
-		self.__parameters = self.ITEM(parameters)
+		self.__parameters = parameters
+		for name, type in self.PARAMETERS.iteritems():
+			assert isinstance(parameters[name], type), \
+				"Invalid value for key '%s': %s (type must be: %s)" % (name, value, type)
 
 	@property
 	def action(self):
@@ -38,7 +42,8 @@ class Message(object):
 
 	def __repr__(self):
 		return "%s(%s :: PARAMETERS: [%s])" % \
-			(self.__class__.__name__, self.__action, ", ".join("%s=%s" % i for i in self.__parameters.iteritems()))
+			(self.__class__.__name__, self.__action, ", ".join(
+				"%s=%s" % (key, self.__parameters[key]) for key in PARAMETERS))
 
 class MessagePump(object):
 

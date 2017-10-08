@@ -179,15 +179,15 @@ class MinimapPlugin(Plugin, SettingsProvider, SettingsUIProvider):
 		}
 
 	@logutils.trace_call(logger)
-	def __on_vehicle_event(self, action, data):
-		self.__render_to_minimap(database.get_player_vehicle(player_id=data["player-id"]))
+	def __on_vehicle_event(self, action, vehicle):
+		self.__render_to_minimap(vehicle)
 
 	@logutils.trace_call(logger)
-	def __on_player_speaking_event(self, action, data):
-		self.__render_to_minimap(database.get_player_vehicle(player_id=data["id"]))
+	def __on_player_speaking_event(self, action, speaking_player):
+		self.__render_to_minimap(database.get_player_vehicle(player_id=speaking_player.id))
 
 	@logutils.trace_call(logger)
-	def __on_player_is_me_event(self, action, data):
+	def __on_player_is_me_event(self, action, player):
 		self.__render_to_minimap(database.get_my_vehicle())
 
 	def __render_to_minimap(self, vehicle):

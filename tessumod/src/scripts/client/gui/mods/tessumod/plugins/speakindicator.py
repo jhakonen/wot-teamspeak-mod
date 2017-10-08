@@ -86,12 +86,13 @@ class SpeakIndicatorPlugin(Plugin, SettingsProvider):
 		}
 
 	@logutils.trace_call(logger)
-	def __on_player_speaking_event(self, action, data):
-		self.__update_player_speaking(data["id"])
+	def __on_player_speaking_event(self, action, speaking_player):
+		self.__update_player_speaking(speaking_player.id)
 
 	@logutils.trace_call(logger)
-	def __on_player_is_me_event(self, action, data):
-		self.__update_player_speaking(database.get_my_player_id())
+	def __on_player_is_me_event(self, action, player):
+		if action == "added":
+			self.__update_player_speaking(player.id)
 
 	def __update_player_speaking(self, player_id):
 		gameapi.set_player_speaking(player_id, self.__is_player_speaking(player_id))

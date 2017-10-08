@@ -203,15 +203,15 @@ class TSMyPluginPlugin(Plugin, VoiceClientListener, SettingsProvider, SettingsUI
 		self.off_timeout(self.__write_positional_data)
 
 	@logutils.trace_call(logger)
-	def __on_user_event(self, action, data):
+	def __on_user_event(self, action, user):
 		self.__update_client_lookup()
 
 	@logutils.trace_call(logger)
-	def __on_pairing_event(self, action, data):
+	def __on_pairing_event(self, action, pairing):
 		self.__update_client_lookup()
 
 	@logutils.trace_call(logger)
-	def __on_vehicle_event(self, action, data):
+	def __on_vehicle_event(self, action, vehicle):
 		self.__update_client_lookup()
 
 	def __update_client_lookup(self):
