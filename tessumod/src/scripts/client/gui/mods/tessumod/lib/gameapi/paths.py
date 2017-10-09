@@ -16,12 +16,13 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 from __future__ import absolute_import
+import os
 import ResMgr
 
 def find_res_mods_version_path():
 	for path in _get_resource_paths():
 		if "res_mods" in path:
-			return path
+			return os.path.abspath(path)
 	return ""
 
 def _get_resource_paths():

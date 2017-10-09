@@ -15,82 +15,81 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
+from lib import pydash as _
 from lib import logutils, gameapi
+from lib.littletable.littletable import Table, DataObject
 
 import os
 import json
 import ConfigParser
 import csv
+import shutil
 
 logger = logutils.logger.getChild("migrate")
-res_mods_dirpath = os.path.join(gameapi.find_res_mods_version_path(), "..")
+res_mods_dirpath = os.path.normpath(os.path.join(gameapi.find_res_mods_version_path(), ".."))
 
 def migrate():
-	migrate_user_cache_0_6_to_0_7()
-	migrate_settings_0_6_to_0_7()
+	source_dirpath = os.path.join(res_mods_dirpath, "configs", "tessu_mod")
+	dest_dirpath   = os.path.join(res_mods_dirpath, "configs", "tessumod")
+	if not os.path.isdir(dest_dirpath):
+		os.makedirs(dest_dirpath)
+	# migrate that stuff
+	migrate_user_cache_0_6_to_0_7(source_dirpath, dest_dirpath)
+	migrate_settings_0_6_to_0_7(source_dirpath, dest_dirpath)
+	# get rid of old config dir, if it has no files anymore
+	if os.path.isdir(source_dirpath) and not _.flatten_deep([files for root,dirs,files in os.walk(source_dirpath)]):
+		shutil.rmtree(source_dirpath)
 
-def migrate_user_cache_0_6_to_0_7():
+def migrate_user_cache_0_6_to_0_7(source_dirpath, dest_dirpath):
 	"""
-	This function migrates configs/tessu_mod/tessu_mod_cache.ini to configs/tessumod/usercache.json.
+	This function migrates tessu_mod_cache.ini to following files:
+	 * users_cache.v1.json
+	 * players_cache.v1.json
+	 * pairings_cache.v1.json
 	"""
+	source_filepath   = os.path.join(source_dirpath, "tessu_mod_cache.ini")
+	users_filepath    = os.path.join(dest_dirpath, "users_cache.v1.json")
+	players_filepath  = os.path.join(dest_dirpath, "players_cache.v1.json")
+	pairings_filepath = os.path.join(dest_dirpath, "pairings_cache.v1.json")
+	backup_filepath   = os.path.join(dest_dirpath, "tessu_mod_cache.ini.old-0.6")
 
-	source_filepath = os.path.join(res_mods_dirpath, "configs", "tessu_mod", "tessu_mod_cache.ini")
-	dest_filepath = os.path.join(res_mods_dirpath, "configs", "tessumod", "usercache.json")
+	source_exists = os.path.isfile(source_filepath)
+	dest_exists = all(map(os.path.isfile, [users_filepath, players_filepath, pairings_filepath]))
 
-	# create destination contents, basing it to an existing file if one exists
-	dest_structure = { "version": 1, "pairings": [] }
-	if os.path.isfile(dest_filepath):
-		with open(dest_filepath, "rb") as file:
-			dest_structure = json.loads(file.read())
+	if source_exists and not dest_exists:
+		logger.info("Migrating caches from version 0.6 to 0.7")
 
-	if os.path.isfile(source_filepath) and dest_structure["version"] == 1:
-		logger.info("Migrating user cache from version 0.6 to 0.7")
+		# Schema for new caches
+		users = Table()
+		users.create_index('unique_id', unique=True)
+		players = Table()
+		players.create_index('id', unique=True)
+		pairings = Table()
+		pairings.create_index('player_id')
+		pairings.create_index('user_unique_id')
 
+		# Load old 0.6.x cache file
 		parser = ConfigParser.ConfigParser()
 		with open(source_filepath, "rb") as file:
 			parser.readfp(file)
 
-		usernames_by_id = {}
-		userids_by_name = {}
-		for name, id in parser.items("TeamSpeakUsers"):
-			usernames_by_id[id] = name
-			userids_by_name[name] = id
-
-		playernames_by_id = {}
-		playerids_by_name = {}
-		for name, id in parser.items("GamePlayers"):
-			playernames_by_id[int(id)] = name
-			playerids_by_name[name] = int(id)
-
-		# collect and append pairings
+		# Build new cache structures
+		users.insert_many(DataObject(unique_id=id, name=name) for name, id in parser.items("TeamSpeakUsers"))
+		players.insert_many(DataObject(id=id, name=name) for name, id in parser.items("GamePlayers"))
 		for user_name, player_names in parser.items("UserPlayerPairings"):
-			userid = userids_by_name[user_name]
+			userid = _.head(users.where(name=user_name)).unique_id
 			for player_name in list(csv.reader([player_names]))[0]:
-				playerid = playerids_by_name[player_name]
-				dest_structure["pairings"].append([
-					{ "id": userid, "name": user_name },
-					{ "id": playerid, "name": player_name }
-				])
-
-		# remove duplicates, compare only id values as name values might be
-		# same, but with different case
-		id_pairings = []
-		unique_pairings = []
-		for pairing in dest_structure["pairings"]:
-			id_pairing = (pairing[0]["id"], pairing[1]["id"])
-			if id_pairing not in id_pairings:
-				id_pairings.append(id_pairing)
-				unique_pairings.append(pairing)
-		dest_structure["pairings"] = unique_pairings
+				playerid = _.head(players.where(name=player_name)).id
+				pairings.insert(DataObject(player_id=playerid, user_unique_id=userid))
 
 		# create destination directory if it doesn't exist yet
-		dest_dirpath = os.path.dirname(dest_filepath)
 		if not os.path.isdir(dest_dirpath):
 			os.makedirs(dest_dirpath)
 
-		# write out the new cache file
-		with open(dest_filepath, "wb") as out_file:
-			out_file.write(json.dumps(dest_structure, indent=4))
+		# write out the new cache files
+		users.json_export(users_filepath)
+		players.json_export(players_filepath)
+		pairings.json_export(pairings_filepath)
 
 		# backup and remove old cache file
 		backup_filepath = os.path.join(dest_dirpath, os.path.basename(source_filepath)) + ".old-0.6"
@@ -98,15 +97,16 @@ def migrate_user_cache_0_6_to_0_7():
 			os.remove(backup_filepath)
 		os.rename(source_filepath, backup_filepath)
 
-def migrate_settings_0_6_to_0_7():
+def migrate_settings_0_6_to_0_7(source_dirpath, dest_dirpath):
 	"""
-	This function migrates following files into configs/tessumod/settings.json:
-	 * configs/tessu_mod/tessu_mod.ini
-	 * configs/tessu_mod/states/ignored_plugin_version
+	This function migrates following files into settings.v1.json:
+	 * tessu_mod.ini
+	 * ignored_plugin_version
 	"""
-	source_settings_path = os.path.join(res_mods_dirpath, "configs", "tessu_mod", "tessu_mod.ini")
-	source_states_path = os.path.join(res_mods_dirpath, "configs", "tessu_mod", "states", "ignored_plugin_version")
-	dest_filepath = os.path.join(res_mods_dirpath, "configs", "tessumod", "settings.json")
+	source_settings_path  = os.path.join(source_dirpath, "tessu_mod.ini")
+	source_states_dirpath = os.path.join(source_dirpath, "states")
+	source_states_path    = os.path.join(source_states_dirpath, "ignored_plugin_version")
+	dest_filepath         = os.path.join(dest_dirpath, "settings.v1.json")
 
 	dest_structure = { "version": 1 }
 	# If destination already exists, load it so we can override values in it
@@ -180,6 +180,6 @@ def migrate_settings_0_6_to_0_7():
 			os.remove(backup_filepath)
 		os.rename(source_settings_path, backup_filepath)
 
-	# remove old plugin opt-out file
-	if os.path.isfile(source_states_path):
-		os.remove(source_states_path)
+	# remove old plugin opt-out dir
+	if os.path.isdir(source_states_dirpath):
+		shutil.rmtree(source_states_dirpath)
