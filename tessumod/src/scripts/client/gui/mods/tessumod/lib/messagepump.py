@@ -30,7 +30,7 @@ class Message(object):
 		self.__parameters = parameters
 		for name, type in self.PARAMETERS.iteritems():
 			assert isinstance(parameters[name], type), \
-				"Invalid value for key '%s': %s (type must be: %s)" % (name, value, type)
+				"Invalid value for key '%s': %s (type must be: %s)" % (name, parameters[name], type)
 
 	@property
 	def action(self):
@@ -43,7 +43,7 @@ class Message(object):
 	def __repr__(self):
 		return "%s(%s :: PARAMETERS: [%s])" % \
 			(self.__class__.__name__, self.__action, ", ".join(
-				"%s=%s" % (key, self.__parameters[key]) for key in PARAMETERS))
+				"%s=%s" % (key, self.__parameters[key]) for key in self.PARAMETERS))
 
 class MessagePump(object):
 
