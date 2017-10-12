@@ -16,6 +16,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 from lib import pydash as _
+from lib import logutils
 from lib.littletable.littletable import Table, DataObject
 from messages import (PlayerMeMessage, BattlePlayerMessage, VehicleMessage,
 					  PrebattlePlayerMessage, PlayerSpeakingMessage,
@@ -24,6 +25,8 @@ from collections import Mapping
 import os
 
 messages = None
+
+logger = logutils.logger.getChild('database')
 
 _me_player = Table('me_player')
 _me_player.create_index('id', unique=True)
@@ -49,6 +52,7 @@ _pairings.create_index('user_unique_id')
 
 def import_caches(users_file, players_file, pairings_file):
 	global _cached_users, _cached_players, _pairings
+	logger.debug('Importing caches')
 	users    = _cached_users.copy_template()
 	players  = _cached_players.copy_template()
 	pairings = _pairings.copy_template()
@@ -61,6 +65,7 @@ def import_caches(users_file, players_file, pairings_file):
 	_pairings       = pairings
 
 def export_caches(users_file, players_file, pairings_file):
+	logger.debug('Exporting caches')
 	validate_cache_tables(_cached_users, _cached_players, _pairings)
 	_cached_users.json_export(users_file)
 	_cached_players.json_export(players_file)
@@ -127,54 +132,63 @@ def get_live_players():
 def get_all_vehicles():
 	return _vehicles.clone()
 
+@logutils.trace_call(logger)
 def set_me_player(id, name):
 	_me_player.remove_many(_me_player)
 	player = DataObject(id=id, name=name)
 	_me_player.insert(player)
 	messages.publish(PlayerMeMessage("added", player))
 
+@logutils.trace_call(logger)
 def insert_battle_player(id, name):
 	if not _battle_players.where(id=id):
 		player = DataObject(id=id, name=name)
 		_battle_players.insert(player)
 		messages.publish(BattlePlayerMessage("added", player))
 
+@logutils.trace_call(logger)
 def remove_battle_player(id):
 	player = _.head(_battle_players.where(id=id))
 	if player:
 		_battle_players.remove(player)
 		messages.publish(BattlePlayerMessage("removed", player))
 
+@logutils.trace_call(logger)
 def insert_vehicle(id, player_id, is_alive):
 	if not _vehicles.where(id=id):
 		vehicle = DataObject(id=id, player_id=player_id, is_alive=is_alive)
 		_vehicles.insert(vehicle)
 		messages.publish(VehicleMessage("added", vehicle))
 
+@logutils.trace_call(logger)
 def update_vehicle(id, player_id, is_alive):
 	if _vehicles.delete(id=id):
 		vehicle = DataObject(id=id, player_id=player_id, is_alive=is_alive)
 		_vehicles.insert(vehicle)
 		messages.publish(VehicleMessage("modified", vehicle))
 
+@logutils.trace_call(logger)
 def remove_vehicle(id):
 	vehicle = _.head(_vehicles.where(id=id))
 	if vehicle:
 		_vehicles.remove(vehicle)
 		messages.publish(VehicleMessage("removed", vehicle))
 
+@logutils.trace_call(logger)
 def insert_prebattle_player(id, name):
 	if not _prebattle_players.where(id=id):
 		player = DataObject(id=id, name=name)
 		_prebattle_players.insert(player)
 		messages.publish(PrebattlePlayerMessage("added", player))
 
+@logutils.trace_call(logger)
 def remove_prebattle_player(id):
 	player = _.head(_prebattle_players.where(id=id))
 	if player:
 		_prebattle_players.remove(player)
 		messages.publish(PrebattlePlayerMessage("removed", player))
 
+@logutils.trace_call(logger)
 def set_players_speaking(player_ids, speaking):
 	for player_id in player_ids:
 		old_player = _.head(_speaking_players.where(id=player_id))
@@ -186,6 +200,7 @@ def set_players_speaking(player_ids, speaking):
 			_speaking_players.remove(old_player)
 			messages.publish(PlayerSpeakingMessage("removed", old_player))
 
+@logutils.trace_call(logger)
 def insert_user(id, name, game_name, unique_id, speaking, is_me, my_channel):
 	if _users.where(id=id):
 		return
@@ -195,6 +210,7 @@ def insert_user(id, name, game_name, unique_id, speaking, is_me, my_channel):
 	_users.insert(new_user)
 	messages.publish(UserMessage("added", new_user))
 
+@logutils.trace_call(logger)
 def update_user(id, name, game_name, unique_id, speaking, is_me, my_channel):
 	old_user = _.head(_users.where(id=id))
 	if old_user:
@@ -205,6 +221,7 @@ def update_user(id, name, game_name, unique_id, speaking, is_me, my_channel):
 		_users.insert(new_user)
 		messages.publish(UserMessage("modified", new_user))
 
+@logutils.trace_call(logger)
 def remove_user(id):
 	old_user = _.head(_users.where(id=id))
 	if not old_user:
@@ -212,6 +229,7 @@ def remove_user(id):
 	_users.remove(old_user)
 	messages.publish(UserMessage("removed", old_user))
 
+@logutils.trace_call(logger)
 def insert_pairing(user_unique_id, player_id):
 	if not _pairings.where(user_unique_id=user_unique_id, player_id=player_id):
 		# Insert pairing
