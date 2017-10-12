@@ -32,7 +32,7 @@ from tessumod.lib.pluginmanager import PluginManager
 plugin_manager = None
 
 mods_path = gameapi.find_res_mods_version_path()
-log_config_path = os.path.join(mods_path, "..", "configs", "tessu_mod", "logging.ini")
+log_config_path = os.path.join(mods_path, "..", "configs", "tessumod", "logging.ini")
 config_path     = os.path.join(mods_path, "scripts", "client", "gui", "mods", "tessumod", "config.json")
 plugins_path    = os.path.join(mods_path, "scripts", "client", "gui", "mods", "tessumod", "plugins")
 
