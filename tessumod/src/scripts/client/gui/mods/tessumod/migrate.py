@@ -75,12 +75,20 @@ def migrate_user_cache_0_6_to_0_7(source_dirpath, dest_dirpath):
 
 		# Build new cache structures
 		users.insert_many(DataObject(unique_id=id, name=name) for name, id in parser.items("TeamSpeakUsers"))
-		players.insert_many(DataObject(id=id, name=name) for name, id in parser.items("GamePlayers"))
+		players.insert_many(DataObject(id=int(id), name=name) for name, id in parser.items("GamePlayers"))
 		for user_name, player_names in parser.items("UserPlayerPairings"):
 			userid = _.head(users.where(name=user_name)).unique_id
 			for player_name in list(csv.reader([player_names]))[0]:
 				playerid = _.head(players.where(name=player_name)).id
-				pairings.insert(DataObject(player_id=playerid, user_unique_id=userid))
+				pairings.insert(DataObject(player_id=int(playerid), user_unique_id=userid))
+
+		# Remove users & players which do not exist in pairings
+		for user in users.clone():
+			if not pairings.where(user_unique_id=user.unique_id):
+				users.remove(user)
+		for player in players.clone():
+			if not pairings.where(player_id=player.id):
+				players.remove(player)
 
 		# create destination directory if it doesn't exist yet
 		if not os.path.isdir(dest_dirpath):
