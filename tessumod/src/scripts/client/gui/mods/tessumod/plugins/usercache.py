@@ -15,7 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import database
+from gui.mods.tessumod import database, constants
 from gui.mods.tessumod.lib import logutils, gameapi
 from gui.mods.tessumod.lib import pydash as _
 from gui.mods.tessumod.messages import PairingMessage
@@ -27,6 +27,7 @@ import json
 import os
 import uuid
 from copy import copy
+from StringIO import StringIO
 
 logger = logutils.logger.getChild("usercache")
 
@@ -49,7 +50,11 @@ class UserCachePlugin(Plugin, SettingsProvider, SettingsUIProvider, SnapshotProv
 		self.__in_replay = False
 		self.__read_error = False
 		self.__config_dirpath = os.path.join(gameapi.find_res_mods_version_path(), "..", "configs", "tessumod")
-		self.__cache_filepath = os.path.join(self.__config_dirpath, "usercache.json")
+		self.__cache_files = {
+			"users_file":    os.path.join(self.__config_dirpath, constants.USERS_CACHE_FILE),
+			"players_file":  os.path.join(self.__config_dirpath, constants.PLAYERS_CACHE_FILE),
+			"pairings_file": os.path.join(self.__config_dirpath, constants.PAIRINGS_CACHE_FILE)
+		}
 		self.__snapshots = {}
 
 	@logutils.trace_call(logger)
@@ -58,15 +63,13 @@ class UserCachePlugin(Plugin, SettingsProvider, SettingsUIProvider, SnapshotProv
 		# create cache directory if it doesn't exist yet
 		if not os.path.isdir(self.__config_dirpath):
 			os.makedirs(self.__config_dirpath)
-		# read cache file if it exists
-		if self.__has_cache_file():
-			self.__import_cache_structure(self.__load_cache_file())
+		self.__import_cache_files(**self.__cache_files)
 
 	@logutils.trace_call(logger)
 	def deinitialize(self):
 		gameapi.events.off("battle_replay_started", self.__on_battle_replay_started)
 		# write to cache file
-		self.__save_cache_file(self.__export_cache_structure())
+		self.__export_cache_files(**self.__cache_files)
 
 	@logutils.trace_call(logger)
 	def on_settings_changed(self, section, name, value):
@@ -129,7 +132,13 @@ class UserCachePlugin(Plugin, SettingsProvider, SettingsUIProvider, SnapshotProv
 		Implemented from SnapshotProvider.
 		"""
 		snapshot_name = uuid.uuid4()
-		self.__snapshots[snapshot_name] = self.__export_cache_structure()
+		self.__snapshots[snapshot_name] = {
+			"users_file":    StringIO(),
+			"players_file":  StringIO(),
+			"pairings_file": StringIO()
+		}
+		self.__export_cache_files(**self.__snapshots[snapshot_name])
+		map(lambda file: file.seek(0), self.__snapshots[snapshot_name].itervalues())
 		return snapshot_name
 
 	@logutils.trace_call(logger)
@@ -146,69 +155,22 @@ class UserCachePlugin(Plugin, SettingsProvider, SettingsUIProvider, SnapshotProv
 		Implemented from SnapshotProvider.
 		"""
 		if snapshot_name in self.__snapshots:
-			self.__import_cache_structure(self.__snapshots[snapshot_name])
+			self.__import_cache_files(**self.__snapshots[snapshot_name])
 
 	@logutils.trace_call(logger)
 	def __on_battle_replay_started(self):
 		self.__in_replay = True
 
-	def __has_cache_file(self):
-		return os.path.isfile(self.__cache_filepath)
-
-	def __load_cache_file(self):
-		"""
-		Reads cache file if it exists, returns loaded contents as object.
-		"""
+	def __import_cache_files(self, users_file, players_file, pairings_file):
 		try:
-			with open(self.__cache_filepath, "rb") as file:
-				return json.loads(file.read())
+			database.import_caches(users_file, players_file, pairings_file)
 		except:
 			self.__read_error = True
 			raise
 
-	def __save_cache_file(self, contents_obj):
-		"""
-		Writes current cache configuration to a file. Returns True on success, False on failure.
-		"""
-		if not self.__read_error and (not self.__in_replay or self.__enabled_in_replays):
-			with open(self.__cache_filepath, "wb") as file:
-				file.write(json.dumps(contents_obj, indent=4))
-				return True
-		return False
-
-	def __import_cache_structure(self, cache_structure):
-		assert cache_structure, "Cache content invalid"
-		assert cache_structure.get("version") == 1, "Cache contents version mismatch"
-		cached_users = {}
-		cached_players = {}
-		cached_pairings = []
-		for pairing in cache_structure["pairings"]:
-			cached_users[pairing[0]["id"]] = {"unique_id": pairing[0]["id"], "name": pairing[0]["name"]}
-			cached_players[pairing[1]["id"]] = {"id": int(pairing[1]["id"]), "name": pairing[1]["name"]}
-			cached_pairings.append({"user_unique_id": pairing[0]["id"], "player_id": int(pairing[1]["id"])})
-
-		for new_user in cached_users.values():
-			database.remove_cached_user(unique_id=new_user["unique_id"])
-			database.insert_cached_user(unique_id=new_user["unique_id"], name=new_user["name"])
-
-		for new_player in cached_players.values():
-			database.remove_cached_player(id=new_player["id"])
-			database.insert_cached_player(id=new_player["id"], name=new_player["name"])
-
-		for plugin_info in self.plugin_manager.getPluginsOfCategory("UserCache"):
-			plugin_info.plugin_object.reset_pairings(cached_pairings)
-
-	def __export_cache_structure(self):
-		pairing_results = []
-		for pairing in database.get_all_pairings():
-			pairing_results.append(({
-				"id": pairing.user_unique_id,
-				"name": database.get_user_name(unique_id=pairing.user_unique_id)
-			}, {
-				"id": pairing.player_id,
-				"name": database.get_player_name(id=pairing.player_id)
-			}))
-		return {
-			"version": 1,
-			"pairings": pairing_results
-		}
+	def __export_cache_files(self, users_file, players_file, pairings_file):
+		if self.__read_error:
+			return
+		if self.__in_replay and self.__enabled_in_replays:
+			return
+		database.export_caches(users_file, players_file, pairings_file)

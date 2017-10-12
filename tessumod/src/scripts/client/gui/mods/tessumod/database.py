@@ -21,6 +21,7 @@ from messages import (PlayerMeMessage, BattlePlayerMessage, VehicleMessage,
 					  PrebattlePlayerMessage, PlayerSpeakingMessage,
 					  UserMessage, PairingMessage)
 from collections import Mapping
+import os
 
 messages = None
 
@@ -46,6 +47,45 @@ _pairings = Table('pairings')
 _pairings.create_index('player_id')
 _pairings.create_index('user_unique_id')
 
+def import_caches(users_file, players_file, pairings_file):
+	global _cached_users, _cached_players, _pairings
+	users    = _cached_users.copy_template()
+	players  = _cached_players.copy_template()
+	pairings = _pairings.copy_template()
+	users.json_import(users_file)
+	players.json_import(players_file)
+	pairings.json_import(pairings_file)
+	validate_cache_tables(users, players, pairings)
+	_cached_users   = users
+	_cached_players = players
+	_pairings       = pairings
+
+def export_caches(users_file, players_file, pairings_file):
+	validate_cache_tables(_cached_users, _cached_players, _pairings)
+	_cached_users.json_export(users_file)
+	_cached_players.json_export(players_file)
+	_pairings.json_export(pairings_file)
+
+def validate_cache_tables(users, players, pairings):
+	for pairing in pairings:
+		assert pairing.player_id and isinstance(pairing.player_id, int), \
+			"Invalid pairing: %s" % pairing
+		assert pairing.user_unique_id and isinstance(pairing.user_unique_id, basestring), \
+			"Invalid pairing: %s" % pairing
+	for user in users:
+		assert user.unique_id and isinstance(user.unique_id, basestring), \
+			"Invalid user: %s" % user
+		assert user.name and isinstance(user.name, basestring), \
+			"Invalid user: %s" % user
+		assert pairings.where(user_unique_id=user.unique_id), \
+			"Player: %s not found from pairings" % player
+	for player in players:
+		assert player.id and isinstance(player.id, int), \
+			"Invalid player: %s" % player
+		assert player.name and isinstance(player.name, basestring), \
+			"Invalid player: %s" % player
+		assert pairings.where(player_id=player.id), \
+			"Player: %s not found from pairings" % player
 
 def get_my_player_id():
 	player = _.head(_me_player)
@@ -75,26 +115,6 @@ def get_user_id_vehicle_id_pairs():
 	join2 = join1.join(_users, [(join1,'vehicle_id'), (_users,'id','user_id')], user_unique_id='unique_id')
 	return [(row.user_id, row.vehicle_id) for row in join2]
 
-def get_user_name(unique_id):
-	result = _users.where(unique_id=unique_id)
-	if not result:
-		result = _cached_users.where(unique_id=unique_id)
-	for row in result:
-		if row.name:
-			return row.name
-
-def get_player_name(id):
-	result = _battle_players.where(id=id)
-	if not result:
-		result = _prebattle_players.where(id=id)
-	if not result:
-		result = _me_player.where(id=id)
-	if not result:
-		result = _cached_players.where(id=id)
-	for row in result:
-		if row.name:
-			return row.name
-
 def get_live_users_in_my_channel():
 	return _users.where(my_channel=True)
 
@@ -103,9 +123,6 @@ def get_live_players():
 	players = players.union(_prebattle_players.where(lambda o: o.id not in _.pluck(players, 'id')))
 	players = players.union(_me_player.where(lambda o: o.id not in _.pluck(players, 'id')))
 	return players
-
-def get_all_pairings():
-	return _pairings.clone()
 
 def get_all_vehicles():
 	return _vehicles.clone()
@@ -195,18 +212,6 @@ def remove_user(id):
 	_users.remove(old_user)
 	messages.publish(UserMessage("removed", old_user))
 
-def insert_cached_user(unique_id, name):
-	_cached_users.insert(DataObject(unique_id=unique_id, name=name))
-
-def remove_cached_user(unique_id):
-	_cached_users.delete(unique_id=unique_id)
-
-def insert_cached_player(id, name):
-	_cached_players.insert(DataObject(id=id, name=name))
-
-def remove_cached_player(id):
-	_cached_players.delete(id=id)
-
 def insert_pairing(user_unique_id, player_id):
 	if not _pairings.where(user_unique_id=user_unique_id, player_id=player_id):
 		# Insert pairing
@@ -215,8 +220,8 @@ def insert_pairing(user_unique_id, player_id):
 		# Insert pair's user to cache
 		user = _.head(_users.where(unique_id=user_unique_id))
 		if user:
-			remove_cached_user(unique_id=user.unique_id)
-			insert_cached_user(unique_id=user.unique_id, name=user.name)
+			_cached_users.delete(unique_id=user.unique_id)
+			_cached_users.insert(DataObject(unique_id=user.unique_id, name=user.name))
 		# Insert pair's player to cache
 		result = _battle_players.where(id=player_id)
 		if not result:
@@ -225,13 +230,7 @@ def insert_pairing(user_unique_id, player_id):
 			result = _me_player.where(id=player_id)
 		player = _.head(result)
 		if player:
-			remove_cached_player(id=player.id)
-			insert_cached_player(id=player.id, name=player.name)
+			_cached_players.delete(id=player.id)
+			_cached_players.insert(DataObject(id=player.id, name=player.name))
 		# Notify listeners
 		messages.publish(PairingMessage("added", pairing))
-
-def remove_pairing(user_unique_id, player_id):
-	pairing = _.head(_pairings.where(user_unique_id=user_unique_id, player_id=player_id))
-	if pairing:
-		_pairings.remove(pairing)
-		messages.publish(PairingMessage("removed", pairing))

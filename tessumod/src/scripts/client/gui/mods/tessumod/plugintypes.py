@@ -93,16 +93,6 @@ class UserCache(object):
 		"""
 		pass
 
-	def remove_pairing(self, user_id, player_id):
-		"""
-		"""
-		pass
-
-	def reset_pairings(self, pairings):
-		"""
-		"""
-		pass
-
 class VoiceClientListener(object):
 	"""
 	"""

@@ -170,26 +170,6 @@ class UserMatchingPlugin(Plugin, SettingsProvider, UserCache):
 		database.insert_pairing(user_unique_id=user_id, player_id=player_id)
 
 	@logutils.trace_call(logger)
-	def remove_pairing(self, user_id, player_id):
-		"""
-		Implemented from UserCache.
-		"""
-		database.remove_pairing(user_unique_id=user_id, player_id=player_id)
-
-	def reset_pairings(self, pairings):
-		"""
-		Implemented from UserCache.
-		"""
-		new_ids = set((p["user_unique_id"], p["player_id"]) for p in pairings)
-		old_ids = set((p["user_unique_id"], p["player_id"]) for p in database.get_all_pairings())
-		added_ids = new_ids - old_ids
-		removed_ids = old_ids - new_ids
-		for id in added_ids:
-			self.add_pairing(id[0], id[1])
-		for id in removed_ids:
-			self.remove_pairing(id[0], id[1])
-
-	@logutils.trace_call(logger)
 	def __on_player_event(self, action, player):
 		if action == "added":
 			self.__match_users_to_players(database.get_live_users_in_my_channel(), [player])

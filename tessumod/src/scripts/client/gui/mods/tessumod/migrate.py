@@ -15,6 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
+from . import constants
 from lib import pydash as _
 from lib import logutils, gameapi
 from lib.littletable.littletable import Table, DataObject
@@ -48,9 +49,9 @@ def migrate_user_cache_0_6_to_0_7(source_dirpath, dest_dirpath):
 	 * pairings_cache.v1.json
 	"""
 	source_filepath   = os.path.join(source_dirpath, "tessu_mod_cache.ini")
-	users_filepath    = os.path.join(dest_dirpath, "users_cache.v1.json")
-	players_filepath  = os.path.join(dest_dirpath, "players_cache.v1.json")
-	pairings_filepath = os.path.join(dest_dirpath, "pairings_cache.v1.json")
+	users_filepath    = os.path.join(dest_dirpath, constants.USERS_CACHE_FILE)
+	players_filepath  = os.path.join(dest_dirpath, constants.PLAYERS_CACHE_FILE)
+	pairings_filepath = os.path.join(dest_dirpath, constants.PAIRINGS_CACHE_FILE)
 	backup_filepath   = os.path.join(dest_dirpath, "tessu_mod_cache.ini.old-0.6")
 
 	source_exists = os.path.isfile(source_filepath)
