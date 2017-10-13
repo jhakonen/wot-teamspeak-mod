@@ -15,6 +15,10 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
+"""
+Contains constants used in more than one module.
+"""
+
 USERS_CACHE_FILE    = "users_cache.v1.json"
 PLAYERS_CACHE_FILE  = "players_cache.v1.json"
 PAIRINGS_CACHE_FILE = "pairings_cache.v1.json"

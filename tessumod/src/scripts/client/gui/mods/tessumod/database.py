@@ -15,6 +15,12 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
+"""
+This module contains mod's data structures and getters and setters for those.
+All getters should be as specific to the data needed, as possible. Avoid
+generic getters that force caller to further process the data.
+"""
+
 from lib import pydash as _
 from lib import logutils
 from lib.littletable.littletable import Table, DataObject
@@ -51,6 +57,15 @@ _pairings.create_index('player_id')
 _pairings.create_index('user_unique_id')
 
 def import_caches(users_file, players_file, pairings_file):
+	"""
+	Loads user, player and pairing caches from files.
+
+	May raise an error, if importing fails.
+
+	:param users_file:    users cache file (file object or path to file)
+	:param players_file:  players cache file (file object or path to file)
+	:param pairings_file: pairings cache file (file object or path to file)
+	"""
 	global _cached_users, _cached_players, _pairings
 	logger.debug('Importing caches')
 	users    = _cached_users.copy_template()
@@ -65,6 +80,15 @@ def import_caches(users_file, players_file, pairings_file):
 	_pairings       = pairings
 
 def export_caches(users_file, players_file, pairings_file):
+	"""
+	Saves user, player and pairing caches to files.
+
+	May raise an error, if exporting fails.
+
+	:param users_file:    users cache file (file object or path to file)
+	:param players_file:  players cache file (file object or path to file)
+	:param pairings_file: pairings cache file (file object or path to file)
+	"""
 	logger.debug('Exporting caches')
 	validate_cache_tables(_cached_users, _cached_players, _pairings)
 	_cached_users.json_export(users_file)
@@ -112,10 +136,11 @@ def is_player_speaking(player_id):
 	return bool(_speaking_players.where(id=player_id))
 
 def get_user_id_vehicle_id_pairs():
-	'''
+	"""
 	Joins _vehicles, _users and _pairings tables.
-	Returns list of user_id and vehicle_id pairs.
-	'''
+
+	:return: list of user_id and vehicle_id pairs.
+	"""
 	join1 = _pairings.join(_vehicles, [(_vehicles,'id','vehicle_id'), (_pairings,'user_unique_id')], player_id='player_id')
 	join2 = join1.join(_users, [(join1,'vehicle_id'), (_users,'id','user_id')], user_unique_id='unique_id')
 	return [(row.user_id, row.vehicle_id) for row in join2]
@@ -124,6 +149,10 @@ def get_live_users_in_my_channel():
 	return _users.where(my_channel=True)
 
 def get_live_players():
+	"""
+	Returns table of players which are online (cached players are excluded).
+	"""
+	# TODO: Should return online friends and clan members too
 	players = _battle_players
 	players = players.union(_prebattle_players.where(lambda o: o.id not in _.pluck(players, 'id')))
 	players = players.union(_me_player.where(lambda o: o.id not in _.pluck(players, 'id')))
