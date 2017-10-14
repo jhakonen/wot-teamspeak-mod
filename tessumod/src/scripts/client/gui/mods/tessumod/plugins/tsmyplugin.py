@@ -17,10 +17,11 @@
 
 from gui.mods.tessumod import database
 from gui.mods.tessumod.lib import logutils, sharedmemory, timer, gameapi
-from gui.mods.tessumod.lib import pydash as _
 from gui.mods.tessumod.lib.timer import TimerMixin
 from gui.mods.tessumod.messages import UserMessage, PairingMessage, VehicleMessage
 from gui.mods.tessumod.plugintypes import Plugin, VoiceClientListener, SettingsProvider, SettingsUIProvider
+
+import pydash as _
 
 import functools
 import os

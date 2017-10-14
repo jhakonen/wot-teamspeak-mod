@@ -17,8 +17,9 @@
 
 from gui.mods.tessumod import database
 from gui.mods.tessumod.lib import logutils, gameapi
-from gui.mods.tessumod.lib import pydash as _
 from gui.mods.tessumod.plugintypes import Plugin
+
+import pydash as _
 
 logger = logutils.logger.getChild("players")
 

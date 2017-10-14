@@ -15,5 +15,5 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-MOD_VERSION = "{MOD_VERSION}"
-SUPPORT_URL = "{SUPPORT_URL}"
+MOD_VERSION = "{version}"
+SUPPORT_URL = "{url}"

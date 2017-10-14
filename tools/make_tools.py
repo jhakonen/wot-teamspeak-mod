@@ -37,6 +37,7 @@ import webbrowser
 from contextlib import contextmanager
 import base64
 import msvcrt
+import fnmatch
 
 # 3rd party libs
 import nose
@@ -469,6 +470,7 @@ class CompressBuilder(AbstractBuilder):
 		self.__contents_dir = self.expand_path(self.config["contents_dir"])
 		self.__archive_path = self.expand_path(self.config["archive_path"])
 		self.__prefix = self.expand_path(self.config.get("prefix", ""))
+		self.__include = self.config.get("include", None)
 
 	def deinitialize(self):
 		self.__archive_filepaths.discard(self.__archive_path)
@@ -492,6 +494,9 @@ class CompressBuilder(AbstractBuilder):
 				with zipfile.ZipFile(self.__archive_path, mode) as package_file:
 					for dirpath, dirnames, filenames in os.walk(self.__contents_dir):
 						for filename in filenames:
+							# Skip files which do not mach to include pattern
+							if self.__include and not fnmatch.fnmatch(filename, self.__include):
+								continue
 							# form input file path
 							input_filepath = os.path.join(dirpath, filename)
 							# form output file path

@@ -21,13 +21,15 @@ All getters should be as specific to the data needed, as possible. Avoid
 generic getters that force caller to further process the data.
 """
 
-from lib import pydash as _
 from lib import logutils
-from lib.littletable.littletable import Table, DataObject
 from messages import (PlayerMeMessage, BattlePlayerMessage, VehicleMessage,
 					  PrebattlePlayerMessage, PlayerSpeakingMessage,
 					  UserMessage, PairingMessage)
 from collections import Mapping
+
+from littletable import Table, DataObject
+import pydash as _
+
 import os
 
 messages = None

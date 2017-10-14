@@ -17,10 +17,11 @@
 
 from gui.mods.tessumod import database
 from gui.mods.tessumod.lib import logutils
-from gui.mods.tessumod.lib import pydash as _
 from gui.mods.tessumod.lib.timer import TimerMixin
 from gui.mods.tessumod.messages import UserMessage, PairingMessage
 from gui.mods.tessumod.plugintypes import Plugin, SettingsProvider, SettingsUIProvider
+
+import pydash as _
 
 from copy import copy
 

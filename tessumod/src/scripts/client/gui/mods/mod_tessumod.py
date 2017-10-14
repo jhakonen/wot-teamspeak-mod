@@ -20,11 +20,6 @@ import inspect
 import json
 import os
 
-# Preload pydash library as it expects itself to be in module search path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "tessumod", "lib"))
-import tessumod.lib.pydash
-sys.path.pop(0)
-
 from tessumod import database, migrate, plugintypes
 from tessumod.lib import gameapi, logutils, messagepump, timer
 from tessumod.lib.pluginmanager import PluginManager

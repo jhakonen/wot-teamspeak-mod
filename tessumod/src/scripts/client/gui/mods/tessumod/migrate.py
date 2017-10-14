@@ -16,9 +16,10 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 from . import constants
-from lib import pydash as _
 from lib import logutils, gameapi
-from lib.littletable.littletable import Table, DataObject
+
+import pydash as _
+from littletable import Table, DataObject
 
 import os
 import json

@@ -17,10 +17,11 @@
 
 from gui.mods.tessumod import database, constants
 from gui.mods.tessumod.lib import logutils, gameapi
-from gui.mods.tessumod.lib import pydash as _
 from gui.mods.tessumod.messages import PairingMessage
 from gui.mods.tessumod.plugintypes import (Plugin, SettingsProvider, SettingsUIProvider,
 										   SnapshotProvider)
+
+import pydash as _
 
 import itertools
 import json

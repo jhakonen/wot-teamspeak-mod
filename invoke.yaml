@@ -138,6 +138,7 @@ projects:
     tags: ['tessumod']
     vars:
       src_dir: "{root}/tessumod/src"
+      deps_dir: "{root}/tessumod/deps"
       tmp_dir: "{root_build_dir}/tessumod/tmp"
       archive_dir: "{root_build_dir}/tessumod/archive"
       unittests_dir: "{root}/tessumod/test"
@@ -189,30 +190,6 @@ projects:
       - py_compile:
           tags: ['build', 'clean']
           input_files:
-            - "{src_dir}/scripts/client/gui/mods/tessumod/lib/promise/*.py"
-          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/lib/promise"
-          dbg_dir: "scripts/client/gui/mods/tessumod/lib/promise"
-      - py_compile:
-          tags: ['build', 'clean']
-          input_files:
-            - "{src_dir}/scripts/client/gui/mods/tessumod/lib/pydash/*.py"
-          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/lib/pydash"
-          dbg_dir: "scripts/client/gui/mods/tessumod/lib/pydash"
-      - py_compile:
-          tags: ['build', 'clean']
-          input_files:
-            - "{src_dir}/scripts/client/gui/mods/tessumod/lib/littletable/*.py"
-          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/lib/littletable"
-          dbg_dir: "scripts/client/gui/mods/tessumod/lib/littletable"
-      - py_compile:
-          tags: ['build', 'clean']
-          input_files:
-            - "{src_dir}/scripts/client/gui/mods/tessumod/lib/promise/pyutils/*.py"
-          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/lib/promise/pyutils"
-          dbg_dir: "scripts/client/gui/mods/tessumod/lib/promise/pyutils"
-      - py_compile:
-          tags: ['build', 'clean']
-          input_files:
             - "{src_dir}/scripts/client/gui/mods/tessumod/plugins/*.py"
           target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/plugins"
           dbg_dir: "scripts/client/gui/mods/tessumod/plugins"
@@ -231,6 +208,12 @@ projects:
           contents_dir: "{archive_dir}"
           archive_path: "{release_archive_path}"
           prefix: "res_mods/{game_version}"
+      - compress:
+          tags: ['build', 'clean']
+          contents_dir: "{deps_dir}"
+          include: "*.wotmod"
+          archive_path: "{release_archive_path}"
+          prefix: "mods/{game_version}/tessumod"
       - nosetests:
           tags: ['unittests', 'clean']
           tests_dir: "{unittests_dir}"

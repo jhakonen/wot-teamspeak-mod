@@ -17,9 +17,10 @@
 
 from gui.mods.tessumod import database
 from gui.mods.tessumod.lib import logutils, clientquery, gameapi
-from gui.mods.tessumod.lib.promise import Promise
 from gui.mods.tessumod.messages import PlayerMeMessage
 from gui.mods.tessumod.plugintypes import Plugin, SettingsProvider, VoiceClientProvider
+
+from promise import Promise
 
 import collections
 import itertools

@@ -17,10 +17,11 @@
 
 from gui.mods.tessumod import database
 from gui.mods.tessumod.lib import logutils
-from gui.mods.tessumod.lib import pydash as _
 from gui.mods.tessumod.messages import (BattlePlayerMessage, PrebattlePlayerMessage,
                                         UserMessage)
 from gui.mods.tessumod.plugintypes import Plugin, SettingsProvider, UserCache
+
+import pydash as _
 
 import re
 from copy import copy
