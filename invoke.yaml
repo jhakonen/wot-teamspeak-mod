@@ -99,7 +99,7 @@ projects:
           tags: ['build', 'clean']
           contents_dir: "{archive_dir}"
           archive_path: "{release_archive_path}"
-          prefix: "res_mods/{game_version}"
+          prefix: "mods/{game_version}/tessumod"
       - compress:
           tags: ['build', 'clean']
           contents_dir: "{symbols_dir}"
@@ -125,7 +125,7 @@ projects:
           tags: ['build', 'clean']
           contents_dir: "{build_dir}/flash"
           archive_path: "{release_archive_path}"
-          prefix: "res_mods/{game_version}/gui/flash/tessu_mod"
+          prefix: "mods/{game_version}/tessumod/gui/flash/tessu_mod"
       - openbrowser:
           tags: ['preview-settingsui']
           exepath: '{webbrowser_path}'
@@ -137,7 +137,6 @@ projects:
   tessumod:
     tags: ['tessumod']
     vars:
-      src_dir: "{root}/tessumod/src"
       deps_dir: "{root}/tessumod/deps"
       tmp_dir: "{root_build_dir}/tessumod/tmp"
       archive_dir: "{root_build_dir}/tessumod/archive"
@@ -147,71 +146,21 @@ projects:
       futes_tmp_dir: "{root_build_dir}/tessumod/futes"
 
     builders:
-      - in_generate:
-          tags: ['build', 'clean']
-          input_files:
-            - "{src_dir}/scripts/client/gui/mods/tessumod/build_info.py.in"
-          target_dir: "{tmp_dir}"
-          defines:
-            SUPPORT_URL: "{support_url}"
-            MOD_VERSION: "{version}"
-      - in_generate:
-          tags: ['build', 'clean']
-          input_files:
-            - "{src_dir}/TessuMod.txt.in"
-          target_dir: "{archive_dir}"
-          defines:
-            SUPPORT_URL: "{support_url}"
-      - py_compile:
-          tags: ['build', 'clean']
-          input_files:
-            - "{src_dir}/scripts/client/gui/mods/mod_tessumod.py"
-          target_dir: "{archive_dir}/scripts/client/gui/mods"
-          dbg_dir: "scripts/client/gui/mods"
-      - py_compile:
-          tags: ['build', 'clean']
-          input_files:
-            - "{src_dir}/scripts/client/gui/mods/tessumod/*.py"
-            - "{tmp_dir}/build_info.py"
-          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod"
-          dbg_dir: "scripts/client/gui/mods/tessumod"
-      - py_compile:
-          tags: ['build', 'clean']
-          input_files:
-            - "{src_dir}/scripts/client/gui/mods/tessumod/lib/*.py"
-          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/lib"
-          dbg_dir: "scripts/client/gui/mods/tessumod/lib"
-      - py_compile:
-          tags: ['build', 'clean']
-          input_files:
-            - "{src_dir}/scripts/client/gui/mods/tessumod/lib/gameapi/*.py"
-          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/lib/gameapi"
-          dbg_dir: "scripts/client/gui/mods/tessumod/lib/gameapi"
-      - py_compile:
-          tags: ['build', 'clean']
-          input_files:
-            - "{src_dir}/scripts/client/gui/mods/tessumod/plugins/*.py"
-          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/plugins"
-          dbg_dir: "scripts/client/gui/mods/tessumod/plugins"
+      # Build tessumod's wotmod package to archive dir
+      - bdist_wotmod:
+          tags: ['build']
+          project_dir: "{root}/tessumod"
+          dist_dir: "{archive_dir}"
+      # Add dependency wotmod packages to archive dir
       - copy:
           tags: ['build', 'clean']
           input_files:
-            - "{src_dir}/scripts/client/gui/mods/tessumod/assets/*"
-          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod/assets"
-      - copy:
-          tags: ['build', 'clean']
-          input_files:
-            - "{src_dir}//scripts/client/gui/mods/tessumod/config.json"
-          target_dir: "{archive_dir}/scripts/client/gui/mods/tessumod"
+            - '{deps_dir}/*.wotmod'
+          target_dir: '{archive_dir}/dependencies'
+      # Add files in archive dir to release archive
       - compress:
           tags: ['build', 'clean']
           contents_dir: "{archive_dir}"
-          archive_path: "{release_archive_path}"
-          prefix: "res_mods/{game_version}"
-      - compress:
-          tags: ['build', 'clean']
-          contents_dir: "{deps_dir}"
-          include: "*.wotmod"
           archive_path: "{release_archive_path}"
           prefix: "mods/{game_version}/tessumod"
       - nosetests:

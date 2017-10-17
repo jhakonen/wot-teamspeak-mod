@@ -195,6 +195,7 @@ Update-SessionEnvironment
 cd $REPOPATH
 
 Write-Host "Installing python dependencies..."
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 
 Write-Host "Configuring TessuMod development environment..."

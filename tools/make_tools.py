@@ -22,7 +22,6 @@ import sys
 import time
 import glob
 import copy
-import py_compile
 import shutil
 import zipfile
 import subprocess
@@ -47,16 +46,16 @@ from termcolor import colored
 def init():
 	global BUILDER_LOOKUP, PROJECT_COL_WIDTH, BUILDER_COL_WIDTH
 	BUILDER_LOOKUP = {
-		"in_generate": InGenerateBuilder,
-		"py_compile":  PythonCompileBuilder,
-		"copy":        CopyBuilder,
-		"compress":    CompressBuilder,
-		"uncompress":  UncompressBuilder,
-		"qmake":       QMakeBuilder,
-		"mxmlc":       MXMLCBuilder,
-		"nosetests":   NoseTestsBuilder,
-		"tailfile":    TailFileBuilder,
-		"openbrowser": OpenBrowserBuilder
+		"in_generate":  InGenerateBuilder,
+		"copy":         CopyBuilder,
+		"compress":     CompressBuilder,
+		"uncompress":   UncompressBuilder,
+		"qmake":        QMakeBuilder,
+		"mxmlc":        MXMLCBuilder,
+		"nosetests":    NoseTestsBuilder,
+		"tailfile":     TailFileBuilder,
+		"openbrowser":  OpenBrowserBuilder,
+		"bdist_wotmod": BdistWotmodBuilder
 	}
 	colorama.init()
 
@@ -317,7 +316,7 @@ class ExecuteMixin(object):
 		super(ExecuteMixin, self).__init__()
 		self.__threads = []
 
-	def execute_batch_contents(self, contents, cwd=None, wait=True):
+	def execute_batch_contents(self, contents, cwd=None, env=None, wait=True):
 		proc = None
 		file = None
 		try:
@@ -327,7 +326,7 @@ class ExecuteMixin(object):
 			file.close()
 			command = [file.name]
 			if wait:
-				proc = subprocess.Popen(command, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+				proc = subprocess.Popen(command, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 				stdout_queue = self.__stream_to_queue(proc.stdout)
 				stderr_queue = self.__stream_to_queue(proc.stderr)
 				while proc.poll() is None or not stdout_queue.empty() or not stderr_queue.empty():
@@ -392,40 +391,6 @@ class InGenerateBuilder(AbstractBuilder, InputFilesMixin, TargetDirMixin, Define
 
 	def __transform_to_output_path(self, path):
 		return os.path.join(self.get_target_dir(), os.path.basename(path)[:-3])
-
-	def clean(self):
-		for input_path in self.get_input_files():
-			output_path = self.__transform_to_output_path(input_path)
-			self.safe_file_remove(output_path)
-			self.safe_remove_empty_dirpath(os.path.dirname(output_path))
-
-class PythonCompileBuilder(AbstractBuilder, InputFilesMixin, TargetDirMixin):
-
-	def __init__(self):
-		super(PythonCompileBuilder, self).__init__()
-
-	def initialize(self):
-		self.dbg_dir = self.expand_value(self.config["dbg_dir"])
-
-	def execute(self):
-		self.create_dirpath(self.get_target_dir())
-		for input_path in self.get_input_files():
-			self.logger.debug("Compiling:", os.path.relpath(input_path))
-
-			# test for valid input
-			assert os.path.isfile(input_path), "Input file does not exist: " + input_path
-			assert input_path.endswith(".py"), "Input file is not a python source file: " + input_path
-
-			# compile python file
-			output_path = self.__transform_to_output_path(input_path)
-			dbg_filepath = self.__transform_to_debug_path(input_path)
-			py_compile.compile(file=input_path, cfile=output_path, dfile=dbg_filepath, doraise=True)
-
-	def __transform_to_output_path(self, path):
-		return os.path.join(self.get_target_dir(), os.path.basename(path) + "c")
-
-	def __transform_to_debug_path(self, path):
-		return os.path.join(self.dbg_dir, os.path.basename(path)).replace("\\", "/").strip("/")
 
 	def clean(self):
 		for input_path in self.get_input_files():
@@ -820,5 +785,33 @@ class OpenBrowserBuilder(AbstractBuilder, ExecuteMixin):
 				"-ExecutionPolicy", "Bypass",
 				"-EncodedCommand", base64.b64encode(command.encode("utf_16_le"))
 		]))
+
+class BdistWotmodBuilder(AbstractBuilder, ExecuteMixin):
+
+	def __init__(self):
+		super(BdistWotmodBuilder, self).__init__()
+
+	def initialize(self):
+		self.__dist_dir = self.expand_path(self.config["dist_dir"])
+		self.__project_dir = self.expand_path(self.config["project_dir"])
+
+	def execute(self):
+		build_dir = tempfile.mkdtemp()
+		try:
+			command = " ".join([
+				sys.executable, "setup.py",
+				"build", "--build-base=%s" % os.path.join(build_dir, "build"),
+				"bdist_wotmod", "--dist-dir=%s" % self.__dist_dir
+			])
+			env = dict(os.environ)
+			env.pop("PYTHONDONTWRITEBYTECODE", None)
+			result = self.execute_batch_contents(
+				contents = "@{}".format(command),
+				cwd = self.__project_dir,
+				env = env
+			)
+			assert result == 0, "Compiling failed"
+		finally:
+			self.safe_rmtree(build_dir)
 
 init()
