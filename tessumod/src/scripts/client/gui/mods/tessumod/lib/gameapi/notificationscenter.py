@@ -105,7 +105,7 @@ class _BasicMessageDecorator(MessageDecorator):
 		assert len(message) == 1, "Only single message line supported"
 		sm_type = self.TYPE_LOOKUP[type]
 		formatter = collections_by_type.CLIENT_FORMATTERS.get(SCH_CLIENT_MSG_TYPE.SYS_MSG_TYPE)
-		formatted, settings = formatter.format(message[0], [sm_type.name(), None, None])
+		formatted, settings = formatter.format(message[0], [sm_type.name(), None, None])[0]
 		super(_BasicMessageDecorator, self).__init__(entity_id, formatted, settings)
 
 class _AdvancedMessageDecorator(_NotificationDecorator):
