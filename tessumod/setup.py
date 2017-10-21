@@ -28,9 +28,9 @@ setup(
     cmdclass = {
         'build_py': setup_helpers.GenerateInFilesCommand,
     },
-    setup_requires = ['wotdisttools'],
-    # Required as wotdisttools is not yet in PyPI
+    setup_requires = ['setuptools-wotmod'],
+    # Required as setuptools-wotmod is not yet in PyPI
     dependency_links = [
-        'https://github.com/jhakonen/wotdisttools/tarball/master#egg=wotdisttools'
+        'https://github.com/jhakonen/setuptools-wotmod/tarball/master#egg=setuptools-wotmod'
     ],
 )
