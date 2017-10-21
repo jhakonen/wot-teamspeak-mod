@@ -71,9 +71,12 @@ def import_caches(users_file, players_file, pairings_file):
 	users    = _cached_users.copy_template()
 	players  = _cached_players.copy_template()
 	pairings = _pairings.copy_template()
-	users.json_import(users_file)
-	players.json_import(players_file)
-	pairings.json_import(pairings_file)
+	if os.path.isfile(users_file) or hasattr(users_file, 'read'):
+		users.json_import(users_file)
+	if os.path.isfile(players_file) or hasattr(players_file, 'read'):
+		players.json_import(players_file)
+	if os.path.isfile(pairings_file) or hasattr(pairings_file, 'read'):
+		pairings.json_import(pairings_file)
 	validate_cache_tables(users, players, pairings)
 	_cached_users   = users
 	_cached_players = players
