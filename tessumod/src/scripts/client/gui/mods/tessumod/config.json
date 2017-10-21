@@ -10,5 +10,6 @@
 		"tsmyplugin",
 		"usercache",
 		"usermatching"
-	]
+	],
+	"plugins_import_path": "gui.mods.tessumod.plugins"
 }

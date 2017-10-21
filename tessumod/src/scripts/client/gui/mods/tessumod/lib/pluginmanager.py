@@ -17,17 +17,15 @@
 
 import logutils
 
-import os
-import json
-import imp
+import importlib
 
 logger = logutils.logger.getChild("pluginmanager")
 
 class PluginManager(object):
 
-	def __init__(self, plugins_list, plugins_dir, category_classes):
+	def __init__(self, plugins_list, import_path, category_classes):
 		self.__plugins_list = plugins_list
-		self.__plugins_dir_path = plugins_dir
+		self.__import_path = import_path
 		self.__categories_filter = self.get_categories(category_classes)
 		self.__plugin_infos_by_category = {name: [] for name in self.__categories_filter.iterkeys()}
 		self.__plugin_infos_all = []
@@ -45,16 +43,9 @@ class PluginManager(object):
 
 	def collectPlugins(self):
 		for plugin_name in self.__plugins_list:
-			plugin_path = os.path.join(self.__plugins_dir_path, plugin_name)
-			plugin_module = None
-			plugin_info = None
-			for imp_type in [imp.PY_SOURCE, imp.PY_COMPILED]:
-				ext = "py" if imp_type == imp.PY_SOURCE else "pyc"
-				full_plugin_path = plugin_path + "." + ext
-				if os.path.isfile(full_plugin_path):
-					with open(full_plugin_path, "rb") as file:
-						plugin_module = imp.load_module("plugin_" + plugin_name, file, full_plugin_path, (ext, "rb", imp_type))
-			if not plugin_module:
+			try:
+				plugin_module = importlib.import_module(self.__import_path + "." + plugin_name)
+			except ImportError:
 				logger.error("No such plugin: %s" % plugin_name)
 				continue
 			if not hasattr(plugin_module, "build_plugin"):

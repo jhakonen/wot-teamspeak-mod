@@ -15,7 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from gui.mods.tessumod import database
+from gui.mods.tessumod import database, constants
 from gui.mods.tessumod.lib import logutils, sharedmemory, timer, gameapi
 from gui.mods.tessumod.lib.timer import TimerMixin
 from gui.mods.tessumod.messages import UserMessage, PairingMessage, VehicleMessage
@@ -117,8 +117,8 @@ class TSMyPluginPlugin(Plugin, VoiceClientListener, SettingsProvider, SettingsUI
 		Implemented from VoiceClientListener.
 		"""
 		# Check is plugin file included with mod, and offer to install it
-		mods_dirpath = gameapi.find_res_mods_version_path()
-		self.__installer_path = os.path.normpath(os.path.join(mods_dirpath, "tessumod.ts3_plugin"))
+		mods_dirpath = gameapi.find_mods_version_path()
+		self.__installer_path = os.path.normpath(os.path.join(mods_dirpath, "tessumod", "tessumod.ts3_plugin"))
 		# plugin doesn't work in WinXP so check that we are running on
 		# sufficiently recent Windows OS
 		if not self.__is_vista_or_newer():
@@ -130,7 +130,7 @@ class TSMyPluginPlugin(Plugin, VoiceClientListener, SettingsProvider, SettingsUI
 		if self.__advertisement_ignored:
 			return
 		gameapi.show_notification({
-			"icon": "scripts/client/gui/mods/tessumod/assets/ts_notification_icon.png",
+			"icon": constants.RESOURCES_DATA_DIR + "/ts_notification_icon.png",
 			"message": [
 				"Would you like to install TessuMod plugin for TeamSpeak?",
 				"With the plugin TessuMod supports 3D audio, positioning users voice in " +

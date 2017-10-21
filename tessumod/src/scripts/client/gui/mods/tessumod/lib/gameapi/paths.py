@@ -19,10 +19,10 @@ from __future__ import absolute_import
 import os
 import ResMgr
 
-def find_res_mods_version_path():
+def find_mods_version_path():
 	for path in _get_resource_paths():
 		if "res_mods" in path:
-			return os.path.abspath(path)
+			return os.path.abspath(path.replace("res_mods", "mods"))
 	return ""
 
 def _get_resource_paths():

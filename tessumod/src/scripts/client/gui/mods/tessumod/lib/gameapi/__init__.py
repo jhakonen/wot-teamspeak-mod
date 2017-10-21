@@ -30,6 +30,7 @@ from . import minimap as _minimap
 from . import log as _log
 from . import paths as _paths
 from . import settingsuiwindow
+from . import resources as _resources
 
 events = _eventemitter.EventEmitterMixin()
 
@@ -68,8 +69,17 @@ def create_minimap_animation(vehicle_id, interval, action, on_done):
 def show_notification(data):
 	_notificationscenter.show_notification(data)
 
-def find_res_mods_version_path():
-	return _paths.find_res_mods_version_path()
+def find_mods_version_path():
+	return _paths.find_mods_version_path()
 
 def set_player_speaking(player_id, speaking):
 	_voip.set_player_speaking(player_id, speaking)
+
+def resources_read_file(vfs_path, read_as_binary=True):
+	return _resources.read_file(vfs_path, read_as_binary)
+
+def resources_list_directory(vfs_directory):
+	return _resources.list_directory(vfs_directory)
+
+def resources_file_copy(vfs_from, realfs_to):
+	return _resources.file_copy(vfs_from, realfs_to)

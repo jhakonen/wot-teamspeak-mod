@@ -54,8 +54,7 @@ class SettingsPlugin(Plugin, TimerMixin, Settings, SnapshotProvider):
 		super(SettingsPlugin, self).__init__()
 		self.__snapshots = {}
 		self.__previous_values = {}
-		self.__filepath = os.path.join(gameapi.find_res_mods_version_path(),
-			"..", "configs", "tessumod", "settings.v1.json")
+		self.__filepath = "./mods/configs/tessumod/settings.v1.json"
 		self.__settings_data = {}
 
 	@logutils.trace_call(logger)

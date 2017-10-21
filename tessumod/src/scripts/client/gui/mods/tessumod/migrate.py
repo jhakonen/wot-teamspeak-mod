@@ -28,11 +28,10 @@ import csv
 import shutil
 
 logger = logutils.logger.getChild("migrate")
-res_mods_dirpath = os.path.normpath(os.path.join(gameapi.find_res_mods_version_path(), ".."))
 
 def migrate():
-	source_dirpath = os.path.join(res_mods_dirpath, "configs", "tessu_mod")
-	dest_dirpath   = os.path.join(res_mods_dirpath, "configs", "tessumod")
+	source_dirpath = "./res_mods/configs/tessu_mod"
+	dest_dirpath   = "./mods/configs/tessumod"
 	if not os.path.isdir(dest_dirpath):
 		os.makedirs(dest_dirpath)
 	# migrate that stuff

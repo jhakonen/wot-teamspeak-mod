@@ -30,6 +30,7 @@ from notification.decorators import MessageDecorator, _NotificationDecorator
 from skeletons.gui.system_messages import ISystemMessages
 
 from .hookutils import hook_method, CALL_WITH_ORIGINAL
+from ... import constants
 
 notification_handlers = {}
 _notifications_queue = deque()
@@ -147,7 +148,7 @@ class _AdvancedMessageDecorator(_NotificationDecorator):
 
 		if self.__ignorable:
 			ignore_state = "on" if self.__ignored else "off"
-			icon_url = "img://scripts/client/gui/mods/tessumod/assets/checkbox_{}.png".format(ignore_state)
+			icon_url = "img://{}/checkbox_{}.png".format(constants.RESOURCES_DATA_DIR, ignore_state)
 			message += "\n<p align=\"right\">"
 			message += "<a href=\"event:ignore_message\">No thanks, don't show this again</a>"
 			message += "   <img src=\"{}\" height=\"12\" width=\"12\" align=\"right\"/>".format(icon_url)

@@ -50,7 +50,7 @@ class UserCachePlugin(Plugin, SettingsProvider, SettingsUIProvider, SnapshotProv
 		self.__enabled_in_replays = False
 		self.__in_replay = False
 		self.__read_error = False
-		self.__config_dirpath = os.path.join(gameapi.find_res_mods_version_path(), "..", "configs", "tessumod")
+		self.__config_dirpath = os.path.join("./mods/configs/tessumod")
 		self.__cache_files = {
 			"users_file":    os.path.join(self.__config_dirpath, constants.USERS_CACHE_FILE),
 			"players_file":  os.path.join(self.__config_dirpath, constants.PLAYERS_CACHE_FILE),

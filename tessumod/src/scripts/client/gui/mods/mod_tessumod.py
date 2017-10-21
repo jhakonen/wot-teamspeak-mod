@@ -20,16 +20,13 @@ import inspect
 import json
 import os
 
-from tessumod import database, migrate, plugintypes
+from tessumod import database, migrate, plugintypes, constants
 from tessumod.lib import gameapi, logutils, messagepump, timer
 from tessumod.lib.pluginmanager import PluginManager
 
 plugin_manager = None
 
-mods_path = gameapi.find_res_mods_version_path()
-log_config_path = os.path.join(mods_path, "..", "configs", "tessumod", "logging.ini")
-config_path     = os.path.join(mods_path, "scripts", "client", "gui", "mods", "tessumod", "config.json")
-plugins_path    = os.path.join(mods_path, "scripts", "client", "gui", "mods", "tessumod", "plugins")
+log_config_path = "./mods/configs/tessumod/logging.ini"
 
 logutils.init(log_config_path, gameapi.create_log_redirection_handler())
 logger = logutils.logger
@@ -49,11 +46,10 @@ def init():
 
 		migrate.migrate()
 
-		with open(config_path, "rb") as config_file:
-			config = json.loads(config_file.read())
+		config = json.loads(gameapi.resources_read_file(constants.RESOURCES_DATA_DIR + '/config.json'))
 
 		plugin_categories = [member[1] for member in inspect.getmembers(plugintypes, inspect.isclass)]
-		plugin_manager = PluginManager(config["plugins"], plugins_path, plugin_categories)
+		plugin_manager = PluginManager(config["plugins"], config["plugins_import_path"], plugin_categories)
 		plugin_manager.collectPlugins()
 		messages = messagepump.MessagePump()
 		database.messages = messages

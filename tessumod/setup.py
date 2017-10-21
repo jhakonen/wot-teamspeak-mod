@@ -19,10 +19,8 @@ setup(
     packages = find_packages('src/scripts/client/gui/mods'),
     py_modules = ['mod_tessumod'],
     package_dir = {'':'src/scripts/client/gui/mods'},
-    package_data = {
-        'tessumod': ['config.json']
-    },
     data_files = [
+        'src/scripts/client/gui/mods/tessumod/config.json',
         'src/scripts/client/gui/mods/tessumod/assets/checkbox_on.png',
         'src/scripts/client/gui/mods/tessumod/assets/checkbox_off.png',
         'src/scripts/client/gui/mods/tessumod/assets/ts_notification_icon.png',
@@ -31,7 +29,6 @@ setup(
         'build_py': setup_helpers.GenerateInFilesCommand,
     },
     setup_requires = ['wotdisttools'],
-    install_requires = ['wotdisttools'],
     # Required as wotdisttools is not yet in PyPI
     dependency_links = [
         'https://github.com/jhakonen/wotdisttools/tarball/master#egg=wotdisttools'

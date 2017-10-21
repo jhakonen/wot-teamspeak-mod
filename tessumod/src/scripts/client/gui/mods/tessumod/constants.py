@@ -22,3 +22,4 @@ Contains constants used in more than one module.
 USERS_CACHE_FILE    = "users_cache.v1.json"
 PLAYERS_CACHE_FILE  = "players_cache.v1.json"
 PAIRINGS_CACHE_FILE = "pairings_cache.v1.json"
+RESOURCES_DATA_DIR  = "mods/jhakonen.tessumod"
