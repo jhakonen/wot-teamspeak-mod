@@ -148,6 +148,9 @@ def get_resource_paths():
 def get_ini_dir_path():
 	return "./mods/configs/tessu_mod"
 
+def get_old_ini_dir_path():
+	return "./res_mods/configs/tessu_mod"
+
 def get_states_dir_path():
 	return os.path.join(get_ini_dir_path(), "states")
 

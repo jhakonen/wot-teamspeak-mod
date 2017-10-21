@@ -50,10 +50,35 @@ def init():
 		# make sure that ini-folder exists
 		try:
 			os.makedirs(utils.get_ini_dir_path())
+			os.makedirs(os.path.join(utils.get_ini_dir_path(), "states"))
 		except os.error:
 			pass
 		settings_ini_path     = os.path.join(utils.get_ini_dir_path(), "tessu_mod.ini")
 		cache_ini_path        = os.path.join(utils.get_ini_dir_path(), "tessu_mod_cache.ini")
+		opt_out_path          = os.path.join(utils.get_ini_dir_path(), "states", "ignored_plugin_version")
+		old_settings_ini_path = os.path.join(utils.get_old_ini_dir_path(), "tessu_mod.ini")
+		old_cache_ini_path    = os.path.join(utils.get_old_ini_dir_path(), "tessu_mod_cache.ini")
+		old_opt_out_path      = os.path.join(utils.get_old_ini_dir_path(), "states", "ignored_plugin_version")
+
+		# Config path changed in mod version 0.6.14 when wotmod format was taken
+		# into use. Thus existing config files needs to moved to new location.
+		if os.path.isfile(old_settings_ini_path) and not os.path.isfile(settings_ini_path):
+			print "Migrating '{}' to '{}'".format(old_settings_ini_path, settings_ini_path)
+			os.rename(old_settings_ini_path, settings_ini_path)
+		if os.path.isfile(old_cache_ini_path) and not os.path.isfile(cache_ini_path):
+			print "Migrating '{}' to '{}'".format(old_cache_ini_path, cache_ini_path)
+			os.rename(old_cache_ini_path, cache_ini_path)
+		if os.path.isfile(old_opt_out_path) and not os.path.isfile(opt_out_path):
+			print "Migrating '{}' to '{}'".format(old_opt_out_path, opt_out_path)
+			os.rename(old_opt_out_path, opt_out_path)
+		try:
+			os.rmdir(os.path.join(utils.get_old_ini_dir_path(), "states"))
+		except os.error:
+			pass
+		try:
+			os.rmdir(utils.get_old_ini_dir_path())
+		except os.error:
+			pass
 
 		# do all intializations here
 		settings(settings_ini_path).on_reloaded += load_settings
