@@ -18,7 +18,7 @@
 import os
 import types
 import functools
-import xml.etree.ElementTree as ET
+import json
 
 import BigWorld
 from gui import SystemMessages
@@ -29,6 +29,7 @@ from gui.shared.notifications import NotificationGuiSettings
 from helpers import dependency
 from skeletons.gui.system_messages import ISystemMessages
 
+import resources
 import utils
 
 TSPLUGIN_INSTALL  = "TessuModTSPluginInstall"
@@ -50,8 +51,8 @@ def add_event_handler(action, handler):
 def push_ts_plugin_install_message(**data):
 	global _is_plugin_install_shown
 	if not _is_plugin_install_shown:
-		msg_tmpl_filepath = os.path.join(utils.find_res_mods_version_path(), "gui", "tessu_mod", "tsplugin_install_notification.xml")
-		_push_notification(_MessageDecorator(_get_new_message_id(), msg_tmpl_filepath, dict(data, **{
+		msg_tmpl = resources.read_file(utils.get_resource_data_path() + "/tsplugin_install_notification.json")
+		_push_notification(_MessageDecorator(_get_new_message_id(), msg_tmpl, dict(data, **{
 			"install_action": TSPLUGIN_INSTALL,
 			"ignore_action": TSPLUGIN_IGNORED,
 			"moreinfo_action": TSPLUGIN_MOREINFO
@@ -104,9 +105,9 @@ def _get_new_message_id():
 
 class _MessageDecorator(_NotificationDecorator):
 
-	def __init__(self, entity_id, msg_tmpl_filepath, item):
+	def __init__(self, entity_id, msg_tmpl, item):
 		self.__item = None
-		self.__msg_tmpl_filepath = msg_tmpl_filepath
+		self.__msg_tmpl = msg_tmpl
 		super(_MessageDecorator, self).__init__(entity_id, item, NotificationGuiSettings(isNotify=True, showAt=BigWorld.time()))
 
 	def getType(self):
@@ -124,45 +125,31 @@ class _MessageDecorator(_NotificationDecorator):
 		self._vo = {
 			"typeID": self.getType(),
 			"entityID": self.getID(),
-			"message": self.__parse_xml(self.__exec_template(self.__msg_tmpl_filepath, item)),
+			"message": self.__parse_json(self.__msg_tmpl % item),
 			"notify": self.isNotify(),
 			"auxData": ["GameGreeting"]
 		}
 
-	def __exec_template(self, filepath, data):
-		with open(filepath, "r") as tmpl_file:
-			return tmpl_file.read() % data
-
-	def __parse_xml(self, xml_data):
-		root = ET.fromstring(xml_data)
+	def __parse_json(self, json_data):
+		json_data = json.loads(json_data)
 		vo_data = {
-			"bgIcon":      root.findtext("./bgIcon", default=""),
-			"defaultIcon": root.findtext("./defaultIcon", default=""),
-			"icon":        root.findtext("./icon", default=""),
-			"savedData":   int(root.findtext("./savedData", default=0)),
-			"timestamp":   int(root.findtext("./timestamp", default=-1)),
-			"type":        root.findtext("./type", default="black"),
-			"message":     self.__xml_element_contents_to_text(root.find("./message")),
+			"bgIcon":      "../../" + json_data.get("bgIcon", ""),
+			"defaultIcon": "../../" + json_data.get("defaultIcon", ""),
+			"icon":        "../../" + json_data.get("icon", ""),
+			"savedData":   int(json_data.get("savedData", 0)),
+			"timestamp":   int(json_data.get("timestamp", -1)),
+			"type":        json_data.get("type", "black"),
+			"message":     "\n".join(json_data["message"]),
 			"filters": [],
 			"buttonsLayout": []
 		}
-		for button in root.findall("./buttonsLayout/button"):
+		for button in json_data.get("buttons", []):
 			vo_data["buttonsLayout"].append({
-				"label":  button.get("label", default=""),
-				"action": button.get("action", default=""),
-				"type":   button.get("type", default="submit")
+				"label":  button.get("label", ""),
+				"action": button.get("action", ""),
+				"type":   button.get("type", "submit")
 			})
 		return vo_data
-
-	def __xml_element_contents_to_text(self, element):
-		if element is None:
-			return ""
-		contents = []
-		contents.append(element.text or "")
-		for sub_element in element:
-			contents.append(ET.tostring(sub_element))
-		contents.append(element.tail or "")
-		return "".join(contents).strip()
 
 def _patch_instance_method(instance, method_name, new_function):
 	original_method = getattr(instance, method_name)

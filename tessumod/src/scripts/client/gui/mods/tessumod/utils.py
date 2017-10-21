@@ -135,6 +135,9 @@ def get_player_info_by_dbid(dbid):
 		}
 	return {}
 
+def get_resource_data_path():
+	return "mods/jhakonen.tessumod"
+
 def get_resource_paths():
 	res = ResMgr.openSection('../paths.xml')
 	sb = res['Paths']
@@ -142,26 +145,17 @@ def get_resource_paths():
 	for vl in vals:
 		yield vl.asString
 
-def find_res_mods_version_path():
-	for path in get_resource_paths():
-		if "res_mods" in path:
-			return path
-	return ""
-
 def get_ini_dir_path():
-	return os.path.join(find_res_mods_version_path(), "..", "configs", "tessu_mod")
-
-def get_old_ini_dir_path():
-	path = os.path.join(find_res_mods_version_path(), "scripts", "client", "mods")
-	if os.path.isdir(path):
-		return path
-	return ""
+	return "./mods/configs/tessu_mod"
 
 def get_states_dir_path():
 	return os.path.join(get_ini_dir_path(), "states")
 
 def get_plugin_installer_path():
-	return os.path.join(find_res_mods_version_path(), "tessumod.ts3_plugin")
+	for path in get_resource_paths():
+		if "res_mods" in path:
+			return os.path.join(path.replace("res_mods", "mods"), "tessumod", "tessumod.ts3_plugin")
+	return ""
 
 def get_mod_version():
 	try:

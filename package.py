@@ -15,18 +15,29 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-import py_compile, zipfile, os, fnmatch
-import subprocess
-import re
+import os
 import shutil
+import subprocess
 import urllib2
+import zipfile
 
-# configuration
-MOD_VERSION        = "0.6.13"
-ROOT_DIR           = os.path.dirname(os.path.realpath(__file__))
-BUILD_DIR          = os.path.join(os.getcwd(), "build")
-MOD_PACKAGE_PATH   = os.path.join(os.getcwd(), "tessumod-{0}-bin.zip".format(MOD_VERSION))
-DEBUG_ARCHIVE_PATH = os.path.join(os.getcwd(), "tessumod-{0}-dbg.zip".format(MOD_VERSION))
+ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
+
+def execute():
+	# configuration
+	BUILD_DIR        = os.path.join(os.getcwd(), "build")
+	DIST_DIR         = os.path.join(os.getcwd(), "dist")
+	PLUGIN_URL       = "https://github.com/jhakonen/wot-teamspeak-mod/releases/download/ts-3.1.1/tessumod.ts3_plugin"
+	MOD_VERSION      = get_tessumod_version()
+	MOD_PACKAGE_PATH = os.path.join(os.getcwd(), "tessumod-{0}-bin.zip".format(MOD_VERSION))
+	# create release archive
+	remove_file(MOD_PACKAGE_PATH)
+	remove_dir(BUILD_DIR)
+	remove_dir(DIST_DIR)
+	package_tessumod(BUILD_DIR, os.path.join(DIST_DIR, "tessumod"))
+	download_file(PLUGIN_URL, os.path.join(DIST_DIR, "tessumod", "tessumod.ts3_plugin"))
+	shutil.copyfile(os.path.join(ROOT_DIR, "tessumod", "README"), os.path.join(DIST_DIR, "tessumod", "README"))
+	create_release(DIST_DIR, MOD_PACKAGE_PATH)
 
 def remove_file(file_path):
 	try:
@@ -46,50 +57,39 @@ def create_dir(dir_path):
 	except:
 		pass
 
-def package_ts_plugin(build_dir):
-	create_dir(build_dir)
-	proc = subprocess.Popen([
-		"python",
-		os.path.join(ROOT_DIR, "tsplugin", "package.py"),
-		"--version=" + MOD_VERSION
-	], cwd=build_dir, stdout=subprocess.PIPE)
-	out = proc.communicate()[0]
-	if proc.returncode != 0:
-		print out
-		raise RuntimeError("TS plugin packaging failed")
-	return (
-		re.search("^Installer file path: (.+)$", out, re.MULTILINE).group(1).strip(),
-		re.search("^Debug archive file path: (.+)$", out, re.MULTILINE).group(1).strip()
+def get_tessumod_version():
+	return run_tessumod_setup("--quiet", "--version").strip()
+
+def package_tessumod(build_dir, dist_dir):
+	run_tessumod_setup(
+		"build", "--build-base=%s" % build_dir,
+		"bdist_wotmod", "--dist-dir=%s" % dist_dir
 	)
 
-def package_tessumod(build_dir):
-	create_dir(build_dir)
-	proc = subprocess.Popen([
-		"python",
-		os.path.join(ROOT_DIR, "tessumod", "package.py"),
-		"--mod-version=" + MOD_VERSION
-	], cwd=build_dir, stdout=subprocess.PIPE)
+def run_tessumod_setup(*args):
+	proc = subprocess.Popen(["python", "setup.py"] + list(args),
+		cwd = os.path.join(ROOT_DIR, "tessumod"),
+		stdout = subprocess.PIPE,
+		stderr = subprocess.STDOUT
+	)
 	out = proc.communicate()[0]
 	if proc.returncode != 0:
 		print out
 		raise RuntimeError("TessuMod packaging failed")
-	return (
-		re.search("^Package file path: (.+)$", out, re.MULTILINE).group(1).strip(),
-		re.search("^Package root path: (.+)$", out, re.MULTILINE).group(1).strip()
-	)
+	return out
 
-remove_file(MOD_PACKAGE_PATH)
-remove_file(DEBUG_ARCHIVE_PATH)
-remove_dir(BUILD_DIR)
+def download_file(url, target):
+	with open(target, "wb") as target_file:
+		target_file.write(urllib2.urlopen(url).read())
 
-# NOTE: Disabled plugin building for now. Using prebuild binary from ts-3.1-beta release.
-#plugin_installer_path, plugin_debug_path = package_ts_plugin(os.path.join(BUILD_DIR, "tsplugin"))
-package_path, package_root_path = package_tessumod(os.path.join(BUILD_DIR, "tessumod"))
+def create_release(source_dir, release_path):
+	with zipfile.ZipFile(release_path, "w") as package_file:
+		for root, dirs, files in os.walk(source_dir):
+			for filename in files:
+				filepath = os.path.join(root, filename)
+				# Build relative path from bdist_dir forward
+				arcpath = filepath.replace(os.path.commonprefix(
+					[source_dir, filepath]), '').strip('/')
+				package_file.write(filepath, arcpath)
 
-#shutil.copy(plugin_debug_path, DEBUG_ARCHIVE_PATH)
-shutil.copy(package_path, MOD_PACKAGE_PATH)
-
-with zipfile.ZipFile(MOD_PACKAGE_PATH, "a") as package_file:
-	r = urllib2.urlopen("https://github.com/jhakonen/wot-teamspeak-mod/releases/download/ts-3.1.1/tessumod.ts3_plugin")
-	package_file.writestr(os.path.join(package_root_path, "tessumod.ts3_plugin"), r.read())
-	#package_file.write(plugin_installer_path, os.path.join(package_root_path, os.path.basename(plugin_installer_path)))
+execute()

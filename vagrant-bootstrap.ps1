@@ -171,6 +171,9 @@ choco install virtual-audio-cable --version 4.15 -y
 
 Update-SessionEnvironment
 
+Write-Host "Upgrading pip"
+python -m pip install --upgrade pip
+
 Write-Host "Add firewall rules for TeamSpeak server"
 netsh advfirewall firewall delete rule name=all program="$env:TSSERVERPATH\ts3server.exe" | Out-Null
 netsh advfirewall firewall add rule name="TeamSpeak Server (TCP-in)" program="$env:TSSERVERPATH\ts3server.exe" dir=in action=allow protocol=TCP

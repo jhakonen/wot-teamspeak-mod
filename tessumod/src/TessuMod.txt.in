@@ -1,9 +1,0 @@
-JHakonen's mod for integrating TeamSpeak into World of Tanks.
-
-Installation:
- - extract the archive to your world of Tanks folder, e.g: E:\Games\World_of_Tanks
- - if you have other mods installed, it is recommended not to replace CameraNode.pyc or __init__.pyc files
- - install TeamSpeak plugin 'tessumod-plugin.ts3_plugin' (optional, required for 3D audio)
-
-For more information, see:
-   {SUPPORT_URL}
