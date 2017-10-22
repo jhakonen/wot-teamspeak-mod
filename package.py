@@ -16,6 +16,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 import os
+import re
 import shutil
 import subprocess
 import urllib2
@@ -58,7 +59,10 @@ def create_dir(dir_path):
 		pass
 
 def get_tessumod_version():
-	return run_tessumod_setup("--quiet", "--version").strip()
+	result = run_tessumod_setup("--quiet", "--version").strip()
+	# Command may produce garbage even with --quiet, so try to parse version
+	# string from output, likely to be last match in it
+	return re.findall("[\d.]+", result)[-1]
 
 def package_tessumod(build_dir, dist_dir):
 	run_tessumod_setup(
