@@ -19,7 +19,6 @@ import os
 import re
 import shutil
 import subprocess
-import urllib2
 import zipfile
 
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -28,7 +27,6 @@ def execute():
 	# configuration
 	BUILD_DIR        = os.path.join(os.getcwd(), "build")
 	DIST_DIR         = os.path.join(os.getcwd(), "dist")
-	PLUGIN_URL       = "https://github.com/jhakonen/wot-teamspeak-mod/releases/download/ts-3.1.1/tessumod.ts3_plugin"
 	MOD_VERSION      = get_tessumod_version()
 	MOD_PACKAGE_PATH = os.path.join(os.getcwd(), "tessumod-{0}-bin.zip".format(MOD_VERSION))
 	# create release archive
@@ -36,7 +34,6 @@ def execute():
 	remove_dir(BUILD_DIR)
 	remove_dir(DIST_DIR)
 	package_tessumod(BUILD_DIR, os.path.join(DIST_DIR, "tessumod"))
-	download_file(PLUGIN_URL, os.path.join(DIST_DIR, "tessumod", "tessumod.ts3_plugin"))
 	shutil.copyfile(os.path.join(ROOT_DIR, "tessumod", "README"), os.path.join(DIST_DIR, "tessumod", "README"))
 	create_release(DIST_DIR, MOD_PACKAGE_PATH)
 
@@ -81,10 +78,6 @@ def run_tessumod_setup(*args):
 		print out
 		raise RuntimeError("TessuMod packaging failed")
 	return out
-
-def download_file(url, target):
-	with open(target, "wb") as target_file:
-		target_file.write(urllib2.urlopen(url).read())
 
 def create_release(source_dir, release_path):
 	with zipfile.ZipFile(release_path, "w") as package_file:
