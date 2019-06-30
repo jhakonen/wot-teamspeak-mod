@@ -19,7 +19,7 @@ import os
 import sys
 import ConfigParser
 base_path  = os.path.dirname(os.path.realpath(__file__))
-fakes_path = os.path.realpath(os.path.join(base_path, "..", "..", "futes", "fakes"))
+fakes_path = os.path.realpath(os.path.join(base_path, "..", "..", "test", "fakes"))
 sys.path.append(fakes_path)
 
 import ts3
