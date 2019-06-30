@@ -25,6 +25,7 @@ import utils
 import ts3
 import random
 import re
+import mock
 
 class TestUtilsTSUserToPlayer(object):
 
@@ -32,7 +33,7 @@ class TestUtilsTSUserToPlayer(object):
 		pass
 
 	def create_ts_user(self, nick=None, wot_nick=None):
-		ts_user = ts3.User()
+		ts_user = ts3.User(mock.Mock())
 		ts_user.nick = nick
 		ts_user.wot_nick = wot_nick
 		return ts_user
