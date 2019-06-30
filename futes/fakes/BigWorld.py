@@ -67,6 +67,9 @@ class Vector(object):
 		self.y = y
 		self.z = z
 
+	def __repr__(self):
+		return "Vector(%d, %d, %d)" % (self.x, self.y, self.z)
+
 entities = {}
 
 class Entity(object):

@@ -8,6 +8,7 @@ import shutil
 import mmap
 import struct
 import json
+import platform
 
 from event_loop import EventLoop
 from ts_client_query import TSClientQueryService
@@ -18,9 +19,11 @@ FAKES_DIRPATH            = os.path.join(SCRIPT_DIRPATH, "..", "fakes")
 MOD_SRC_DIRPATH          = os.path.join(SCRIPT_DIRPATH, "..", "..", "tessumod", "src")
 MOD_SCRIPTS_DIRPATH      = os.path.join(MOD_SRC_DIRPATH, "scripts", "client", "gui", "mods")
 TMP_DIRPATH              = os.path.join(os.getcwd(), "tmp")
-MODS_VERSION_DIRPATH     = os.path.join(TMP_DIRPATH, "res_mods", "version")
+MODS_VERSION_DIRPATH     = os.path.join(TMP_DIRPATH, "mods", "version")
+TESSUMOD_DIRPATH         = os.path.join(MODS_VERSION_DIRPATH, "tessumod")
 INI_DIRPATH              = os.path.join(MODS_VERSION_DIRPATH, "..", "configs", "tessu_mod")
-TS_PLUGIN_INSTALLER_PATH = os.path.join(MODS_VERSION_DIRPATH, "tessumod.ts3_plugin")
+TS_PLUGIN_INSTALLER_PATH = os.path.join(TESSUMOD_DIRPATH, "tessumod.ts3_plugin")
+RESOURCE_DIRPATH         = os.path.join(MODS_VERSION_DIRPATH, "gui", "tessu_mod")
 
 class TestCaseBase(unittest.TestCase):
 
@@ -41,12 +44,12 @@ class TestCaseBase(unittest.TestCase):
 		if MOD_SCRIPTS_DIRPATH not in sys.path:
 			sys.path.append(MOD_SCRIPTS_DIRPATH)
 
-		os.makedirs(MODS_VERSION_DIRPATH)
+		os.makedirs(TESSUMOD_DIRPATH)
 
 		shutil.copytree(os.path.join(MOD_SRC_DIRPATH, "gui"), os.path.join(MODS_VERSION_DIRPATH, "gui"))
 
 		import ResMgr
-		ResMgr.RES_MODS_VERSION_PATH = MODS_VERSION_DIRPATH
+		ResMgr.RES_MODS_VERSION_PATH = MODS_VERSION_DIRPATH.replace("mods", "res_mods")
 
 		mod_settings.INI_DIRPATH = INI_DIRPATH
 		mod_settings.reset_cache_file()
@@ -71,6 +74,9 @@ class TestCaseBase(unittest.TestCase):
 		sys.path.remove(FAKES_DIRPATH)
 		sys.path.remove(MOD_SCRIPTS_DIRPATH)
 
+		cleanup_mmap("TessuModTSPluginInfo")
+		cleanup_mmap("TessuModTSPlugin3dAudio")
+
 	def start_ts_client(self, **state):
 		assert self.ts_client_query_server == None, "Cannot start TS client if it is already running"
 		self.ts_client_query_server = TSClientQueryService()
@@ -78,12 +84,12 @@ class TestCaseBase(unittest.TestCase):
 		self.change_ts_client_state(**state)
 
 	def enable_ts_client_tessumod_plugin(self, version=0):
-		self.__ts_plugin_info = mmap.mmap(0, 1, "TessuModTSPluginInfo", mmap.ACCESS_WRITE)
+		self.__ts_plugin_info = create_mmap("TessuModTSPluginInfo", 1)
 		self.__ts_plugin_info.write(struct.pack("=B", version))
 
 	def get_shared_memory_contents(self, memory):
-		assert memory == "TessuModTSPlugin3dAudio" # currently this is only memory supported
-		shmem = mmap.mmap(0, 1024, memory, mmap.ACCESS_READ)
+		assert memory == "TessuModTSPlugin3dAudio" # currently this is the only memory supported
+		shmem = create_mmap(memory, 1024)
 		(
 			timestamp,
 			camera_pos_x,
@@ -134,6 +140,11 @@ class TestCaseBase(unittest.TestCase):
 
 	def start_game(self, **game_state):
 		import mod_tessumod
+		import tessumod.utils
+
+		tessumod.utils.get_ini_dir_path = lambda: INI_DIRPATH
+		tessumod.utils.get_resource_data_path = lambda: RESOURCE_DIRPATH
+
 		self.mod_tessumod = mod_tessumod
 		self.mod_tessumod.init()
 
@@ -269,3 +280,21 @@ class TestCaseBase(unittest.TestCase):
 
 	def wait_at_least(self, secs):
 		self.__min_end_time = time.time() + secs
+
+
+def create_mmap(name, length):
+	if platform.system() == "Linux":
+		file_path = os.path.join("/tmp", name)
+		if not os.path.exists(file_path):
+			with open(file_path, "wb") as file:
+				file.write('\x00' * length)
+		obj = open(file_path, "r+b", 0)
+		return obj
+	else:
+		return mmap.mmap(0, length, name, mmap.ACCESS_WRITE)
+
+def cleanup_mmap(name):
+	if platform.system() == "Linux":
+		path = os.path.join("/tmp", name)
+		if os.path.exists(path):
+			os.remove(path)

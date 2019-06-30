@@ -1,5 +1,5 @@
-from helpers.testcasebase import TestCaseBase, TS_PLUGIN_INSTALLER_PATH
-from helpers.utils import *
+from test_helpers.testcasebase import TestCaseBase, TS_PLUGIN_INSTALLER_PATH
+from test_helpers.utils import *
 import mock
 import os
 import nosepipe

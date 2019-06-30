@@ -18,6 +18,8 @@
 import struct
 import mmap
 import time
+import platform
+import os
 
 class _SharedMemory(object):
 
@@ -36,7 +38,18 @@ class _SharedMemory(object):
 		self.close()
 
 	def open(self):
-		if not self.__memory:
+		if self.__memory:
+			return
+		if platform.system() == "Linux":
+			# For a test suite running on Linux, not for actual communication
+			# with the plugin
+			file_path = os.path.join("/tmp", self.NAME)
+			if not os.path.exists(file_path):
+				with open(file_path, "wb") as file:
+					file.write('\x00' * self.SIZE)
+			self.__memory = open(file_path, "r+b", 0)
+		else:
+			# Used when loaded into WoT on Windows (or Linux over WINE)
 			self.__memory = mmap.mmap(0, self.SIZE, self.NAME, self.ACCESS_TYPE)
 
 	def close(self):
@@ -92,9 +105,19 @@ class PositionalData(object):
 		self.camera_direction = None
 		self.client_positions = {}
 
+	def __repr__(self):
+		return "PositionalData(camera_position=%s, camera_direction=%s, client_positions=%s)" % (
+			self.camera_position,
+			self.camera_direction,
+			self.client_positions
+		)
+
 class Vector(object):
 
 	def __init__(self, x, y, z):
 		self.x = x
 		self.y = y
 		self.z = z
+
+	def __repr__(self):
+		return "Vector(%d, %d, %d)" % (self.x, self.y, self.z)

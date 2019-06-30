@@ -161,6 +161,7 @@ class TSClientQueryServer(asyncore.dispatcher):
 		self._sock_map = sock_map
 		self._data_source = data_source
 		self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.set_reuse_addr()
 		self.bind((host, port))
 		self.listen(5)
 
@@ -263,7 +264,8 @@ class TSClientQueryHandler(asynchat.async_chat):
 				"cid=" + str(user.cid),
 				"client_database_id=DBID" + str(user.clid),
 				"client_nickname=" + user.name,
-				"client_type=0"
+				"client_type=0",
+				"client_flag_talking=" + ('1' if user.speaking else '0')
 			]
 			if "uid" in options:
 				params.append("client_unique_identifier=" + user.cluid)
@@ -282,6 +284,9 @@ class TSClientQueryHandler(asynchat.async_chat):
 	def handle_command_servervariable(self, virtualserver_name=None):
 		if virtualserver_name is not None:
 			self.push("virtualserver_name=Dummy\sServer\n\r")
+
+	def handle_command_auth(self, apikey):
+		pass
 
 	def user_value_changed(self, clid, name, value):
 		if name == "speaking":

@@ -1,5 +1,5 @@
-from helpers.testcasebase import TestCaseBase
-from helpers.utils import *
+from test_helpers.testcasebase import TestCaseBase
+from test_helpers.utils import *
 import mock
 import nosepipe
 
@@ -13,8 +13,10 @@ class LobbyNotifications(TestCaseBase):
 
 	def setUp(self):
 		TestCaseBase.setUp(self)
-		import gui.SystemMessages
-		gui.SystemMessages.pushMessage = mock.Mock()
+		from helpers import dependency
+		from skeletons.gui.system_messages import ISystemMessages
+		self.__system_messages = dependency.instance(ISystemMessages)
+		self.__system_messages.pushMessage = mock.Mock()
 		self.__seen_events = set()
 
 	def __set_seen_event(self, event):
@@ -31,7 +33,7 @@ class LobbyNotifications(TestCaseBase):
 			sm_type = gui.SystemMessages.SM_TYPE.Warning
 		if type == "error":
 			sm_type = gui.SystemMessages.SM_TYPE.Error
-		return mock_was_called_with(gui.SystemMessages.pushMessage, message, sm_type)
+		return mock_was_called_with(self.__system_messages.pushMessage, message, sm_type)
 
 	@use_event_loop
 	def test_notification_connected_to_teamspeak_server_is_shown(self):

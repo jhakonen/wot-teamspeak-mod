@@ -1,0 +1,3 @@
+
+class IBattleSessionProvider(object):
+    pass

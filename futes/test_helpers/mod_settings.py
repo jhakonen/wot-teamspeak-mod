@@ -26,6 +26,7 @@ def reset_settings_file():
 	parser.set("General", "nick_extract_patterns", "")
 	parser.add_section("NameMappings")
 	parser.add_section("TSClientQueryService")
+	parser.set("TSClientQueryService", "api_key", "supersecretapikey")
 	parser.set("TSClientQueryService", "host", "localhost")
 	parser.set("TSClientQueryService", "port", "25639")
 	parser.set("TSClientQueryService", "polling_interval", "0.1")

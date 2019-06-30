@@ -1,5 +1,5 @@
-from helpers.testcasebase import TestCaseBase
-from helpers.utils import *
+from test_helpers.testcasebase import TestCaseBase
+from test_helpers.utils import *
 import mock
 import nosepipe
 
@@ -15,9 +15,11 @@ class SpeakStatusChanges(TestCaseBase):
 		TestCaseBase.setUp(self)
 
 		from messenger.proto.events import g_messengerEvents
-		from gui.battle_control import g_sessionProvider
+		from skeletons.gui.battle_session import IBattleSessionProvider
+		from helpers import dependency
+		session_provider = dependency.instance(IBattleSessionProvider)
 		self.VOIP_onPlayerSpeaking = g_messengerEvents.voip.onPlayerSpeaking = mock.Mock()
-		self.onMinimapFeedbackReceived = g_sessionProvider.shared.feedback.onMinimapFeedbackReceived = mock.Mock()
+		self.onMinimapFeedbackReceived = session_provider.shared.feedback.onMinimapFeedbackReceived = mock.Mock()
 
 	def __has_speaking_state_changed(self, name, speaking):
 		return mock_was_called_with(self.VOIP_onPlayerSpeaking, self.get_player_id(name), speaking)

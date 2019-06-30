@@ -1,0 +1,3 @@
+
+class IGlobalListener(object):
+	pass

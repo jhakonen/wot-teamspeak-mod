@@ -1,5 +1,5 @@
-from helpers.testcasebase import TestCaseBase
-from helpers.utils import *
+from test_helpers.testcasebase import TestCaseBase
+from test_helpers.utils import *
 import mock
 import nosepipe
 import mmap

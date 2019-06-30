@@ -180,7 +180,6 @@ class Settings(object):
 		self._load_time = 0
 		self._parser = None
 		self._ini_path = ini_path
-
 		self._write_default_file()
 		self._load_parser()
 
