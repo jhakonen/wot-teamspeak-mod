@@ -15,14 +15,12 @@ from ts_client_query import TSClientQueryService
 import mod_settings
 
 REPO_ROOT_DIRPATH        = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", ".."))
-FAKES_DIRPATH            = os.path.join(REPO_ROOT_DIRPATH, "test", "fakes")
-MOD_SRC_DIRPATH          = os.path.join(REPO_ROOT_DIRPATH, "src")
+RESOURCE_DIRPATH         = os.path.join(REPO_ROOT_DIRPATH, "data")
 TMP_DIRPATH              = os.path.join(os.getcwd(), "tmp")
 MODS_VERSION_DIRPATH     = os.path.join(TMP_DIRPATH, "mods", "version")
 TESSUMOD_DIRPATH         = os.path.join(MODS_VERSION_DIRPATH, "tessumod")
 INI_DIRPATH              = os.path.join(MODS_VERSION_DIRPATH, "..", "configs", "tessu_mod")
 TS_PLUGIN_INSTALLER_PATH = os.path.join(TESSUMOD_DIRPATH, "tessumod.ts3_plugin")
-RESOURCE_DIRPATH         = os.path.join(REPO_ROOT_DIRPATH, "data")
 
 class TestCaseBase(unittest.TestCase):
 
@@ -37,11 +35,6 @@ class TestCaseBase(unittest.TestCase):
 		self.__event_handlers = {}
 
 		shutil.rmtree(TMP_DIRPATH, ignore_errors=True)
-
-		if FAKES_DIRPATH not in sys.path:
-			sys.path.append(FAKES_DIRPATH)
-		if MOD_SRC_DIRPATH not in sys.path:
-			sys.path.append(MOD_SRC_DIRPATH)
 
 		os.makedirs(TESSUMOD_DIRPATH)
 
@@ -68,8 +61,6 @@ class TestCaseBase(unittest.TestCase):
 			self.__ts_plugin_info.close()
 		if self.ts_client_query_server:
 			self.ts_client_query_server.stop()
-		sys.path.remove(FAKES_DIRPATH)
-		sys.path.remove(MOD_SRC_DIRPATH)
 
 		cleanup_mmap("TessuModTSPluginInfo")
 		cleanup_mmap("TessuModTSPlugin3dAudio")

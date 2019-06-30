@@ -15,14 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-import os
-import sys
-base_path  = os.path.dirname(os.path.realpath(__file__))
-fakes_path = os.path.realpath(os.path.join(base_path, "..", "..", "test", "fakes"))
-tmp_path   = os.path.realpath(os.path.join(base_path, "..", "..", "tmp"))
-sys.path.append(fakes_path)
-import utils
-import ts3
+from tessumod import utils, ts3
 import random
 import re
 import mock

@@ -15,13 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-import sys
-import os
-base_path  = os.path.dirname(os.path.realpath(__file__))
-fakes_path = os.path.realpath(os.path.join(base_path, "..", "..", "test", "fakes"))
-tmp_path   = os.path.realpath(os.path.join(base_path, "..", "..", "tmp"))
-sys.path.append(fakes_path)
-from statemachine import StateMachine
+from tessumod.statemachine import StateMachine
 
 def call_counter():
 	def func():

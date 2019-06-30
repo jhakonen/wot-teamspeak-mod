@@ -16,16 +16,11 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 import os
-import sys
 import ConfigParser
+from tessumod.user_cache import UserCache
 
-base_path  = os.path.dirname(os.path.realpath(__file__))
-fakes_path = os.path.realpath(os.path.join(base_path, "..", "..", "test", "fakes"))
-tmp_path   = os.path.realpath(os.path.join(base_path, "..", "..", "tmp"))
-ini_path   = os.path.join(tmp_path, "tessu_mod_cache.ini")
-
-sys.path.append(fakes_path)
-from user_cache import UserCache
+base_path = os.path.dirname(os.path.realpath(__file__))
+ini_path = os.path.realpath(os.path.join(base_path, "..", "..", "tmp", "tessu_mod_cache.ini"))
 
 def get_cache_value(section, name):
 	parser = ConfigParser.RawConfigParser()
