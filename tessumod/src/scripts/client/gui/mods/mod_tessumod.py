@@ -366,6 +366,9 @@ def on_users_list_received(tags):
 		g_user_cache.add_player(player.name, player.id)
 
 def on_tsplugin_install(type_id, msg_id, data):
+	# For this to work under the TeamSpeak client probably would need to be
+	# installed within the same prefix as the game is. File association for
+	# .ts3_plugin missing otherwise?
 	threading.Thread(
 		target = partial(
 			subprocess.call,
@@ -380,7 +383,11 @@ def on_tsplugin_ignore_toggled(type_id, msg_id, data):
 	notifications.update_message(type_id, msg_id, data)
 
 def on_tsplugin_moreinfo_clicked(type_id, msg_id, data):
-	subprocess.call(["start", data["moreinfo_url"]], shell=True)
+	# Using Popen here as opening the URL to a web browser seems to not work
+	# under WINE, and just freezes the game client. Browser opens once you
+	# force close the client.
+	subprocess.Popen(["start", data["moreinfo_url"]], shell=True)
 
 def on_settings_path_clicked(type_id, msg_id, data):
+	# Using call() for this under WINE works just fine, perplexing...
 	subprocess.call(["start", os.path.abspath(settings().get_filepath())], shell=True)
