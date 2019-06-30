@@ -15,15 +15,15 @@ from ts_client_query import TSClientQueryService
 import mod_settings
 
 SCRIPT_DIRPATH           = os.path.dirname(os.path.realpath(__file__))
+REPO_ROOT_DIRPATH        = os.path.join(SCRIPT_DIRPATH, "..", "..")
 FAKES_DIRPATH            = os.path.join(SCRIPT_DIRPATH, "..", "fakes")
-MOD_SRC_DIRPATH          = os.path.join(SCRIPT_DIRPATH, "..", "..", "tessumod", "src")
-MOD_SCRIPTS_DIRPATH      = os.path.join(MOD_SRC_DIRPATH, "scripts", "client", "gui", "mods")
+MOD_SRC_DIRPATH          = os.path.join(REPO_ROOT_DIRPATH, "src")
 TMP_DIRPATH              = os.path.join(os.getcwd(), "tmp")
 MODS_VERSION_DIRPATH     = os.path.join(TMP_DIRPATH, "mods", "version")
 TESSUMOD_DIRPATH         = os.path.join(MODS_VERSION_DIRPATH, "tessumod")
 INI_DIRPATH              = os.path.join(MODS_VERSION_DIRPATH, "..", "configs", "tessu_mod")
 TS_PLUGIN_INSTALLER_PATH = os.path.join(TESSUMOD_DIRPATH, "tessumod.ts3_plugin")
-RESOURCE_DIRPATH         = os.path.join(MODS_VERSION_DIRPATH, "gui", "tessu_mod")
+RESOURCE_DIRPATH         = os.path.join(REPO_ROOT_DIRPATH, "data")
 
 class TestCaseBase(unittest.TestCase):
 
@@ -41,12 +41,10 @@ class TestCaseBase(unittest.TestCase):
 
 		if FAKES_DIRPATH not in sys.path:
 			sys.path.append(FAKES_DIRPATH)
-		if MOD_SCRIPTS_DIRPATH not in sys.path:
-			sys.path.append(MOD_SCRIPTS_DIRPATH)
+		if MOD_SRC_DIRPATH not in sys.path:
+			sys.path.append(MOD_SRC_DIRPATH)
 
 		os.makedirs(TESSUMOD_DIRPATH)
-
-		shutil.copytree(os.path.join(MOD_SRC_DIRPATH, "gui"), os.path.join(MODS_VERSION_DIRPATH, "gui"))
 
 		import ResMgr
 		ResMgr.RES_MODS_VERSION_PATH = MODS_VERSION_DIRPATH.replace("mods", "res_mods")
@@ -72,7 +70,7 @@ class TestCaseBase(unittest.TestCase):
 		if self.ts_client_query_server:
 			self.ts_client_query_server.stop()
 		sys.path.remove(FAKES_DIRPATH)
-		sys.path.remove(MOD_SCRIPTS_DIRPATH)
+		sys.path.remove(MOD_SRC_DIRPATH)
 
 		cleanup_mmap("TessuModTSPluginInfo")
 		cleanup_mmap("TessuModTSPlugin3dAudio")
