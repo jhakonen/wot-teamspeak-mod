@@ -14,7 +14,7 @@ from event_loop import EventLoop
 from ts_client_query import TSClientQueryService
 import mod_settings
 
-REPO_ROOT_DIRPATH        = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", ".."))
+REPO_ROOT_DIRPATH        = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", ".."))
 FAKES_DIRPATH            = os.path.join(REPO_ROOT_DIRPATH, "test", "fakes")
 MOD_SRC_DIRPATH          = os.path.join(REPO_ROOT_DIRPATH, "src")
 TMP_DIRPATH              = os.path.join(os.getcwd(), "tmp")
