@@ -51,6 +51,16 @@ class PositionalAudio(object):
 		self._ts_update_timer = RepeatTimer(TS_UPDATE_TIMEOUT)
 		self._ts_update_timer.on_timeout += self.on_update_to_ts
 
+	def fini(self):
+		self._ts_users.on_added     -= self.on_ts_users_changed
+		self._ts_users.on_removed   -= self.on_ts_users_changed
+		self._ts_users.on_modified  -= self.on_ts_users_changed
+		self._user_cache.on_updated -= self.on_user_cache_updated
+		self._entity_positions_timer.fini()
+		self._entity_positions_timer = None
+		self._ts_update_timer.fini()
+		self._ts_update_timer = None
+
 	def enable(self):
 		'''Called when battle starts.'''
 		self.__positional_data_api = mytsplugin.PositionalDataAPI()
@@ -164,7 +174,9 @@ class PositionalAudio(object):
 		return self._vehicle_positions.get(vehicle_id)
 
 	def _arena(self):
-		return BigWorld.player().arena
+		if hasattr(BigWorld.player(), "arena"):
+			return BigWorld.player().arena
+		return None
 
 	def _is_camera_updated(self):
 		camera = BigWorld.camera()

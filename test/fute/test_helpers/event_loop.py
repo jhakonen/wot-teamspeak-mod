@@ -6,6 +6,9 @@ class EventLoop(object):
 	def __init__(self):
 		self.__callbacks = []
 
+	def fini(self):
+		del self.__callbacks[:]
+
 	def execute(self):
 		self.__exit_called = False
 		while not self.__exit_called:

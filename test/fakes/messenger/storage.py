@@ -1,8 +1,10 @@
 
+def reset_fake():
+	global _STORAGE
+	_STORAGE = { "users": UsersStorage() }
+
 class UsersStorage(object):
 	pass
-
-_STORAGE = { "users": UsersStorage() }
 
 class storage_getter(object):
 
@@ -13,3 +15,5 @@ class storage_getter(object):
 
 	def __call__(self, *args):
 		return _STORAGE[self._name]
+
+reset_fake()

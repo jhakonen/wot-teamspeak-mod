@@ -1,16 +1,27 @@
 import time as _time
 from debug_utils import LOG_CURRENT_EXCEPTION
 
-g_callback_events = {}
-g_next_handle = 0
+def reset_fake():
+	global _player
+	global _camera
+	global entities
+	global g_callback_events
+	global g_next_handle
+	_player = None
+	_camera = Camera()
+	entities = {}
+	g_callback_events = {}
+	g_next_handle = 0
 
 class UserDataObject(object):
 	pass
 
 def callback(secs, func):
 	global g_next_handle
+	result = g_next_handle
 	g_callback_events[g_next_handle] = (_time.time()+secs, func)
 	g_next_handle += 1
+	return result
 
 def cancelCallback(handle):
 	try:
@@ -32,21 +43,27 @@ def tick():
 	except:
 		LOG_CURRENT_EXCEPTION()
 
-_player = None
-
 def player(entity=None):
 	global _player
-	if entity is not None:
+	if entity is None:
 		if _player is not None:
-			_player.onBecomeNonPlayer()
-		_player = entity
-		_player.onBecomePlayer()
+			return _player
+		return None
+	assert _player is None, "Call BigWorld.fake_clear_player() first"
+	_player = entity
+	_player.onBecomePlayer()
 	return _player
+
+def fake_clear_player():
+	global _player
+	if _player is None:
+		return
+	temp = _player
+	_player = None
+	temp.onBecomeNonPlayer()
 
 def time():
 	return _time.time()
-
-_camera = None
 
 def camera():
 	global _camera
@@ -70,9 +87,9 @@ class Vector(object):
 	def __repr__(self):
 		return "Vector(%d, %d, %d)" % (self.x, self.y, self.z)
 
-entities = {}
-
 class Entity(object):
 
 	def __init__(self):
 		self.position = Vector(0, 0, 0)
+
+reset_fake()

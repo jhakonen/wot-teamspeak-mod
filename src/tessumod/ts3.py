@@ -32,6 +32,7 @@ The class provides several functions for querying information from TS client in
 a non-blocking asyncronous manner.
 '''
 
+import sys
 import socket
 import errno
 import clientquery
@@ -51,7 +52,8 @@ from utils import (
 	LOG_NOTE,
 	LOG_WARNING,
 	LOG_ERROR,
-	LOG_CURRENT_EXCEPTION
+	LOG_CURRENT_EXCEPTION,
+	RepeatTimer
 )
 from statemachine import StateMachine
 import async
@@ -84,6 +86,9 @@ class TS3Client(object):
 			filter_func = lambda user: user.channel_id == self._my_channel_id
 		)
 		self.users_in_my_channel.on_added += self.on_user_entered_my_channel
+
+		self._ping_timer = RepeatTimer(_RETRY_TIMEOUT)
+		self._ping_timer.on_timeout += self._ping
 
 		self._socket_map = {}
 		self._wot_nickname = None
@@ -121,6 +126,17 @@ class TS3Client(object):
 		self._sm.add_transition(connecting_failed_state,      connecting_to_ts_state,       "connect_retry")
 
 		self._sm.tick()
+
+	def fini(self):
+		self._protocol.close()
+		self._protocol = None
+		self._sm = None
+		self.users.fini()
+		self.users = None
+		self.users_in_my_channel.fini()
+		self.users_in_my_channel = None
+		self._ping_timer.fini()
+		self._ping_timer = None
 
 	def set_apikey(self, apikey):
 		'''Sets API key for ClientQuery.'''
@@ -262,15 +278,8 @@ class TS3Client(object):
 		self._sm.send_event(event_name)
 
 	def _start_pinging(self):
-		if self._is_pinging:
-			self._ping()
-		else:
-			self._is_pinging = True
-			def loop():
-				if self._is_pinging:
-					self._ping()
-					BigWorld.callback(_RETRY_TIMEOUT, loop)
-			loop()
+		self._ping_timer.start()
+		self._ping()
 
 	def _ping(self):
 		def on_finish(err, ignored):
@@ -279,7 +288,7 @@ class TS3Client(object):
 		self._update_my_client_id(on_finish)
 
 	def _stop_pinging(self):
-		self._is_pinging = False
+		self._ping_timer.stop()
 
 	def _update_my_client_id(self, callback=noop):
 		def on_whoami(err, lines):
@@ -426,19 +435,6 @@ class TS3Client(object):
 		if status == "disconnected":
 			self._send_sm_event("server_disconnected")
 
-def _would_block_windows_workaround(func, fix_func):
-	'''Function decorator which caughts socket errors of type WSAEWOULDBLOCK
-	while other exceptions will propagate through.
-	'''
-	def wrapper(*args, **kwargs):
-		try:
-			return func(*args, **kwargs)
-		except socket.error as err:
-			if err.args[0] == errno.WSAEWOULDBLOCK:
-				return fix_func(*args, **kwargs)
-			raise
-	functools.update_wrapper(wrapper, func)
-	return wrapper
 
 class _ClientQueryProtocol(asynchat.async_chat):
 	'''This class handles low level communication with the client query interface.'''
@@ -462,14 +458,23 @@ class _ClientQueryProtocol(asynchat.async_chat):
 		self._commands = []
 		self._opened = False
 
-		def connect_fix(address):
-			self.addr = address
-		self.connect = _would_block_windows_workaround(self.connect, connect_fix)
-		self.send = _would_block_windows_workaround(self.send, lambda self, data: 0)
+	def send(self, data):
+		try:
+			return asynchat.async_chat.send(self, data)
+		except socket.error as err:
+			if err.args[0] == errno.WSAEWOULDBLOCK:
+				return 0
+			raise
 
 	def connect(self, address):
-		self._opened = True
-		asynchat.async_chat.connect(self, address)
+		try:
+			self._opened = True
+			return asynchat.async_chat.connect(self, address)
+		except socket.error as err:
+			if err.args[0] == errno.WSAEWOULDBLOCK:
+				self.addr = address
+				return
+			raise
 
 	def close(self):
 		'''Closes connection.'''
@@ -496,6 +501,12 @@ class _ClientQueryProtocol(asynchat.async_chat):
 		or lost.
 		'''
 		self.close()
+
+	def handle_error(self):
+		'''Hook method which is called by aync_chat when an error happens which
+		is not otherwise handled.
+		'''
+		LOG_WARNING(sys.exc_info()[1])
 
 	@LOG_CALL(msg="<< {data}")
 	def collect_incoming_data(self, data):
@@ -723,6 +734,11 @@ class UserModel(object):
 		self.on_removed = Event.Event()
 		self.on_modified = Event.Event()
 
+	def fini(self):
+		self.on_added.clear()
+		self.on_removed.clear()
+		self.on_modified.clear()
+
 	def add(self, client_id, nick=None, wot_nick=None, unique_id=None, channel_id=None):
 		if client_id is None:
 			return
@@ -776,6 +792,11 @@ class UserFilterProxy(object):
 		self._source.on_modified += self._on_source_modified
 
 		self._client_ids = set()
+
+	def fini(self):
+		self.on_added.clear()
+		self.on_removed.clear()
+		self.on_modified.clear()
 
 	def invalidate(self):
 		for client_id in self._client_ids:
@@ -864,6 +885,8 @@ class ParamsParser(object):
 		for char in parameter_str:
 			self._char_parser(char)
 		self._char_parser(LineEnd)
+		# Remove reference to itself to allow ParamsParser to delete
+		self._char_parser = None
 		return self._entries
 
 	def _parse_common(self, char):

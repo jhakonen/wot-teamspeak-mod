@@ -1,5 +1,8 @@
-
 import Event
+
+def reset_fake():
+	g_messengerEvents.users.onUsersListReceived.clear()
+	g_messengerEvents.voip.onPlayerSpeaking.clear()
 
 class Events(object):
 
@@ -18,3 +21,5 @@ class VOIPSharedEvents(object):
 		self.onPlayerSpeaking = Event.Event()
 
 g_messengerEvents = Events()
+
+reset_fake()

@@ -1,27 +1,37 @@
 from test_helpers.testcasebase import TestCaseBase, TS_PLUGIN_INSTALLER_PATH
 from test_helpers.utils import *
+
+import notification
+
 import mock
 import os
-import nosepipe
 
-@nosepipe.isolate
 class TSPluginAdvertisement(TestCaseBase):
 	'''
 	This fute test tests TessuMod Plugin is advertised in lobby.
-	To execute, use command:
-		$ nosetests --with-process-isolation
 	'''
 
 	def setUp(self):
 		TestCaseBase.setUp(self)
-		import notification
-		self.mock_addNotification = notification.NotificationMVC.g_instance.getModel().addNotification = mock.Mock(
-			wraps=notification.NotificationMVC.g_instance.getModel().addNotification
-		)
+		self.addNotification_mock = mock.Mock()
+		self.__get_model().on_addNotification += self.addNotification_mock
+
+	def tearDown(self):
+		self.__get_model().on_addNotification.clear()
+		TestCaseBase.tearDown(self)
+
+	def __get_model(self):
+		return notification.NotificationMVC.g_instance.getModel()
 
 	def __is_advertisement_shown(self):
-		return mock_was_called_with(self.mock_addNotification, message_decorator_matches_fragments(
+		return mock_was_called_with(self.addNotification_mock, message_decorator_matches_fragments(
 			["TessuModTSPluginInstall", "TessuModTSPluginMoreInfo", "TessuModTSPluginIgnore"]))
+
+	def __on_notification(self, callback):
+		self.__get_model().on_addNotification += callback
+
+	def __handleAction(self, **kwargs):
+		notification.NotificationMVC.g_instance.handleAction(**kwargs)
 
 	@use_event_loop
 	def test_ts_plugin_advertisement_is_shown(self):
@@ -58,19 +68,25 @@ class TSPluginAdvertisement(TestCaseBase):
 	def test_install_button_starts_plugin_installer(self, subprocess_call_mock):
 		self.start_ts_client()
 		self.start_game(mode="lobby")
-		import notification
-		def on_notification(msg):
-			notification.NotificationMVC.g_instance.handleAction(typeID=msg.getType(), entityID=msg.getID(), action="TessuModTSPluginInstall")
-		notification.NotificationMVC.g_instance.futes_on_add_notification += on_notification
-		self.assert_finally_true(lambda: mock_was_called_with(subprocess_call_mock, args=[contains_match("tessumod.ts3_plugin")], shell=True))
+		self.__on_notification(lambda msg: self.__handleAction(
+			typeID = msg.getType(),
+			entityID = msg.getID(),
+			action = "TessuModTSPluginInstall"
+		))
+		self.assert_finally_true(lambda: mock_was_called_with(
+			subprocess_call_mock,
+			args = [contains_match("tessumod.ts3_plugin")],
+			shell = True
+		))
 
 	@use_event_loop
 	def test_ignore_link_saves_ignore_state(self):
 		self.start_ts_client()
 		self.start_game(mode="lobby")
-		import notification
-		def on_notification(msg):
-			notification.NotificationMVC.g_instance.handleAction(typeID=msg.getType(), entityID=msg.getID(), action="TessuModTSPluginIgnore")
-		notification.NotificationMVC.g_instance.futes_on_add_notification += on_notification
+		self.__on_notification(lambda msg: self.__handleAction(
+			typeID = msg.getType(),
+			entityID = msg.getID(),
+			action = "TessuModTSPluginIgnore"
+		))
 		assert self.get_mod_state_variable("ignored_plugin_version") != "1"
 		self.assert_finally_equal("1", lambda: self.get_mod_state_variable("ignored_plugin_version"))

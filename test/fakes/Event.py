@@ -9,9 +9,16 @@ class Event(object):
 		self.callbacks.append(other)
 		return self
 
+	def __isub__(self, other):
+		self.callbacks.remove(other)
+		return self
+
 	def __call__(self, *args, **kwargs):
 		for callback in self.callbacks:
 			try:
 				callback(*args, **kwargs)
 			except:
 				LOG_CURRENT_EXCEPTION()
+
+	def clear(self):
+		del self.callbacks[:]

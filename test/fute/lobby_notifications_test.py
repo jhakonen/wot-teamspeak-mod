@@ -1,14 +1,10 @@
 from test_helpers.testcasebase import TestCaseBase
 from test_helpers.utils import *
 import mock
-import nosepipe
 
-@nosepipe.isolate
 class LobbyNotifications(TestCaseBase):
 	'''
 	This fute test tests that notifications are shown in lobby.
-	To execute, use command:
-		$ nosetests --with-process-isolation
 	'''
 
 	def setUp(self):

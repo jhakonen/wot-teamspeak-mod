@@ -22,7 +22,7 @@ try:
 	from tessumod.utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
 	from tessumod.ts3 import TS3Client
 	from tessumod import utils, mytsplugin, notifications
-	from tessumod.settings import settings
+	from tessumod.settings import Settings
 	from tessumod.user_cache import UserCache
 	from tessumod.keyvaluestorage import KeyValueStorage
 	import tessumod.positional_audio as positional_audio
@@ -43,9 +43,12 @@ def init():
 	'''Mod's main entry point. Called by WoT's built-in mod loader.'''
 	try:
 		global g_ts, g_talk_states, g_minimap_ctrl, g_user_cache, g_positional_audio, g_keyvaluestorage
-		global g_authentication_error
+		global g_authentication_error, g_settings, g_settings_timer, g_ts_timer
 
 		g_authentication_error = False
+
+		utils.init()
+		notifications.init()
 
 		# make sure that ini-folder exists
 		try:
@@ -81,7 +84,8 @@ def init():
 			pass
 
 		# do all intializations here
-		settings(settings_ini_path).on_reloaded += load_settings
+		g_settings = Settings(settings_ini_path)
+		g_settings.on_reloaded += load_settings
 		g_user_cache = UserCache(cache_ini_path)
 		g_user_cache.on_read_error += on_user_cache_read_error
 		g_user_cache.init()
@@ -97,7 +101,7 @@ def init():
 
 		load_settings()
 
-		g_ts.set_apikey(settings().get_client_query_apikey())
+		g_ts.set_apikey(g_settings.get_client_query_apikey())
 		g_ts.connect()
 		g_ts.on_connected += on_connected_to_ts3
 		g_ts.on_disconnected += on_disconnected_from_ts3
@@ -106,7 +110,7 @@ def init():
 		g_ts.on_authenticate_error += on_ts3_authenticate_error
 		g_ts.users_in_my_channel.on_added += on_ts3_user_in_my_channel_added
 		g_ts.users_in_my_channel.on_modified += on_ts3_user_in_my_channel_modified
-		utils.call_in_loop(settings().get_client_query_interval(), g_ts.check_events)
+		g_ts_timer = utils.call_in_loop(g_settings.get_client_query_interval(), g_ts.check_events)
 
 		g_playerEvents.onAvatarReady           += g_positional_audio.enable
 		g_playerEvents.onAvatarBecomeNonPlayer += g_positional_audio.disable
@@ -132,21 +136,49 @@ def init():
 
 		g_keyvaluestorage = KeyValueStorage(utils.get_states_dir_path())
 
-		utils.call_in_loop(settings().get_ini_check_interval, sync_configs)
+		g_settings_timer = utils.call_in_loop(g_settings.get_ini_check_interval(), sync_configs)
 		print "TessuMod version {0} ({1})".format(utils.get_mod_version(), utils.get_support_url())
 
 	except:
 		LOG_CURRENT_EXCEPTION()
+
+def fini():
+	'''Mod's entry point. Called by WoT's built-in mod loader when the game
+	is exiting. Main reason why this is done though is for fute test suite,
+	allowing cleanup of the mod after each test.'''
+	global g_ts, g_talk_states, g_minimap_ctrl, g_user_cache, g_positional_audio, g_keyvaluestorage
+	global g_authentication_error, g_settings, g_settings_timer, g_ts_timer
+
+	g_playerEvents.onAvatarReady           -= g_positional_audio.enable
+	g_playerEvents.onAvatarBecomeNonPlayer -= g_positional_audio.disable
+
+	g_authentication_error = None
+	g_keyvaluestorage = None
+	g_minimap_ctrl.fini()
+	g_minimap_ctrl = None
+	g_positional_audio.fini()
+	g_positional_audio = None
+	g_settings = None
+	g_settings_timer.fini()
+	g_settings_timer = None
+	g_talk_states = None
+	g_ts_timer.stop()
+	g_ts_timer = None
+	g_ts.fini()
+	g_ts = None
+	g_user_cache = None
+
+	utils.fini()
 
 def on_speak_status_changed(user):
 	'''Called when TeamSpeak user's speak status changes.'''
 	g_user_cache.add_ts_user(user.nick, user.unique_id)
 
 	player = utils.ts_user_to_player(user,
-		use_metadata = settings().get_wot_nick_from_ts_metadata(),
-		use_ts_nick_search = settings().is_ts_nick_search_enabled(),
-		extract_patterns = settings().get_nick_extract_patterns(),
-		mappings = settings().get_name_mappings(),
+		use_metadata = g_settings.get_wot_nick_from_ts_metadata(),
+		use_ts_nick_search = g_settings.is_ts_nick_search_enabled(),
+		extract_patterns = g_settings.get_nick_extract_patterns(),
+		mappings = g_settings.get_name_mappings(),
 		players = utils.get_players(in_battle=True, in_prebattle=True)
 	)
 
@@ -161,7 +193,7 @@ def on_speak_status_changed(user):
 			update_player_speak_status(player_id)
 		else:
 			# keep speaking state for a little longer
-			BigWorld.callback(settings().get_speak_stop_delay(), utils.with_args(update_player_speak_status, player_id))
+			BigWorld.callback(g_settings.get_speak_stop_delay(), utils.with_args(update_player_speak_status, player_id))
 
 def talk_status(player_id, talking=None):
 	if talking is not None:
@@ -187,7 +219,7 @@ def update_player_speak_status(player_id):
 			utils.get_vehicle(info["vehicle_id"])["isAlive"]
 		)
 		if talking:
-			g_minimap_ctrl.start(info["vehicle_id"], settings().get_minimap_action(), settings().get_minimap_action_interval())
+			g_minimap_ctrl.start(info["vehicle_id"], g_settings.get_minimap_action(), g_settings.get_minimap_action_interval())
 		else:
 			g_minimap_ctrl.stop(info["vehicle_id"])
 	except KeyError:
@@ -198,16 +230,16 @@ def update_player_speak_status(player_id):
 		LOG_CURRENT_EXCEPTION()
 
 def is_voice_chat_speak_allowed(player_id):
-	if not settings().is_voice_chat_notifications_enabled():
+	if not g_settings.is_voice_chat_notifications_enabled():
 		return False
-	if not settings().is_self_voice_chat_notifications_enabled() and utils.get_my_dbid() == player_id:
+	if not g_settings.is_self_voice_chat_notifications_enabled() and utils.get_my_dbid() == player_id:
 		return False
 	return True
 
 def is_minimap_speak_allowed(player_id):
-	if not settings().is_minimap_notifications_enabled():
+	if not g_settings.is_minimap_notifications_enabled():
 		return False
-	if not settings().is_self_minimap_notifications_enabled() and utils.get_my_dbid() == player_id:
+	if not g_settings.is_self_minimap_notifications_enabled() and utils.get_my_dbid() == player_id:
 		return False
 	return True
 
@@ -258,7 +290,6 @@ def is_vista_or_newer():
 		import sys
 		return sys.getwindowsversion()[0] >= 6
 	except:
-		LOG_ERROR("Failed to get current Windows OS version")
 		return True
 
 def get_installed_plugin_version():
@@ -300,7 +331,7 @@ def on_ts3_authenticate_error():
 		return
 	g_authentication_error = True
 	LOG_NOTE("Failed to authenticate to TeamSpeak client")
-	settings_link = "<a href=\"event:{0}\">{1}</a>".format(notifications.SETTINGS_PATH, os.path.abspath(settings().get_filepath()))
+	settings_link = "<a href=\"event:{0}\">{1}</a>".format(notifications.SETTINGS_PATH, os.path.abspath(g_settings.get_filepath()))
 	notifications.push_warning_message("TessuMod needs permission to access your TeamSpeak client.\n\n"
 		+ "Plese enter ClientQuery API key (see TeamSpeak -> Tools -> Options -> Addons -> Plugins -> ClientQuery -> Settings) "
 		+ "to option <b>api_key</b> within section <b>[TSClientQueryService]</b> in TessuMod's settings file ({0}).\n\n".format(settings_link)
@@ -321,14 +352,14 @@ def on_user_cache_read_error(message):
 
 def load_settings():
 	LOG_NOTE("Settings loaded from ini file")
-	utils.CURRENT_LOG_LEVEL = settings().get_log_level()
-	g_ts.HOST = settings().get_client_query_host()
-	g_ts.PORT = settings().get_client_query_port()
-	g_ts.set_apikey(settings().get_client_query_apikey())
+	utils.CURRENT_LOG_LEVEL = g_settings.get_log_level()
+	g_ts.HOST = g_settings.get_client_query_host()
+	g_ts.PORT = g_settings.get_client_query_port()
+	g_ts.set_apikey(g_settings.get_client_query_apikey())
 
 def sync_configs():
 	g_user_cache.sync()
-	settings().sync()
+	g_settings.sync()
 
 def update_wot_nickname_to_ts():
 	g_ts.set_wot_nickname(utils.get_my_name())
@@ -352,7 +383,7 @@ def BattleReplay_play(orig_method):
 		plays someone else's replay and user's TS ID would get matched with the
 		replay's player name.
 		'''
-		g_user_cache.is_write_enabled = settings().should_update_cache_in_replays()
+		g_user_cache.is_write_enabled = g_settings.should_update_cache_in_replays()
 		return orig_method(*args, **kwargs)
 	return wrapper
 
@@ -390,4 +421,4 @@ def on_tsplugin_moreinfo_clicked(type_id, msg_id, data):
 
 def on_settings_path_clicked(type_id, msg_id, data):
 	# Using call() for this under WINE works just fine, perplexing...
-	subprocess.call(["start", os.path.abspath(settings().get_filepath())], shell=True)
+	subprocess.call(["start", os.path.abspath(g_settings.get_filepath())], shell=True)

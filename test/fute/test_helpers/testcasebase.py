@@ -1,18 +1,32 @@
-import unittest
-import sys
-import os
-import time
-import random
 from functools import partial
-import shutil
-import mmap
-import struct
+import gc
+import inspect
 import json
+import mmap
+import os
 import platform
+import random
+import shutil
+import struct
+import sys
+import time
+import unittest
 
 from event_loop import EventLoop
-from ts_client_query import TSClientQueryService
 import mod_settings
+from ts_client_query import TSClientQueryService
+
+import fakes
+
+import Account
+import Avatar
+import BigWorld
+from notification import NotificationMVC
+import ResMgr
+
+import mod_tessumod
+import tessumod.ts3
+import tessumod.utils
 
 REPO_ROOT_DIRPATH        = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", ".."))
 RESOURCE_DIRPATH         = os.path.join(REPO_ROOT_DIRPATH, "data")
@@ -25,6 +39,8 @@ TS_PLUGIN_INSTALLER_PATH = os.path.join(TESSUMOD_DIRPATH, "tessumod.ts3_plugin")
 class TestCaseBase(unittest.TestCase):
 
 	def setUp(self):
+		if os.environ.get("CHECK_LEAKS", False):
+			self.objects_before = get_object_dump(get_all_objs())
 		self.mod_tessumod = None
 		self.ts_client_query_server = None
 		self.__ts_plugin_info = None
@@ -38,7 +54,6 @@ class TestCaseBase(unittest.TestCase):
 
 		os.makedirs(TESSUMOD_DIRPATH)
 
-		import ResMgr
 		ResMgr.RES_MODS_VERSION_PATH = MODS_VERSION_DIRPATH.replace("mods", "res_mods")
 
 		mod_settings.INI_DIRPATH = INI_DIRPATH
@@ -57,13 +72,53 @@ class TestCaseBase(unittest.TestCase):
 		open(TS_PLUGIN_INSTALLER_PATH, "w").close()
 
 	def tearDown(self):
+		self.quit_game()
 		if self.__ts_plugin_info:
 			self.__ts_plugin_info.close()
 		if self.ts_client_query_server:
 			self.ts_client_query_server.stop()
+		self.ts_client_query_server = None
+		self.event_loop.fini()
+		self.event_loop = None
 
 		cleanup_mmap("TessuModTSPluginInfo")
 		cleanup_mmap("TessuModTSPlugin3dAudio")
+
+		fakes.reset()
+
+		if os.environ.get("CHECK_LEAKS", False):
+			left_overs = get_object_dump(get_all_objs()) - self.objects_before
+			if left_overs:
+				self.print_left_over_objects(left_overs)
+			assert not left_overs, "Object leak from test not allowed"
+
+	def print_left_over_objects(self, left_overs):
+		max_referrers = 10
+		objs = get_all_objs()
+		seen_reprs = set()
+
+		def referrer_printer():
+			state = { "referrers_printed": 0 }
+			def print_referrers(indent, obj_repr):
+				for referrer in find_object_repr_referrers(objs, obj_repr):
+					if state["referrers_printed"] == max_referrers:
+						print(indent * "  " + "...")
+						break
+					referrer_repr = repr(referrer)
+					if referrer_repr in seen_reprs:
+						continue
+					seen_reprs.add(referrer_repr)
+					print(indent * "  " + "<-- " + str(type(referrer)) + " :: " + constrict_to_length(referrer_repr, 200))
+					state["referrers_printed"] += 1
+					print_referrers(indent + 1, referrer_repr)
+			return print_referrers
+
+		print("=========================== LEFT OVER OBJECTS ===========================")
+		for obj_repr in left_overs:
+			print(obj_repr)
+			referrer_printer()(1, obj_repr)
+		print("=========================================================================")
+
 
 	def start_ts_client(self, **state):
 		assert self.ts_client_query_server == None, "Cannot start TS client if it is already running"
@@ -127,9 +182,6 @@ class TestCaseBase(unittest.TestCase):
 			return False
 
 	def start_game(self, **game_state):
-		import mod_tessumod
-		import tessumod.utils
-
 		tessumod.utils.get_ini_dir_path = lambda: INI_DIRPATH
 		tessumod.utils.get_resource_data_path = lambda: RESOURCE_DIRPATH
 
@@ -141,9 +193,14 @@ class TestCaseBase(unittest.TestCase):
 				self.__install_event_handler(name, callback)
 
 		# hack to speed up testing
-		import tessumod.ts3
 		tessumod.ts3._UNREGISTER_WAIT_TIMEOUT = 0.5
 		self.change_game_state(**game_state)
+
+	def quit_game(self):
+		BigWorld.fake_clear_player()
+		NotificationMVC.g_instance.cleanUp()
+		if self.mod_tessumod:
+			self.mod_tessumod.fini()
 
 	def run_in_event_loop(self, timeout=20):
 		self.event_loop.call(self.__on_loop, repeat=True, timeout=0.05)
@@ -166,7 +223,6 @@ class TestCaseBase(unittest.TestCase):
 				self.ts_client_query_server.set_user(name, **data)
 
 	def change_game_state(self, **state):
-		import BigWorld, Avatar, Account
 		assert self.mod_tessumod, "Mod must be loaded first before changing game state"
 
 		if state["mode"] == "battle":
@@ -200,14 +256,12 @@ class TestCaseBase(unittest.TestCase):
 					}
 
 	def get_player_id(self, name):
-		import BigWorld
 		if hasattr(BigWorld.player(), "arena"):
 			for vehicle in BigWorld.player().arena.vehicles.itervalues():
 				if vehicle["name"] == name:
 					return vehicle["accountDBID"]
 
 	def get_vehicle_id(self, name):
-		import BigWorld
 		if hasattr(BigWorld.player(), "arena"):
 			for vehicle_id, vehicle in BigWorld.player().arena.vehicles.iteritems():
 				if vehicle["name"] == name:
@@ -242,7 +296,6 @@ class TestCaseBase(unittest.TestCase):
 		self.event_loop.call(callback, timeout=timeout)
 
 	def __on_loop(self):
-		import BigWorld
 		BigWorld.tick()
 		if self.ts_client_query_server:
 			self.ts_client_query_server.check()
@@ -286,3 +339,43 @@ def cleanup_mmap(name):
 		path = os.path.join("/tmp", name)
 		if os.path.exists(path):
 			os.remove(path)
+
+def get_all_objs():
+	return gc.get_objects()
+
+def get_object_dump(objs):
+	results = set()
+	for obj in objs:
+		if is_intresting_obj(obj):
+			results.add(repr(obj))
+	return results
+
+def is_intresting_obj(obj):
+	if not hasattr(obj, "__class__"):
+		return False
+	try:
+		path = inspect.getfile(obj.__class__)
+	except TypeError:
+		return False
+	if not path.startswith(REPO_ROOT_DIRPATH):
+		return False
+	path = path.replace(REPO_ROOT_DIRPATH, '')[1:]
+	return path.startswith("src") or path.startswith(os.path.join("test", "fute"))
+
+
+def find_object_repr_referrers(objs, repr_name):
+	obj = find_object_by_repr_name(objs, repr_name)
+	if obj:
+		return gc.get_referrers(obj)
+	return []
+
+def find_object_by_repr_name(objs, repr_name):
+	for obj in objs:
+		if repr(obj) == repr_name:
+			return obj
+	return None
+
+def constrict_to_length(input_string, length):
+	if len(input_string) > length:
+		return input_string[:length-3] + "..."
+	return input_string

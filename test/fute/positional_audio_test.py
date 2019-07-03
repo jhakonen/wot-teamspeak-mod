@@ -1,16 +1,12 @@
 from test_helpers.testcasebase import TestCaseBase
 from test_helpers.utils import *
 import mock
-import nosepipe
 import mmap
 import struct
 
-@nosepipe.isolate
 class PositionalAudioTest(TestCaseBase):
 	'''
 	This fute test tests that positional audio data is passed to TS plugin.
-	To execute, use command:
-		$ nosetests --with-process-isolation
 	'''
 
 	def setUp(self):

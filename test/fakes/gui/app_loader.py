@@ -1,4 +1,10 @@
 
+def reset_fake():
+	global g_battleWindow
+	global g_appLoader
+	g_battleWindow = BattleWindow()
+	g_appLoader = AppLoader()
+
 class AppLoader(object):
 
 	def getDefBattleApp(self):
@@ -12,6 +18,4 @@ class BattleWindow(object):
 class Minimap(object):
 	pass
 
-g_battleWindow = BattleWindow()
-
-g_appLoader = AppLoader()
+reset_fake()

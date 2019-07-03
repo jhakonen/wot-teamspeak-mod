@@ -32,8 +32,6 @@ import functools
 import inspect
 import time
 
-g_sessionProvider = dependency.instance(IBattleSessionProvider)
-
 def noop(*args, **kwargs):
 	'''Function that does nothing. A safe default value for callback
 	parameters.
@@ -41,13 +39,10 @@ def noop(*args, **kwargs):
 	pass
 
 def call_in_loop(secs, func):
-	if not callable(secs):
-		secs_value = secs
-		secs = lambda: secs_value
-	def wrapper(*args, **kwargs):
-		func(*args, **kwargs)
-		BigWorld.callback(secs(), wrapper)
-	BigWorld.callback(secs(), wrapper)
+	timer = RepeatTimer(secs)
+	timer.on_timeout += func
+	timer.start()
+	return timer
 
 def with_args(func, *args, **kwargs):
 	def wrapper():
@@ -289,6 +284,9 @@ class MinimapMarkersController(object):
 	def __init__(self):
 		self._running_animations = {}
 
+	def fini(self):
+		self._running_animations = None
+
 	def start(self, vehicle_id, action, interval):
 		'''Starts playing action marker for given 'vehicle_id'.'''
 		if vehicle_id not in self._running_animations:
@@ -349,7 +347,13 @@ class RepeatTimer(object):
 	def __init__(self, timeout):
 		self._timeout   = timeout
 		self._stopped   = True
+		self._timer_id = None
 		self.on_timeout = Event.Event()
+
+	def fini(self):
+		self.stop()
+		self.on_timeout.clear()
+		self.on_timeout = None
 
 	def start(self):
 		self._stopped = False
@@ -357,10 +361,13 @@ class RepeatTimer(object):
 
 	def stop(self):
 		self._stopped = True
+		if self._timer_id is not None:
+			BigWorld.cancelCallback(self._timer_id)
+			self._timer_id = None
 
 	def _do_call(self):
 		if not self._stopped:
-			BigWorld.callback(self._timeout, self._on_timeout)
+			self._timer_id = BigWorld.callback(self._timeout, self._on_timeout)
 
 	def _on_timeout(self):
 		if not self._stopped:
@@ -393,14 +400,12 @@ class PrebattleListener(IGlobalListener):
 	def __add_player_info(self, info):
 		self.__players[info.dbID] = dict(id=info.dbID, name=info.name)
 
-g_prebattleListener = PrebattleListener()
-
 def PrbControlLoader_onAccountShowGUI(original):
 	def decorator(self, ctx):
 		original(self, ctx)
 		g_prebattleListener.startGlobalListening()
+	decorator.original = original
 	return decorator
-_PrbControlLoader.onAccountShowGUI = PrbControlLoader_onAccountShowGUI(_PrbControlLoader.onAccountShowGUI)
 
 class LOG_LEVEL(object):
 	DEBUG = 0
@@ -447,3 +452,17 @@ def LOG_CALL(msg=""):
 		functools.update_wrapper(wrapper, func)
 		return wrapper
 	return wrap
+
+def init():
+	global g_sessionProvider
+	global g_prebattleListener
+	g_sessionProvider = dependency.instance(IBattleSessionProvider)
+	g_prebattleListener = PrebattleListener()
+	_PrbControlLoader.onAccountShowGUI = PrbControlLoader_onAccountShowGUI(_PrbControlLoader.onAccountShowGUI)
+
+def fini():
+	global g_sessionProvider
+	global g_prebattleListener
+	g_sessionProvider = None
+	g_prebattleListener = None
+	_PrbControlLoader.onAccountShowGUI = _PrbControlLoader.onAccountShowGUI.original

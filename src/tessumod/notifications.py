@@ -37,9 +37,13 @@ TSPLUGIN_MOREINFO = "TessuModTSPluginMoreInfo"
 TSPLUGIN_IGNORED  = "TessuModTSPluginIgnore"
 SETTINGS_PATH     = "TessuModSettingsPath"
 
-_event_handlers = []
-_is_plugin_install_shown = False
-_are_notifications_enabled = True
+def init():
+	global _event_handlers
+	global _is_plugin_install_shown
+	global _are_notifications_enabled
+	_event_handlers = []
+	_is_plugin_install_shown = False
+	_are_notifications_enabled = True
 
 def set_notifications_enabled(enabled):
 	global _are_notifications_enabled

@@ -1,32 +1,36 @@
 from test_helpers.testcasebase import TestCaseBase
 from test_helpers.utils import *
+from messenger.proto.events import g_messengerEvents
+from skeletons.gui.battle_session import IBattleSessionProvider
+from helpers import dependency
 import mock
-import nosepipe
 
-@nosepipe.isolate
 class SpeakStatusChanges(TestCaseBase):
 	'''
 	This fute test tests that changes in TeamSpeak user's speaking status is shown in-game.
-	To execute, use command:
-		$ nosetests --with-process-isolation
 	'''
 
 	def setUp(self):
 		TestCaseBase.setUp(self)
-
-		from messenger.proto.events import g_messengerEvents
-		from skeletons.gui.battle_session import IBattleSessionProvider
-		from helpers import dependency
 		session_provider = dependency.instance(IBattleSessionProvider)
-		self.VOIP_onPlayerSpeaking = g_messengerEvents.voip.onPlayerSpeaking = mock.Mock()
-		self.onMinimapFeedbackReceived = session_provider.shared.feedback.onMinimapFeedbackReceived = mock.Mock()
+		self.onPlayerSpeaking_mock = mock.Mock()
+		self.onMinimapFeedbackReceived_mock = mock.Mock()
+		g_messengerEvents.voip.onPlayerSpeaking += self.onPlayerSpeaking_mock
+		self.original_onMinimapFeedbackReceived = session_provider.shared.feedback.onMinimapFeedbackReceived
+		session_provider.shared.feedback.onMinimapFeedbackReceived = self.onMinimapFeedbackReceived_mock
+
+	def tearDown(self):
+		session_provider = dependency.instance(IBattleSessionProvider)
+		g_messengerEvents.voip.onPlayerSpeaking -= self.onPlayerSpeaking_mock
+		session_provider.shared.feedback.onMinimapFeedbackReceived = self.original_onMinimapFeedbackReceived
+		TestCaseBase.tearDown(self)
 
 	def __has_speaking_state_changed(self, name, speaking):
-		return mock_was_called_with(self.VOIP_onPlayerSpeaking, self.get_player_id(name), speaking)
+		return mock_was_called_with(self.onPlayerSpeaking_mock, self.get_player_id(name), speaking)
 
 	def __has_minimap_feedback(self, name, action):
 		from gui.battle_control.battle_constants import FEEDBACK_EVENT_ID
-		return mock_was_called_with(self.onMinimapFeedbackReceived, FEEDBACK_EVENT_ID.MINIMAP_SHOW_MARKER,
+		return mock_was_called_with(self.onMinimapFeedbackReceived_mock, FEEDBACK_EVENT_ID.MINIMAP_SHOW_MARKER,
 			self.get_vehicle_id(name), action)
 
 	@use_event_loop

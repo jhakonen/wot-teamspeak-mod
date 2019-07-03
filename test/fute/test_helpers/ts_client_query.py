@@ -1,12 +1,13 @@
 import asynchat
 import asyncore
+import copy
+from Queue import Queue, Empty
+import random
+import re
 import socket
 import threading
 import time
-import re
-import copy
-import random
-from Queue import Queue, Empty
+import weakref
 
 _SELF_USER_NAME = "Testinukke"
 _NO_RESPONSE = (None, None)
@@ -33,10 +34,16 @@ class TSClientQueryService(object):
 				self.stop()
 
 	def stop(self):
+		if self._server:
+			if self._server.handler:
+				self._server.handler.close()
+			self._server.close()
+			self._server = None
 		if self.__sock_map:
 			for socket in self.__sock_map.values():
 				socket.close()
 			self.__sock_map.clear()
+		#self._data = None
 
 	def check(self):
 		if self.__sock_map:
