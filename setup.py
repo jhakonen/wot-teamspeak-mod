@@ -23,6 +23,7 @@ setup(
     ],
     cmdclass = {
         'build_py': setup_helpers.GenerateInFilesCommand,
+        'clean': setup_helpers.CleanCommand
     },
     setup_requires = ['setuptools-wotmod', 'nose>=1.0'],
     # Required as setuptools-wotmod is not yet in PyPI
