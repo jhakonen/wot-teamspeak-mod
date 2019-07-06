@@ -13,13 +13,8 @@ class LobbyNotifications(TestCaseBase):
 		from skeletons.gui.system_messages import ISystemMessages
 		self.__system_messages = dependency.instance(ISystemMessages)
 		self.__system_messages.pushMessage = mock.Mock()
-		self.__seen_events = set()
-
-	def __set_seen_event(self, event):
-		self.__seen_events.add(event)
-
-	def __is_event_seen(self, event):
-		return event in self.__seen_events
+		self.disconnected_from_ts_client = False
+		self.on_event("on_disconnected_from_ts_client", lambda: setattr(self, "disconnected_from_ts_client", True))
 
 	def __is_system_notification_sent(self, message, type):
 		import gui.SystemMessages
@@ -39,6 +34,7 @@ class LobbyNotifications(TestCaseBase):
 
 	@use_event_loop
 	def test_notification_connected_to_teamspeak_server_is_not_shown(self):
+		# TODO: Slow test, replace with a unit test
 		self.start_ts_client(connected_to_server=False)
 		self.start_game(mode="lobby")
 		self.assert_finally_false(lambda: self.__is_system_notification_sent(message=contains_match("Connected to TeamSpeak server"), type="info"))
@@ -56,8 +52,7 @@ class LobbyNotifications(TestCaseBase):
 		self.start_ts_client()
 		self.start_game(mode="battle")
 		self.on_event("on_connected_to_ts_client", lambda: self.change_ts_client_state(running=False))
-		self.on_event("on_disconnected_from_ts_client", lambda: self.__set_seen_event("on_disconnected_from_ts_client"))
-		self.assert_finally_true(lambda: self.__is_event_seen("on_disconnected_from_ts_client"))
+		self.assert_finally_true(lambda: self.disconnected_from_ts_client)
 		self.assert_finally_false(lambda: self.__is_system_notification_sent(message=contains_match("Connected to TeamSpeak server"), type="info"))
 		self.assert_finally_false(lambda: self.__is_system_notification_sent(message="Disconnected from TeamSpeak client", type="warning"))
 

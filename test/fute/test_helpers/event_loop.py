@@ -19,7 +19,7 @@ class EventLoop(object):
 					if callback.repeat:
 						self.__callbacks.append(callback)
 
-			time.sleep(0.05)
+			time.sleep(0.001)
 
 	def exit(self):
 		self.__exit_called = True

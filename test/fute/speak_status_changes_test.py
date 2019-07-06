@@ -138,7 +138,6 @@ class SpeakStatusChanges(TestCaseBase):
 		self.assert_finally_true(lambda: self.__has_minimap_feedback(name="TuhoajaErkki", action="stop"))
 		self.assert_finally_true(lambda: self.__has_speaking_state_changed(name="TuhoajaErkki", speaking=True))
 
-	@use_event_loop
 	def test_no_speak_feedback_with_chat_notifications_disabled(self):
 		self.start_ts_client(connected_to_server=True, users={
 			"Erkki Meikalainen": {"metadata": "<wot_nickname_start>TuhoajaErkki<wot_nickname_end>"}
@@ -153,11 +152,9 @@ class SpeakStatusChanges(TestCaseBase):
 		)
 		self.start_game(mode="battle", players=[{"name": "TuhoajaErkki"}])
 		self.on_event("on_connected_to_ts_server", lambda: self.change_ts_client_state(users={"Erkki Meikalainen": {"speaking": True}}))
-		self.assert_finally_true(lambda: self.__has_minimap_feedback(name="TuhoajaErkki", action="attack"))
-		self.assert_finally_false(lambda: self.__has_speaking_state_changed(name="TuhoajaErkki", speaking=True))
-		self.wait_at_least(secs=5)
+		self.wait_until(lambda: self.__has_minimap_feedback(name="TuhoajaErkki", action="attack"))
+		self.wait_until(lambda: not self.__has_speaking_state_changed(name="TuhoajaErkki", speaking=True))
 
-	@use_event_loop
 	def test_no_speak_feedback_with_minimap_notifications_disabled(self):
 		self.start_ts_client(connected_to_server=True, users={
 			"Erkki Meikalainen": {"metadata": "<wot_nickname_start>TuhoajaErkki<wot_nickname_end>"}
@@ -170,6 +167,5 @@ class SpeakStatusChanges(TestCaseBase):
 		)
 		self.start_game(mode="battle", players=[{"name": "TuhoajaErkki"}])
 		self.on_event("on_connected_to_ts_server", lambda: self.change_ts_client_state(users={"Erkki Meikalainen": {"speaking": True}}))
-		self.assert_finally_false(lambda: self.__has_minimap_feedback(name="TuhoajaErkki", action="attack"))
-		self.assert_finally_true(lambda: self.__has_speaking_state_changed(name="TuhoajaErkki", speaking=True))
-		self.wait_at_least(secs=5)
+		self.wait_until(lambda: not self.__has_minimap_feedback(name="TuhoajaErkki", action="attack"))
+		self.wait_until(lambda: self.__has_speaking_state_changed(name="TuhoajaErkki", speaking=True))

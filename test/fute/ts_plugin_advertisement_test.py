@@ -41,6 +41,7 @@ class TSPluginAdvertisement(TestCaseBase):
 
 	@use_event_loop
 	def test_ts_plugin_advertisement_is_not_shown_if_already_installed(self):
+		# TODO: Slow test, replace with a unit test
 		self.start_ts_client()
 		self.enable_ts_client_tessumod_plugin(version=1)
 		self.start_game(mode="lobby")
@@ -49,6 +50,7 @@ class TSPluginAdvertisement(TestCaseBase):
 
 	@use_event_loop
 	def test_ts_plugin_advertisement_is_not_shown_if_installer_is_missing(self):
+		# TODO: Slow test, replace with a unit test
 		self.start_ts_client()
 		os.remove(TS_PLUGIN_INSTALLER_PATH)
 		self.start_game(mode="lobby")
@@ -57,6 +59,7 @@ class TSPluginAdvertisement(TestCaseBase):
 
 	@use_event_loop
 	def test_ts_plugin_advertisement_is_not_shown_if_ignored(self):
+		# TODO: Slow test, replace with a unit test
 		self.start_ts_client()
 		self.change_mod_state_variables(ignored_plugin_version=1)
 		self.start_game(mode="lobby")

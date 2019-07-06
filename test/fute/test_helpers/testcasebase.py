@@ -61,7 +61,7 @@ class TestCaseBase(unittest.TestCase):
 		mod_settings.reset_settings_file()
 		self.change_mod_settings(
 			General = {
-				# "log_level": "0", # enable for debug logging
+				"log_level": os.environ.get("LOG_LEVEL", "1"),
 				"speak_stop_delay": "0" # makes tests execute faster
 			},
 			TSClientQueryService = {
@@ -70,6 +70,8 @@ class TestCaseBase(unittest.TestCase):
 		)
 		# create empty ts plugin installer file
 		open(TS_PLUGIN_INSTALLER_PATH, "w").close()
+
+		self.event_loop.call(self.__on_loop, repeat=True, timeout=0.001)
 
 	def tearDown(self):
 		self.quit_game()
@@ -193,7 +195,7 @@ class TestCaseBase(unittest.TestCase):
 				self.__install_event_handler(name, callback)
 
 		# hack to speed up testing
-		tessumod.ts3._UNREGISTER_WAIT_TIMEOUT = 0.5
+		tessumod.ts3._UNREGISTER_WAIT_TIMEOUT = 0.05
 		self.change_game_state(**game_state)
 
 	def quit_game(self):
@@ -202,9 +204,28 @@ class TestCaseBase(unittest.TestCase):
 		if self.mod_tessumod:
 			self.mod_tessumod.fini()
 
+	def wait_until(self, checker, timeout=5):
+		def exiter():
+			if checker():
+				self.event_loop.exit()
+			if time.time() >= end_time:
+				source = inspect.getsource(checker)
+				info = dict(inspect.getmembers(checker))
+				filename = info["func_code"].co_filename
+				linenumber = info["func_code"].co_firstlineno
+				raise AssertionError("Wait timed out after %s seconds at \"%s\", line %d:\n%s" % (
+					timeout,
+					filename,
+					linenumber,
+					source
+				))
+		end_time = time.time() + timeout
+		self.__max_end_time = time.time() + timeout
+		self.event_loop.call(exiter, repeat=True, timeout=0.001)
+		self.event_loop.execute()
+
 	def run_in_event_loop(self, timeout=20):
-		self.event_loop.call(self.__on_loop, repeat=True, timeout=0.05)
-		self.event_loop.call(self.__check_verify, repeat=True, timeout=1)
+		self.event_loop.call(self.__check_verify, repeat=True, timeout=0.001)
 		self.__max_end_time = time.time() + timeout
 		if self.__min_end_time is None:
 			self.__min_end_time = time.time()
