@@ -27,3 +27,43 @@ def use_event_loop(method):
 		self.run_in_event_loop()
 	functools.update_wrapper(wrapper, method)
 	return wrapper
+
+class CheckerTruthy(object):
+	def __init__(self, callback):
+		self.callback = callback
+
+	def is_valid(self):
+		try:
+			return self.callback()
+		except Exception as error:
+			return False
+
+	def get_error_msg(self):
+		return "Failed"
+
+class CheckerEqual(object):
+	def __init__(self, value1, value2):
+		self.value1 = value1
+		self.value2 = value2
+
+	def is_valid(self):
+		return self._get_value1() == self._get_value2()
+
+	def _get_value1(self):
+		if callable(self.value1):
+			try:
+				return self.value1()
+			except Exception as error:
+				return error
+		return self.value1
+
+	def _get_value2(self):
+		if callable(self.value2):
+			try:
+				return self.value2()
+			except Exception as error:
+				return error
+		return self.value2
+
+	def get_error_msg(self):
+		return "%s == %s" % (repr(self._get_value1()), repr(self._get_value2()))

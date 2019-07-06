@@ -15,6 +15,8 @@ class TestArena(object):
 
 class Avatar(object):
 
+	name = "not set"
+
 	def __init__(self):
 		self.__ready_timer_id = None
 

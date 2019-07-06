@@ -9,6 +9,8 @@ import threading
 import time
 import weakref
 
+from tessumod.ts3 import parse_client_query_parameters, escape_client_query_value
+
 _SELF_USER_NAME = "Testinukke"
 _NO_RESPONSE = (None, None)
 
@@ -204,16 +206,16 @@ class TSClientQueryHandler(asynchat.async_chat):
 
 	def handle_command(self, command):
 		command_type, params_str = re.match("^([\S]+)\s?(.*)", command).groups()
-		param_str_list = params_str.split()
 
 		params = {}
 		options = []
-		for param_str in param_str_list:
-			if param_str.startswith("-"):
-				options.append(param_str[1:])
-			else:
-				key, value = re.match("([^=]+)=?(.*)", param_str).groups()
-				params[key] = value
+		entries = parse_client_query_parameters(params_str)
+		for entry in entries:
+			for key, value in entry.items():
+				if key.startswith("-"):
+					options.append(key[1:])
+				elif key != "":
+					params[key] = value
 		if options:
 			params["options"] = options
 
@@ -253,13 +255,13 @@ class TSClientQueryHandler(asynchat.async_chat):
 	def handle_command_clientgetuidfromclid(self, clid, **ignored):
 		user = self._data_source.users[clid]
 		self._data_source.event_queue.put("notifyclientuidfromclid schandlerid={0} clid={1} cluid={2} nickname={3}"
-			.format(user.schandlerid, user.clid, user.cluid, escape(user.name)))
+			.format(user.schandlerid, user.clid, user.cluid, escape_client_query_value(user.name)))
 
 	def handle_command_clientvariable(self, clid, **requested_vars):
 		user = self._data_source.users[clid]
 		self.push("clid=" + clid)
 		if "client_meta_data" in requested_vars:
-			self.push(" client_meta_data=" + escape(user.metadata))
+			self.push(" client_meta_data=" + escape_client_query_value(user.metadata))
 		self.push("\n\r")
 
 	def handle_command_clientlist(self, options=[]):
@@ -276,11 +278,11 @@ class TSClientQueryHandler(asynchat.async_chat):
 			]
 			if "uid" in options:
 				params.append("client_unique_identifier=" + user.cluid)
-			entries.append(" ".join(escape(param) for param in params))
+			entries.append(" ".join(escape_client_query_value(param) for param in params))
 		self.push(("|".join(entries) + "\n\r"))
 
 	def handle_command_clientupdate(self, client_meta_data, **ignored):
-		pass
+		self.get_my_user().metadata = client_meta_data
 
 	def handle_command_currentschandlerid(self):
 		self.push("schandlerid={0}\n\r".format(self._data_source.schandler_id))
@@ -314,6 +316,3 @@ class TSClientQueryHandler(asynchat.async_chat):
 				self._data_source.event_queue.put(event)
 		except Empty:
 			pass
-
-def escape(value):
-	return value.replace(" ", "\s")

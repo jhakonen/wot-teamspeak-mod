@@ -15,6 +15,7 @@ import unittest
 from event_loop import EventLoop
 import mod_settings
 from ts_client_query import TSClientQueryService
+from utils import CheckerTruthy, CheckerEqual
 
 import fakes
 
@@ -209,22 +210,29 @@ class TestCaseBase(unittest.TestCase):
 			self.mod_tessumod.fini()
 
 	def wait_until(self, checker, timeout=5):
+		caller_frame = inspect.currentframe().f_back
+		self._wait_until(CheckerTruthy(checker), timeout, caller_frame)
+
+	def wait_until_equal(self, value1, value2, timeout=5):
+		caller_frame = inspect.currentframe().f_back
+		self._wait_until(CheckerEqual(value1, value2), timeout, caller_frame)
+
+	def _wait_until(self, checker, timeout, caller_frame):
 		def exiter():
-			if checker():
+			if checker.is_valid():
+				self.event_loop.cancel_call(exiter)
 				self.event_loop.exit()
-			if time.time() >= end_time:
-				source = inspect.getsource(checker)
-				info = dict(inspect.getmembers(checker))
-				filename = info["func_code"].co_filename
-				linenumber = info["func_code"].co_firstlineno
-				raise AssertionError("Wait timed out after %s seconds at \"%s\", line %d:\n%s" % (
-					timeout,
+			elif time.time() >= end_time:
+				self.event_loop.cancel_call(exiter)
+				(filename, linenumber) = inspect.getframeinfo(caller_frame)[:2]
+				source = inspect.getframeinfo(caller_frame)[3][0].strip()
+				raise AssertionError("%s at \"%s\", line %d:\n  %s" % (
+					checker.get_error_msg(),
 					filename,
 					linenumber,
 					source
 				))
 		end_time = time.time() + timeout
-		self.__max_end_time = time.time() + timeout
 		self.event_loop.call(exiter, repeat=True, timeout=0.001)
 		self.event_loop.execute()
 
@@ -324,7 +332,8 @@ class TestCaseBase(unittest.TestCase):
 		BigWorld.tick()
 		if self.ts_client_query_server:
 			self.ts_client_query_server.check()
-		self.assertLess(time.time(), self.__max_end_time, "Execution took too long")
+		if self.__max_end_time:
+			self.assertLess(time.time(), self.__max_end_time, "Execution took too long")
 
 	def __check_verify(self):
 		try:

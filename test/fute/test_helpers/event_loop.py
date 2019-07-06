@@ -27,6 +27,13 @@ class EventLoop(object):
 	def call(self, callback, repeat=False, timeout=0):
 		self.__callbacks.append(Callback(callback, repeat, timeout))
 
+	def cancel_call(self, callback):
+		for callback_obj in self.__callbacks:
+			if callback_obj.callback == callback:
+				callback_obj.repeat = False
+				self.__callbacks.remove(callback_obj)
+				break
+
 class Callback(object):
 
 	def __init__(self, callback, repeat, timeout):

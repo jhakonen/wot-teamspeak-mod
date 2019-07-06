@@ -162,7 +162,7 @@ class TS3Client(object):
 	def _on_connect_failed_state(self):
 		BigWorld.callback(_RETRY_TIMEOUT, functools.partial(self._send_sm_event, "connect_retry"))
 
-	def _send_command(self, command, callback=noop, timeout=_COMMAND_WAIT_TIMEOUT):
+	def _send_command(self, command, args=[], kwargs={}, callback=noop, timeout=_COMMAND_WAIT_TIMEOUT):
 		def on_command_finish(err, lines):
 			if err:
 				LOG_DEBUG(type(err).__name__ + ": " + str(err))
@@ -171,7 +171,9 @@ class TS3Client(object):
 				else:
 					self._protocol.close()
 			callback(err, lines)
-		self._protocol.send_command(command, on_command_finish, timeout)
+
+		assert " " not in command, "Spaces are not allowed in the command, use args or kwargs instead"
+		self._protocol.send_command(build_command_string(command, args, kwargs), on_command_finish, timeout)
 
 	def _on_authenticate_state(self):
 		'''Authenticates to client query, required with TeamSpeak 3.1.3 or newer.'''
@@ -185,7 +187,7 @@ class TS3Client(object):
 				# In other error cases the API key is likely not set or is wrong
 				self.on_authenticate_error()
 				self._protocol.close()
-		self._send_command("auth apikey={0}".format(self.__apikey), on_finish)
+		self._send_command("auth", kwargs={"apikey": self.__apikey}, callback=on_finish)
 
 	def _on_connected_to_ts_state(self):
 		self._my_client_id = None
@@ -195,29 +197,29 @@ class TS3Client(object):
 		self.users_in_my_channel.invalidate()
 
 		def unregister(callback):
-			self._send_command("clientnotifyunregister", callback, timeout=_UNREGISTER_WAIT_TIMEOUT)
+			self._send_command("clientnotifyunregister", callback=callback, timeout=_UNREGISTER_WAIT_TIMEOUT)
 		def register_connection_change(callback):
-			self._send_command("clientnotifyregister schandlerid=0 event=notifycurrentserverconnectionchanged", callback)
+			self._send_command("clientnotifyregister", kwargs={"schandlerid": 0, "event": "notifycurrentserverconnectionchanged"}, callback=callback)
 		def get_currentschandlerid(callback):
 			def on_finish(err, lines):
 				if not err:
 					self._schandler_id = int(parse_client_query_parameter(lines[0], "schandlerid"))
 				callback(err, lines)
-			self._send_command("currentschandlerid", on_finish)
+			self._send_command("currentschandlerid", callback=on_finish)
 		def register_talk_status_change(callback):
-			self._send_command("clientnotifyregister schandlerid={0} event=notifytalkstatuschange".format(self._schandler_id), callback)
+			self._send_command("clientnotifyregister", kwargs={"schandlerid": self._schandler_id, "event": "notifytalkstatuschange"}, callback=callback)
 		def register_client_update(callback):
-			self._send_command("clientnotifyregister schandlerid={0} event=notifyclientupdated".format(self._schandler_id), callback)
+			self._send_command("clientnotifyregister", kwargs={"schandlerid": self._schandler_id, "event": "notifyclientupdated"}, callback=callback)
 		def register_client_enter_view(callback):
-			self._send_command("clientnotifyregister schandlerid={0} event=notifycliententerview".format(self._schandler_id), callback)
+			self._send_command("clientnotifyregister", kwargs={"schandlerid": self._schandler_id, "event": "notifycliententerview"}, callback=callback)
 		def register_client_left_view(callback):
-			self._send_command("clientnotifyregister schandlerid={0} event=notifyclientleftview".format(self._schandler_id), callback)
+			self._send_command("clientnotifyregister", kwargs={"schandlerid": self._schandler_id, "event": "notifyclientleftview"}, callback=callback)
 		def register_client_moved(callback):
-			self._send_command("clientnotifyregister schandlerid={0} event=notifyclientmoved".format(self._schandler_id), callback)
+			self._send_command("clientnotifyregister", kwargs={"schandlerid": self._schandler_id, "event": "notifyclientmoved"}, callback=callback)
 		def register_connect_status_change(callback):
-			self._send_command("clientnotifyregister schandlerid={0} event=notifyconnectstatuschange".format(self._schandler_id), callback)
+			self._send_command("clientnotifyregister", kwargs={"schandlerid": self._schandler_id, "event": "notifyconnectstatuschange"}, callback=callback)
 		def use_schandler_id(callback):
-			self._send_command("use schandlerid={0}".format(self._schandler_id), callback)
+			self._send_command("use", kwargs={"schandlerid": self._schandler_id}, callback=callback)
 		def start_pinging(callback):
 			self._start_pinging()
 			callback(None, None)
@@ -300,7 +302,7 @@ class TS3Client(object):
 					self._my_channel_id = new_channel_id
 					self.users_in_my_channel.invalidate()
 			callback(err, None)
-		self._send_command("whoami", on_whoami)
+		self._send_command("whoami", callback=on_whoami)
 
 	def get_client_meta_data(self, client_id, callback=noop):
 		def on_finish(err, lines):
@@ -313,7 +315,7 @@ class TS3Client(object):
 					callback(None, "")
 				else:
 					callback(None, data)
-		self._send_command("clientvariable clid={0} client_meta_data".format(client_id), on_finish)
+		self._send_command("clientvariable", args=["client_meta_data"], kwargs={"clid": client_id}, callback=on_finish)
 
 	def get_wot_nickname(self, client_id, callback=noop):
 		def on_finish(err, data):
@@ -346,7 +348,7 @@ class TS3Client(object):
 					data = re.sub(self.NICK_META_PATTERN, new_tag, data)
 				else:
 					data += new_tag
-				self._send_command("clientupdate client_meta_data={0}".format(data), callback)
+				self._send_command("clientupdate", kwargs={"client_meta_data": data}, callback=callback)
 		self.get_client_meta_data(self._my_client_id, on_get_client_meta_data)
 
 	def get_clientlist(self, callback=noop):
@@ -355,7 +357,7 @@ class TS3Client(object):
 				callback(err, None)
 			else:
 				callback(None, parse_client_query_parameters(lines[0]))
-		self._send_command("clientlist -uid -voice", on_clientlist)
+		self._send_command("clientlist", args=["-uid", "-voice"], callback=on_clientlist)
 
 	def _get_server_name(self, callback=noop):
 		def on_finish(err, lines):
@@ -363,7 +365,7 @@ class TS3Client(object):
 				callback(err, None)
 			else:
 				callback(None, parse_client_query_parameter(lines[0], "virtualserver_name"))
-		self._send_command("servervariable virtualserver_name", on_finish)
+		self._send_command("servervariable", args=["virtualserver_name"], callback=on_finish)
 
 	def on_user_entered_my_channel(self, client_id):
 		user = self.users[client_id]
@@ -395,7 +397,14 @@ class TS3Client(object):
 				user.nick = nick
 			metadata = entry.get("client_meta_data")
 			if metadata:
-				user.wot_nick = self._get_wot_nick_from_metadata(metadata)
+				new_wot_nick = self._get_wot_nick_from_metadata(metadata)
+				# Check if our wot nickname has changed without our consent
+				# (e.g. some other TS plugin has overwritten our metadata)
+				# --> if so, set the metadata again
+				if client_id == self._my_client_id and self._wot_nickname != new_wot_nick:
+					self.set_wot_nickname(self._wot_nickname) 
+				else:
+					user.wot_nick = new_wot_nick
 
 	def on_notifycliententerview_ts3_event(self, line):
 		'''This event handler is called when a TS user enters to the TS server.'''
@@ -863,7 +872,37 @@ class LineEnd(object):
 
 class ParamsParser(object):
 
-	# see ESCAPING in http://media.teamspeak.com/ts3_literature/TeamSpeak%203%20Server%20Query%20Manual.pdf
+	# Notes on escaping. Excerpt from Server Query Manual (part of TeamSpeak
+	# Server installation):
+	#
+	#   You cannot use whitespaces or any special characters in parameters.
+	#   Instead, the TeamSpeak 3 Server supports the use of escape patterns
+	#   which can be used to insert newlines, tabs or other special characters
+	#   into a parameter string. The same escape patterns are used to clean up
+	#   the servers output and prevent parsing issues.
+	#
+	#   Here's an example on how to escape a parameter string correctly.
+	#
+	#   Right:
+	#   serveredit virtualserver_name=TeamSpeak\s]\p[\sServer
+	#
+	#   Wrong:
+	#   serveredit virtualserver_name=TeamSpeak ]|[ Server
+	#
+	#   The following characters need to be escaped if they are to be used:
+	#   name            char  ascii  replace char  replace ascii
+	#   Backslash        \    92     \\            92 92
+	#   Slash            /    47     \/            92 47
+	#   Whitespace       " "  32     \s            92 115
+	#   Pipe             |    124    \p            92 112
+	#   Bell             \a   7      \a            92 97
+	#   Backspace        \b   8      \b            92 98
+	#   Formfeed         \f   12     \f            92 102
+	#   Newline          \n   10     \n            92 110
+	#   Carriage Return  \r   13     \r            92 114
+	#   Horizontal Tab   \t   9      \t            92 116
+	#   Vertical Tab     \v   11     \v            92 118
+	#
 	_ESCAPE_LOOKUP = {
 		"\\": "\\",
 		"/": "/",
@@ -929,3 +968,28 @@ class ParamsParser(object):
 			self._key_value = ""
 			self._escaping = False
 		self._char_parser = parse_func
+
+def build_command_string(command, args, kwargs):
+	fragments = [command]
+	args_str = " ".join(arg for arg in args)
+	kwargs_str = " ".join("=".join([key, escape_client_query_value(value)]) for key, value in kwargs.items())
+	if args_str:
+		fragments.append(args_str)
+	if kwargs_str:
+		fragments.append(kwargs_str)
+	return " ".join(fragments)
+
+def escape_client_query_value(value):
+	return (str(value)
+		.replace("\\", "\\\\")
+		.replace("/", "\\/")
+		.replace(" ", "\\s")
+		.replace("|", "\\p")
+		.replace("\a", "\\a")
+		.replace("\b", "\\b")
+		.replace("\f", "\\f")
+		.replace("\n", "\\n")
+		.replace("\r", "\\r")
+		.replace("\t", "\\t")
+		.replace("\v", "\\v")
+	)
