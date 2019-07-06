@@ -31,6 +31,7 @@ import os
 import functools
 import inspect
 import time
+from datetime import datetime
 
 def noop(*args, **kwargs):
 	'''Function that does nothing. A safe default value for callback
@@ -433,7 +434,8 @@ def LOG_ERROR(msg, *args):
 
 def _prefix_with_timestamp(message):
 	if CURRENT_LOG_LEVEL <= LOG_LEVEL.DEBUG:
-		return time.strftime('[%H:%M:%S] ') + str(message)
+		now = datetime.now()
+		return now.strftime('[%%H:%%M:%%S.%s] ' % str(now.microsecond / 1000).rjust(3, "0")) + str(message)
 	return message
 
 LOG_CURRENT_EXCEPTION = debug_utils.LOG_CURRENT_EXCEPTION
