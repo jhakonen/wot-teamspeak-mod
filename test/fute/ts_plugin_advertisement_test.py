@@ -3,6 +3,7 @@ from test_helpers.utils import *
 
 import notification
 
+from nose.plugins.attrib import attr
 import mock
 import os
 
@@ -39,6 +40,7 @@ class TSPluginAdvertisement(TestCaseBase):
 		self.start_game(mode="lobby")
 		self.assert_finally_true(lambda: self.__is_advertisement_shown())
 
+	@attr("slow")
 	@use_event_loop
 	def test_ts_plugin_advertisement_is_not_shown_if_already_installed(self):
 		# TODO: Slow test, replace with a unit test
@@ -48,6 +50,7 @@ class TSPluginAdvertisement(TestCaseBase):
 		self.assert_finally_false(lambda: self.__is_advertisement_shown())
 		self.wait_at_least(secs=5)
 
+	@attr("slow")
 	@use_event_loop
 	def test_ts_plugin_advertisement_is_not_shown_if_installer_is_missing(self):
 		# TODO: Slow test, replace with a unit test
@@ -57,6 +60,7 @@ class TSPluginAdvertisement(TestCaseBase):
 		self.assert_finally_false(lambda: self.__is_advertisement_shown())
 		self.wait_at_least(secs=5)
 
+	@attr("slow")
 	@use_event_loop
 	def test_ts_plugin_advertisement_is_not_shown_if_ignored(self):
 		# TODO: Slow test, replace with a unit test

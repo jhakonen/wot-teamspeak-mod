@@ -1,5 +1,7 @@
 from test_helpers.testcasebase import TestCaseBase
 from test_helpers.utils import *
+
+from nose.plugins.attrib import attr
 import mock
 
 class LobbyNotifications(TestCaseBase):
@@ -32,6 +34,7 @@ class LobbyNotifications(TestCaseBase):
 		self.start_game(mode="lobby")
 		self.assert_finally_true(lambda: self.__is_system_notification_sent(message=contains_match("Connected to TeamSpeak server"), type="info"))
 
+	@attr("slow")
 	@use_event_loop
 	def test_notification_connected_to_teamspeak_server_is_not_shown(self):
 		# TODO: Slow test, replace with a unit test
