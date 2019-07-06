@@ -28,6 +28,7 @@ import mod_tessumod
 import tessumod.ts3
 import tessumod.utils
 
+TEST_EXEC_TIMES          = []
 REPO_ROOT_DIRPATH        = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", ".."))
 RESOURCE_DIRPATH         = os.path.join(REPO_ROOT_DIRPATH, "data")
 TMP_DIRPATH              = os.path.join(os.getcwd(), "tmp")
@@ -39,6 +40,7 @@ TS_PLUGIN_INSTALLER_PATH = os.path.join(TESSUMOD_DIRPATH, "tessumod.ts3_plugin")
 class TestCaseBase(unittest.TestCase):
 
 	def setUp(self):
+		self.exec_start_time = time.time()
 		if os.environ.get("CHECK_LEAKS", False):
 			self.objects_before = get_object_dump(get_all_objs())
 		self.mod_tessumod = None
@@ -93,6 +95,8 @@ class TestCaseBase(unittest.TestCase):
 			if left_overs:
 				self.print_left_over_objects(left_overs)
 			assert not left_overs, "Object leak from test not allowed"
+
+		TEST_EXEC_TIMES.append((self.id(), time.time() - self.exec_start_time))
 
 	def print_left_over_objects(self, left_overs):
 		max_referrers = 10
