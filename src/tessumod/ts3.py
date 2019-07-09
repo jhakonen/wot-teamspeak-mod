@@ -515,7 +515,17 @@ class _ClientQueryProtocol(asynchat.async_chat):
 		'''Hook method which is called by aync_chat when an error happens which
 		is not otherwise handled.
 		'''
-		LOG_WARNING(sys.exc_info()[1])
+		type, value, traceback = sys.exc_info()
+		if getattr(value, "errno") == 10061 and self.connecting:
+			# Connection Refused error, this is normal if we are still trying
+			# to connect to TS client. This just means that user's TS client
+			# is not running
+			pass
+		else:
+			LOG_WARNING(value)
+		# Not sure if this call is required, but parent class's handle_error()
+		# calls handle_close(), so I think we should do that as well
+		self.handle_close()
 
 	@LOG_CALL(msg="<< {data}")
 	def collect_incoming_data(self, data):
