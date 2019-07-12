@@ -487,7 +487,9 @@ class _ClientQueryProtocol(asynchat.async_chat):
 
 	def close(self):
 		'''Closes connection.'''
-		asynchat.async_chat.close(self)
+		# Socket can be None if we connect() hasn't been called yet
+		if self.socket:
+			asynchat.async_chat.close(self)
 		if self._opened:
 			self._opened = False
 			self._data_in_handler = noop
