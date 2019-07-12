@@ -209,6 +209,13 @@ class TestCaseBase(unittest.TestCase):
 		if self.mod_tessumod:
 			self.mod_tessumod.fini()
 
+	def wait_event(self, name):
+		state = { "called": False }
+		def callback(*args, **kwargs):
+			state["called"] = True
+		self.__install_event_handler(name, callback)
+		self.wait_until(lambda: state["called"])
+
 	def wait_until(self, checker, timeout=5):
 		caller_frame = inspect.currentframe().f_back
 		self._wait_until(CheckerTruthy(checker), timeout, caller_frame)

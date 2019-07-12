@@ -27,6 +27,7 @@ try:
 	from tessumod.keyvaluestorage import KeyValueStorage
 	import tessumod.positional_audio as positional_audio
 	import BigWorld
+	import Event
 	from VOIP.VOIPManager import VOIPManager
 	import BattleReplay
 	from messenger.proto.events import g_messengerEvents
@@ -39,14 +40,16 @@ except:
 	import traceback
 	print traceback.format_exc()
 
+on_player_speaking = None
+
 def init():
 	'''Mod's main entry point. Called by WoT's built-in mod loader.'''
 	try:
 		global g_ts, g_talk_states, g_minimap_ctrl, g_user_cache, g_positional_audio, g_keyvaluestorage
-		global g_authentication_error, g_settings, g_settings_timer, g_ts_timer
+		global g_authentication_error, g_settings, g_settings_timer, g_ts_timer, on_player_speaking
 
 		g_authentication_error = False
-
+		on_player_speaking = Event.Event()
 		utils.init()
 		notifications.init()
 
@@ -129,6 +132,8 @@ def init():
 
 		g_messengerEvents.users.onUsersListReceived += on_users_list_received
 
+		add_onPlayerSpeaking_filter(g_messengerEvents.voip.onPlayerSpeaking)
+
 		notifications.add_event_handler(notifications.TSPLUGIN_INSTALL, on_tsplugin_install)
 		notifications.add_event_handler(notifications.TSPLUGIN_IGNORED, on_tsplugin_ignore_toggled)
 		notifications.add_event_handler(notifications.TSPLUGIN_MOREINFO, on_tsplugin_moreinfo_clicked)
@@ -151,6 +156,8 @@ def fini():
 
 	g_playerEvents.onAvatarReady           -= g_positional_audio.enable
 	g_playerEvents.onAvatarBecomeNonPlayer -= g_positional_audio.disable
+
+	remove_onPlayerSpeaking_filter(g_messengerEvents.voip.onPlayerSpeaking)
 
 	g_authentication_error = None
 	g_keyvaluestorage = None
@@ -206,8 +213,9 @@ def talk_status(player_id, talking=None):
 def update_player_speak_status(player_id):
 	'''Updates given 'player_id's talking status to VOIP system and minimap.'''
 	try:
-		talking = is_voice_chat_speak_allowed(player_id) and talk_status(player_id)
-		g_messengerEvents.voip.onPlayerSpeaking(player_id, talking)
+		talking = talk_status(player_id)
+		on_player_speaking(player_id, talking)
+		g_messengerEvents.voip.onPlayerSpeaking.unfiltered_call(player_id, talking and is_voice_chat_speak_allowed(player_id))
 	except:
 		LOG_CURRENT_EXCEPTION()
 
@@ -251,7 +259,7 @@ def clear_speak_statuses():
 
 	for id in players_speaking:
 		try:
-			g_messengerEvents.voip.onPlayerSpeaking(id, False)
+			g_messengerEvents.voip.onPlayerSpeaking.unfiltered_call(id, False)
 		except:
 			pass
 
@@ -369,12 +377,16 @@ def VOIPManager_isParticipantTalking(orig_method):
 		'''Called by other game modules (but not by minimap) to determine
 		current speaking status.
 		'''
+		talking = orig_method(self, dbid)
 		try:
-			return is_voice_chat_speak_allowed(dbid) and talk_status(dbid)
+			talking = talking or has_speak_feedback(dbid)
 		except:
 			LOG_CURRENT_EXCEPTION()
-		return orig_method(self, dbid)
+		return talking
 	return wrapper
+
+def has_speak_feedback(dbid):
+	return is_voice_chat_speak_allowed(dbid) and talk_status(dbid)
 
 def BattleReplay_play(orig_method):
 	def wrapper(*args, **kwargs):
@@ -386,6 +398,26 @@ def BattleReplay_play(orig_method):
 		g_user_cache.is_write_enabled = g_settings.should_update_cache_in_replays()
 		return orig_method(*args, **kwargs)
 	return wrapper
+
+def add_onPlayerSpeaking_filter(obj):
+	class FilterEvent(type(obj)):
+		def __call__(self, dbid, talking):
+			if talking:
+				self.unfiltered_call(dbid, talking)
+			elif has_speak_feedback(dbid):
+				pass
+			else:
+				self.unfiltered_call(dbid, talking)
+
+		def unfiltered_call(self, *args, **kwargs):
+			self.original_class.__call__(self, *args, **kwargs)
+
+	obj.original_class = obj.__class__
+	obj.__class__ = FilterEvent
+
+def remove_onPlayerSpeaking_filter(obj):
+	obj.__class__ = obj.original_class
+	del obj.original_class
 
 def on_users_list_received(tags):
 	'''This function populates user cache with friends and clan members from

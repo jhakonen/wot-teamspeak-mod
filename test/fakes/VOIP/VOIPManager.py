@@ -9,8 +9,11 @@ def getVOIPManager():
 
 class VOIPManager(object):
 
+	def __init__(self):
+		self.fake_talkers = {}
+
 	def isParticipantTalking(self, dbid):
-		return True
+		return self.fake_talkers.get(dbid, None)
 
 	def onPlayerSpeaking(self, dbid, state):
 		LOG_NOTE("TEST_SUITE: onPlayerSpeaking() called")
