@@ -179,11 +179,8 @@ class SpeakStatusChanges(TestCaseBase):
 	def test_ending_speech_in_game_voice_chat_shows_speak_feedback(self):
 		self.start_game(mode="battle", players=[{"name": "TuhoajaErkki"}])
 		self.set_game_voice_chat_speaking("TuhoajaErkki", True)
-		print "BEFORE"
 		self.set_game_voice_chat_speaking("TuhoajaErkki", False)
-		print "AFTER"
 		assert_equal(self.get_speak_feedback_state("TuhoajaErkki"), False)
-		print "RESULT", self.get_speak_feedback_state("TuhoajaErkki")
 
 	def test_starting_speech_in_both_chats_shows_speak_feedback(self):
 		self.create_user("Erkki Meikalainen")

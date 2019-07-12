@@ -36,20 +36,18 @@ try:
 	import subprocess
 	import threading
 	from functools import partial
+	on_player_speaking = Event.Event()
 except:
 	import traceback
 	print traceback.format_exc()
-
-on_player_speaking = None
 
 def init():
 	'''Mod's main entry point. Called by WoT's built-in mod loader.'''
 	try:
 		global g_ts, g_talk_states, g_minimap_ctrl, g_user_cache, g_positional_audio, g_keyvaluestorage
-		global g_authentication_error, g_settings, g_settings_timer, g_ts_timer, on_player_speaking
+		global g_authentication_error, g_settings, g_settings_timer, g_ts_timer
 
 		g_authentication_error = False
-		on_player_speaking = Event.Event()
 		utils.init()
 		notifications.init()
 
