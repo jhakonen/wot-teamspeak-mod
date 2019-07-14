@@ -33,6 +33,7 @@ try:
 	from messenger.proto.events import g_messengerEvents
 	from PlayerEvents import g_playerEvents
 	import os
+	import re
 	import subprocess
 	import threading
 	from functools import partial
@@ -310,6 +311,71 @@ def get_ignored_plugin_version():
 		return int(g_keyvaluestorage["ignored_plugin_version"])
 	return 0
 
+def get_plugin_advertisement_info(input):
+	def get_offer_type():
+		if input["windows_version"] < 6:
+			return None
+		if mod_version < min_supported_mod_version:
+			if installed_plugin_version == available_plugin_version:
+				return "unsupported_mod"
+			return None
+		if mod_version > max_supported_mod_version:
+			return None
+		if installed_plugin_version == 0:
+			if available_plugin_version == 0:
+				return None
+			return "install"
+		if installed_plugin_version < available_plugin_version:
+			return "update"
+		return None
+
+	installed_plugin_version = input["installed_plugin_version"]
+	available_plugin_version = input["plugin_info"]["plugin_version"]
+	mod_version = ModVersion(input["mod_version"])
+	min_supported_mod_version = ModVersion(input["plugin_info"]["supported_mod_versions"][0])
+	max_supported_mod_version = ModVersion(input["plugin_info"]["supported_mod_versions"][1])
+
+	offer_type = get_offer_type()
+	if offer_type is None:
+		return None
+	return { "offer_type": offer_type }
+
+class ModVersion(object):
+
+	PART_REGEXP = re.compile("([0-9]+)")
+
+	def __init__(self, version_str):
+		parts = version_str.split(".")
+		self.major = self._extract_int_part(parts[0] if len(parts) > 0 else None)
+		self.minor = self._extract_int_part(parts[1] if len(parts) > 1 else None)
+		self.patch = self._extract_int_part(parts[2] if len(parts) > 2 else None)
+
+	def _extract_int_part(self, part_str):
+		if part_str is None:
+			return None
+		match = self.PART_REGEXP.match(part_str)
+		if match:
+			return int(match.group(1))
+		return None
+
+	def __lt__(self, other):
+		if self.major is not None and other.major is not None and self.major < other.major:
+			return True
+		if self.minor is not None and other.minor is not None and self.minor < other.minor:
+			return True
+		if self.patch is not None and other.patch is not None and self.patch < other.patch:
+			return True
+		return False
+
+	def __gt__(self, other):
+		if self.major is not None and other.major is not None and self.major > other.major:
+			return True
+		if self.minor is not None and other.minor is not None and self.minor > other.minor:
+			return True
+		if self.patch is not None and other.patch is not None and self.patch > other.patch:
+			return True
+		return False
+
 def set_plugin_install_ignored(ignored):
 	g_keyvaluestorage["ignored_plugin_version"] = AVAILABLE_PLUGIN_VERSION if ignored else 0
 
@@ -444,9 +510,9 @@ def on_tsplugin_ignore_toggled(type_id, msg_id, data):
 	notifications.update_message(type_id, msg_id, data)
 
 def on_tsplugin_moreinfo_clicked(type_id, msg_id, data):
-	# Using Popen here as opening the URL to a web browser seems to not work
-	# under WINE, and just freezes the game client. Browser opens once you
-	# force close the client.
+	# Using Popen here as opening the URL to a web browser using call() seems
+	# to not work under WINE, and just freezes the game client. Browser opens
+	# once you force close the client.
 	subprocess.Popen(["start", data["moreinfo_url"]], shell=True)
 
 def on_settings_path_clicked(type_id, msg_id, data):
