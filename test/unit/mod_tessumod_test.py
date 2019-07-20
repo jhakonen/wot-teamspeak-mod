@@ -20,45 +20,54 @@ import mod_tessumod
 
 class TestPluginAdvertisement(object):
 
-	# TODO: sanity check plugin_info contents
-	# TODO: check for changelog
-	# TODO: newest plugin version shouldn't have max mod version defined
+	# TODO:
+	# - add "download_url" to each version, only offer install/update for
+	#   versions which have the property (we can have old versions in github)
 
 	def setUp(self):
-		# The default configuration should offer user to install the plugin
 		self.input = dict(
 			plugin_info = {
-				"plugin_version": 2,
-				"supported_mod_versions": ["0.6", "0.8"]
+				"versions": [
+					{
+						"plugin_version": 1,
+						"supported_mod_versions": ["0.6", "0.7"]
+					},
+					{
+						"plugin_version": 2,
+						"supported_mod_versions": ["0.7"]
+					}
+				]
 			},
 			mod_version = "0.6.14",
-			windows_version = 6,
 			installed_plugin_version = 0,
 			ignored_plugin_versions = []
 		)
+
+	def test_returns_none_with_too_old_mod_version_and_no_plugin_installed(self):
+		self.input["mod_version"] = "0.5.5"
+		output = mod_tessumod.get_plugin_advertisement_info(self.input)
+		assert_is_none(output)
+
+	def test_returns_none_with_newest_plugin_installed(self):
+		self.input["installed_plugin_version"] = 1
+		output = mod_tessumod.get_plugin_advertisement_info(self.input)
+		assert_is_none(output)
 
 	def test_offers_plugin_install(self):
 		output = mod_tessumod.get_plugin_advertisement_info(self.input)
 		assert_equal(output["offer_type"], "install")
 
 	def test_offers_update_with_old_plugin_installed(self):
+		self.input["mod_version"] = "0.7.1"
 		self.input["installed_plugin_version"] = 1
 		output = mod_tessumod.get_plugin_advertisement_info(self.input)
 		assert_equal(output["offer_type"], "update")
 
-	def test_returns_none_with_old_windows_os(self):
-		for version in range(0, 5):
-			yield self.check_returns_none_with_old_windows_os, version
-
-	def check_returns_none_with_old_windows_os(self, version):
-		self.input["windows_version"] = version
+	def test_offers_update_with_unsupported_old_plugin_installed(self):
+		self.input["mod_version"] = "0.8.0"
+		self.input["installed_plugin_version"] = 1
 		output = mod_tessumod.get_plugin_advertisement_info(self.input)
-		assert_is_none(output)
-
-	def test_returns_none_with_newest_plugin_installed(self):
-		self.input["installed_plugin_version"] = 2
-		output = mod_tessumod.get_plugin_advertisement_info(self.input)
-		assert_is_none(output)
+		assert_equal(output["offer_type"], "update")
 
 	def test_warns_of_unsupported_mod_version(self):
 		self.input["mod_version"] = "0.5.5"
@@ -66,12 +75,37 @@ class TestPluginAdvertisement(object):
 		output = mod_tessumod.get_plugin_advertisement_info(self.input)
 		assert_equal(output["offer_type"], "unsupported_mod")
 
-	def test_returns_none_with_too_old_mod_version(self):
-		self.input["mod_version"] = "0.5.5"
+	def test_returns_none_with_ignored_plugin_install(self):
+		self.input["ignored_plugin_versions"].append(1)
 		output = mod_tessumod.get_plugin_advertisement_info(self.input)
 		assert_is_none(output)
 
+	def test_returns_none_with_ignored_plugin_update(self):
+		self.input["mod_version"] = "0.7.1"
+		self.input["installed_plugin_version"] = 1
+		self.input["ignored_plugin_versions"].append(2)
+		output = mod_tessumod.get_plugin_advertisement_info(self.input)
+		assert_is_none(output)
+
+	def test_warns_of_unsupported_plugin_version_with_ad_ignored(self):
+		self.input["mod_version"] = "0.8.0"
+		self.input["installed_plugin_version"] = 1
+		self.input["ignored_plugin_versions"].append(2)
+		output = mod_tessumod.get_plugin_advertisement_info(self.input)
+		assert_equal(output["offer_type"], "unsupported_plugin")
+
+	def test_offers_plugin_install_for_release_candidate(self):
+		self.input["mod_version"] = "0.7.0rc1"
+		output = mod_tessumod.get_plugin_advertisement_info(self.input)
+		assert_equal(output["offer_type"], "install")
+
+	def test_offers_install_with_new_and_unspecified_mod_version(self):
+		self.input["mod_version"] = "0.8.0"
+		output = mod_tessumod.get_plugin_advertisement_info(self.input)
+		assert_equal(output["offer_type"], "install")
+
 	def test_returns_none_with_too_new_mod_version(self):
 		self.input["mod_version"] = "0.9.0"
+		self.input["plugin_info"]["versions"][1]["supported_mod_versions"] = ["0.7", "0.8"]
 		output = mod_tessumod.get_plugin_advertisement_info(self.input)
 		assert_is_none(output)

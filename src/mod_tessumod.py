@@ -312,69 +312,65 @@ def get_ignored_plugin_version():
 	return 0
 
 def get_plugin_advertisement_info(input):
-	def get_offer_type():
-		if input["windows_version"] < 6:
-			return None
-		if mod_version < min_supported_mod_version:
-			if installed_plugin_version == available_plugin_version:
-				return "unsupported_mod"
-			return None
-		if mod_version > max_supported_mod_version:
-			return None
-		if installed_plugin_version == 0:
-			if available_plugin_version == 0:
-				return None
-			return "install"
-		if installed_plugin_version < available_plugin_version:
-			return "update"
-		return None
-
 	installed_plugin_version = input["installed_plugin_version"]
-	available_plugin_version = input["plugin_info"]["plugin_version"]
-	mod_version = ModVersion(input["mod_version"])
-	min_supported_mod_version = ModVersion(input["plugin_info"]["supported_mod_versions"][0])
-	max_supported_mod_version = ModVersion(input["plugin_info"]["supported_mod_versions"][1])
-
-	offer_type = get_offer_type()
-	if offer_type is None:
+	mod_version = parse_version(input["mod_version"])
+	ignored_plugin_versions = input["ignored_plugin_versions"]
+	version_entries = input["plugin_info"]["versions"]
+	supported_entries = get_supported_versions(mod_version, version_entries)
+	new_entries = get_new_versions(installed_plugin_version, supported_entries)
+	if get_not_ignored_version_entries(new_entries, ignored_plugin_versions):
+		return { "offer_type": "install" if installed_plugin_version == 0 else "update" }
+	else:
+		if installed_plugin_version != 0:
+			if not supported_entries:
+				return { "offer_type": "unsupported_mod" }
+			matching_entries = [e for e in version_entries if e["plugin_version"] == installed_plugin_version]
+			if not get_supported_versions(mod_version, matching_entries):
+				return { "offer_type": "unsupported_plugin" }
 		return None
-	return { "offer_type": offer_type }
 
-class ModVersion(object):
-
+def parse_version(version_str):
 	PART_REGEXP = re.compile("([0-9]+)")
-
-	def __init__(self, version_str):
-		parts = version_str.split(".")
-		self.major = self._extract_int_part(parts[0] if len(parts) > 0 else None)
-		self.minor = self._extract_int_part(parts[1] if len(parts) > 1 else None)
-		self.patch = self._extract_int_part(parts[2] if len(parts) > 2 else None)
-
-	def _extract_int_part(self, part_str):
-		if part_str is None:
-			return None
-		match = self.PART_REGEXP.match(part_str)
+	results = []
+	parts = version_str.split(".")
+	for part in parts:
+		match = PART_REGEXP.match(part)
 		if match:
-			return int(match.group(1))
-		return None
+			results.append(int(match.group(1)))
+		else:
+			break
+	return results
 
-	def __lt__(self, other):
-		if self.major is not None and other.major is not None and self.major < other.major:
-			return True
-		if self.minor is not None and other.minor is not None and self.minor < other.minor:
-			return True
-		if self.patch is not None and other.patch is not None and self.patch < other.patch:
-			return True
-		return False
+def get_supported_versions(mod_version, versions):
+	supported_versions = []
+	for version in versions:
+		supported = version["supported_mod_versions"]
+		min_version = parse_version(supported[0])
+		max_version = parse_version(supported[1] if len(supported) == 2 else "999")
+		if version_in_range(mod_version, min_version, max_version):
+			supported_versions.append(version)
+	return supported_versions
 
-	def __gt__(self, other):
-		if self.major is not None and other.major is not None and self.major > other.major:
-			return True
-		if self.minor is not None and other.minor is not None and self.minor > other.minor:
-			return True
-		if self.patch is not None and other.patch is not None and self.patch > other.patch:
-			return True
+def version_in_range(value, min_value, max_value):
+	if len(value) > 0 and len(min_value) > 0 and value[0] < min_value[0]:
 		return False
+	if len(value) > 1 and len(min_value) > 1 and value[1] < min_value[1]:
+		return False
+	if len(value) > 2 and len(min_value) > 2 and value[2] < min_value[2]:
+		return False
+	if len(value) > 0 and len(max_value) > 0 and value[0] > max_value[0]:
+		return False
+	if len(value) > 1 and len(max_value) > 1 and value[1] > max_value[1]:
+		return False
+	if len(value) > 2 and len(max_value) > 2 and value[2] > max_value[2]:
+		return False
+	return True
+
+def get_new_versions(current_plugin_version, versions):
+	return [version for version in versions if version["plugin_version"] > current_plugin_version]
+
+def get_not_ignored_version_entries(entries, ignored_plugin_versions):
+	return [entry for entry in entries if entry["plugin_version"] not in ignored_plugin_versions]
 
 def set_plugin_install_ignored(ignored):
 	g_keyvaluestorage["ignored_plugin_version"] = AVAILABLE_PLUGIN_VERSION if ignored else 0
