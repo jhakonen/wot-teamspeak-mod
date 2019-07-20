@@ -20,21 +20,19 @@ import mod_tessumod
 
 class TestPluginAdvertisement(object):
 
-	# TODO:
-	# - add "download_url" to each version, only offer install/update for
-	#   versions which have the property (we can have old versions in github)
-
 	def setUp(self):
 		self.input = dict(
 			plugin_info = {
 				"versions": [
 					{
 						"plugin_version": 1,
-						"supported_mod_versions": ["0.6", "0.7"]
+						"supported_mod_versions": ["0.6", "0.7"],
+						"download_url": "https://github.com/jhakonen/wot-teamspeak-plugin/releases/tag/v0.8.0"
 					},
 					{
 						"plugin_version": 2,
-						"supported_mod_versions": ["0.7"]
+						"supported_mod_versions": ["0.7"],
+						"download_url": "https://www.myteamspeak.com/addons/01a0f828-894c-45b7-a852-937b47ceb1ed"
 					}
 				]
 			},
@@ -56,18 +54,21 @@ class TestPluginAdvertisement(object):
 	def test_offers_plugin_install(self):
 		output = mod_tessumod.get_plugin_advertisement_info(self.input)
 		assert_equal(output["offer_type"], "install")
+		assert_equal(output["download_url"], "https://github.com/jhakonen/wot-teamspeak-plugin/releases/tag/v0.8.0")
 
 	def test_offers_update_with_old_plugin_installed(self):
 		self.input["mod_version"] = "0.7.1"
 		self.input["installed_plugin_version"] = 1
 		output = mod_tessumod.get_plugin_advertisement_info(self.input)
 		assert_equal(output["offer_type"], "update")
+		assert_equal(output["download_url"], "https://www.myteamspeak.com/addons/01a0f828-894c-45b7-a852-937b47ceb1ed")
 
 	def test_offers_update_with_unsupported_old_plugin_installed(self):
 		self.input["mod_version"] = "0.8.0"
 		self.input["installed_plugin_version"] = 1
 		output = mod_tessumod.get_plugin_advertisement_info(self.input)
 		assert_equal(output["offer_type"], "update")
+		assert_equal(output["download_url"], "https://www.myteamspeak.com/addons/01a0f828-894c-45b7-a852-937b47ceb1ed")
 
 	def test_warns_of_unsupported_mod_version(self):
 		self.input["mod_version"] = "0.5.5"
@@ -98,14 +99,28 @@ class TestPluginAdvertisement(object):
 		self.input["mod_version"] = "0.7.0rc1"
 		output = mod_tessumod.get_plugin_advertisement_info(self.input)
 		assert_equal(output["offer_type"], "install")
+		assert_equal(output["download_url"], "https://www.myteamspeak.com/addons/01a0f828-894c-45b7-a852-937b47ceb1ed")
 
 	def test_offers_install_with_new_and_unspecified_mod_version(self):
 		self.input["mod_version"] = "0.8.0"
 		output = mod_tessumod.get_plugin_advertisement_info(self.input)
 		assert_equal(output["offer_type"], "install")
+		assert_equal(output["download_url"], "https://www.myteamspeak.com/addons/01a0f828-894c-45b7-a852-937b47ceb1ed")
 
 	def test_returns_none_with_too_new_mod_version(self):
 		self.input["mod_version"] = "0.9.0"
 		self.input["plugin_info"]["versions"][1]["supported_mod_versions"] = ["0.7", "0.8"]
 		output = mod_tessumod.get_plugin_advertisement_info(self.input)
 		assert_is_none(output)
+
+	def test_returns_none_with_plugin_install_missing_url(self):
+		del self.input["plugin_info"]["versions"][0]["download_url"]
+		output = mod_tessumod.get_plugin_advertisement_info(self.input)
+		assert_is_none(output)
+
+	def test_offers_install_with_newest_plugin_install_missing_url(self):
+		self.input["mod_version"] = "0.7.1"
+		del self.input["plugin_info"]["versions"][1]["download_url"]
+		output = mod_tessumod.get_plugin_advertisement_info(self.input)
+		assert_equal(output["offer_type"], "install")
+		assert_equal(output["download_url"], "https://github.com/jhakonen/wot-teamspeak-plugin/releases/tag/v0.8.0")

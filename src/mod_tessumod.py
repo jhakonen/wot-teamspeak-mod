@@ -316,16 +316,23 @@ def get_plugin_advertisement_info(input):
 	mod_version = parse_version(input["mod_version"])
 	ignored_plugin_versions = input["ignored_plugin_versions"]
 	version_entries = input["plugin_info"]["versions"]
-	supported_entries = get_supported_versions(mod_version, version_entries)
-	new_entries = get_new_versions(installed_plugin_version, supported_entries)
-	if get_not_ignored_version_entries(new_entries, ignored_plugin_versions):
-		return { "offer_type": "install" if installed_plugin_version == 0 else "update" }
+	supported_entries = get_supported_version_entries(mod_version, version_entries)
+
+	new_available_entries = get_new_version_entries(installed_plugin_version, supported_entries)
+	new_available_entries = get_not_ignored_version_entries(ignored_plugin_versions, new_available_entries)
+	new_available_entries = get_downloadable_version_entries(new_available_entries)
+	if new_available_entries:
+		entry = new_available_entries[-1]
+		return {
+			"offer_type": "install" if installed_plugin_version == 0 else "update",
+			"download_url": entry["download_url"]
+		}
 	else:
 		if installed_plugin_version != 0:
 			if not supported_entries:
 				return { "offer_type": "unsupported_mod" }
 			matching_entries = [e for e in version_entries if e["plugin_version"] == installed_plugin_version]
-			if not get_supported_versions(mod_version, matching_entries):
+			if not get_supported_version_entries(mod_version, matching_entries):
 				return { "offer_type": "unsupported_plugin" }
 		return None
 
@@ -341,15 +348,15 @@ def parse_version(version_str):
 			break
 	return results
 
-def get_supported_versions(mod_version, versions):
-	supported_versions = []
-	for version in versions:
-		supported = version["supported_mod_versions"]
+def get_supported_version_entries(mod_version, entries):
+	results = []
+	for entry in entries:
+		supported = entry["supported_mod_versions"]
 		min_version = parse_version(supported[0])
 		max_version = parse_version(supported[1] if len(supported) == 2 else "999")
 		if version_in_range(mod_version, min_version, max_version):
-			supported_versions.append(version)
-	return supported_versions
+			results.append(entry)
+	return results
 
 def version_in_range(value, min_value, max_value):
 	if len(value) > 0 and len(min_value) > 0 and value[0] < min_value[0]:
@@ -366,11 +373,14 @@ def version_in_range(value, min_value, max_value):
 		return False
 	return True
 
-def get_new_versions(current_plugin_version, versions):
-	return [version for version in versions if version["plugin_version"] > current_plugin_version]
+def get_new_version_entries(current_plugin_version, entries):
+	return [entry for entry in entries if entry["plugin_version"] > current_plugin_version]
 
-def get_not_ignored_version_entries(entries, ignored_plugin_versions):
+def get_not_ignored_version_entries(ignored_plugin_versions, entries):
 	return [entry for entry in entries if entry["plugin_version"] not in ignored_plugin_versions]
+
+def get_downloadable_version_entries(entries):
+	return [entry for entry in entries if "download_url" in entry]
 
 def set_plugin_install_ignored(ignored):
 	g_keyvaluestorage["ignored_plugin_version"] = AVAILABLE_PLUGIN_VERSION if ignored else 0
