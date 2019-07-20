@@ -312,15 +312,32 @@ def get_ignored_plugin_version():
 	return 0
 
 def get_plugin_advertisement_info(input):
-	installed_plugin_version = input["installed_plugin_version"]
-	mod_version = parse_version(input["mod_version"])
-	ignored_plugin_versions = input["ignored_plugin_versions"]
-	version_entries = input["plugin_info"]["versions"]
-	supported_entries = get_supported_version_entries(mod_version, version_entries)
+	mod_version = parse_version(input["mod_version"], parts_required=3)
 
+	installed_plugin_version = input["installed_plugin_version"]
+	assert type(installed_plugin_version) is int
+
+	ignored_plugin_versions = input["ignored_plugin_versions"]
+	assert type(ignored_plugin_versions) is list
+	for version in ignored_plugin_versions:
+		assert type(version) is int
+		assert version != 0
+
+	version_entries = input["plugin_info"]["versions"]
+	assert type(version_entries) is list
+	for entry in version_entries:
+		assert type(entry["plugin_version"]) is int
+		assert type(entry["supported_mod_versions"]) is list
+		assert len(entry["supported_mod_versions"]) < 3
+		if "download_url" in entry:
+			assert type(entry["download_url"]) in (str, unicode)
+			assert entry["download_url"]
+
+	supported_entries = get_supported_version_entries(mod_version, version_entries)
 	new_available_entries = get_new_version_entries(installed_plugin_version, supported_entries)
 	new_available_entries = get_not_ignored_version_entries(ignored_plugin_versions, new_available_entries)
 	new_available_entries = get_downloadable_version_entries(new_available_entries)
+
 	if new_available_entries:
 		entry = new_available_entries[-1]
 		return {
@@ -336,7 +353,7 @@ def get_plugin_advertisement_info(input):
 				return { "offer_type": "unsupported_plugin" }
 		return None
 
-def parse_version(version_str):
+def parse_version(version_str, parts_required=0):
 	PART_REGEXP = re.compile("([0-9]+)")
 	results = []
 	parts = version_str.split(".")
@@ -346,14 +363,15 @@ def parse_version(version_str):
 			results.append(int(match.group(1)))
 		else:
 			break
+	assert len(results) >= parts_required
 	return results
 
 def get_supported_version_entries(mod_version, entries):
 	results = []
 	for entry in entries:
 		supported = entry["supported_mod_versions"]
-		min_version = parse_version(supported[0])
-		max_version = parse_version(supported[1] if len(supported) == 2 else "999")
+		min_version = parse_version(supported[0], parts_required=1)
+		max_version = parse_version(supported[1] if len(supported) == 2 else "999", parts_required=1)
 		if version_in_range(mod_version, min_version, max_version):
 			results.append(entry)
 	return results

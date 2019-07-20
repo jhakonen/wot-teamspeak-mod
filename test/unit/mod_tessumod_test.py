@@ -41,6 +41,41 @@ class TestPluginAdvertisement(object):
 			ignored_plugin_versions = []
 		)
 
+	def test_sanity_check_inputs(self):
+		t = self.sanity_check_inputs
+		for version in (None, 0.5, "", "1", "1.0", [1, 2, 0]):
+			yield t, dict(mod_version=version)
+		for version in (None, "", "1", False, [0]):
+			yield t, dict(installed_plugin_version=version)
+		for versions in (None, 0, "", "1", False, [0], ["1"], {}):
+			yield t, dict(ignored_plugin_versions=versions)
+		for plugin_info in (None, [], {}, {"versions": None}, {"versions": {}}):
+			yield t, dict(plugin_info=plugin_info)
+		for plugin_version in (None, 0.1, "", "1", False, []):
+			yield t, dict(plugin_info={"versions": [{
+				"plugin_version": plugin_version,
+				"supported_mod_versions": ["0.6", "0.7"],
+				"download_url": "https://github.com/jhakonen/wot-teamspeak-plugin/releases/tag/v0.8.0"
+			}]})
+		for mod_versions in (None, [], "", "1", [""], ["1", "2", "3"]):
+			yield t, dict(plugin_info={"versions": [{
+				"plugin_version": 1,
+				"supported_mod_versions": mod_versions,
+				"download_url": "https://github.com/jhakonen/wot-teamspeak-plugin/releases/tag/v0.8.0"
+			}]})
+		for download_url in (None, [], "", 1):
+			yield t, dict(plugin_info={"versions": [{
+				"plugin_version": 1,
+				"supported_mod_versions": ["0.6", "0.7"],
+				"download_url": download_url
+			}]})
+		yield t, dict(plugin_info={"versions": [{"plugin_version": 1}]})
+		yield t, dict(plugin_info={"versions": [{"supported_mod_versions": ["0.6", "0.7"]}]})
+
+	def sanity_check_inputs(self, kwargs):
+		self.input = dict(self.input, **kwargs)
+		assert_raises(Exception, mod_tessumod.get_plugin_advertisement_info, self.input)
+
 	def test_returns_none_with_too_old_mod_version_and_no_plugin_installed(self):
 		self.input["mod_version"] = "0.5.5"
 		output = mod_tessumod.get_plugin_advertisement_info(self.input)
