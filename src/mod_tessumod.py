@@ -15,8 +15,6 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-AVAILABLE_PLUGIN_VERSION = 1
-
 try:
 	import game
 	from tessumod.utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
@@ -63,30 +61,6 @@ def init():
 			pass
 		settings_ini_path     = os.path.join(utils.get_ini_dir_path(), "tessu_mod.ini")
 		cache_ini_path        = os.path.join(utils.get_ini_dir_path(), "tessu_mod_cache.ini")
-		opt_out_path          = os.path.join(utils.get_ini_dir_path(), "states", "ignored_plugin_version")
-		old_settings_ini_path = os.path.join(utils.get_old_ini_dir_path(), "tessu_mod.ini")
-		old_cache_ini_path    = os.path.join(utils.get_old_ini_dir_path(), "tessu_mod_cache.ini")
-		old_opt_out_path      = os.path.join(utils.get_old_ini_dir_path(), "states", "ignored_plugin_version")
-
-		# Config path changed in mod version 0.6.14 when wotmod format was taken
-		# into use. Thus existing config files needs to moved to new location.
-		if os.path.isfile(old_settings_ini_path) and not os.path.isfile(settings_ini_path):
-			print "Migrating '{}' to '{}'".format(old_settings_ini_path, settings_ini_path)
-			os.rename(old_settings_ini_path, settings_ini_path)
-		if os.path.isfile(old_cache_ini_path) and not os.path.isfile(cache_ini_path):
-			print "Migrating '{}' to '{}'".format(old_cache_ini_path, cache_ini_path)
-			os.rename(old_cache_ini_path, cache_ini_path)
-		if os.path.isfile(old_opt_out_path) and not os.path.isfile(opt_out_path):
-			print "Migrating '{}' to '{}'".format(old_opt_out_path, opt_out_path)
-			os.rename(old_opt_out_path, opt_out_path)
-		try:
-			os.rmdir(os.path.join(utils.get_old_ini_dir_path(), "states"))
-		except os.error:
-			pass
-		try:
-			os.rmdir(utils.get_old_ini_dir_path())
-		except os.error:
-			pass
 
 		# do all intializations here
 		g_settings = Settings(settings_ini_path)
@@ -292,24 +266,28 @@ def on_plugin_info_received(error, result):
 		plugin_info = json.loads(result.body),
 		mod_version = utils.get_mod_version(),
 		installed_plugin_version = get_installed_plugin_version(),
-		ignored_plugin_versions = [get_ignored_plugin_version()] if get_ignored_plugin_version() else []
+		ignored_plugin_versions = get_ignored_plugin_versions()
 	))
 	if not info:
 		return
 	if info["offer_type"] == "install":
 		notifications.push_ts_plugin_install_message(
 			moreinfo_url = "https://github.com/jhakonen/wot-teamspeak-mod/wiki/TeamSpeak-Plugins#tessumod-plugin",
-			ignore_state = "off"
+			ignore_state = "off",
+			plugin_version = info["plugin_version"]
 		)
 
 def get_installed_plugin_version():
 	with mytsplugin.InfoAPI() as api:
 		return api.get_api_version()
 
-def get_ignored_plugin_version():
-	if "ignored_plugin_version" in g_keyvaluestorage:
-		return int(g_keyvaluestorage["ignored_plugin_version"])
-	return 0
+def get_ignored_plugin_versions():
+	if "ignored_plugin_versions" in g_keyvaluestorage:
+		return g_keyvaluestorage["ignored_plugin_versions"]
+	elif "ignored_plugin_version" in g_keyvaluestorage:
+		# Deprecated state variable (from 0.6.x versions)
+		return [int(g_keyvaluestorage["ignored_plugin_version"])]
+	return []
 
 def get_plugin_advertisement_info(input):
 	mod_version = parse_version(input["mod_version"], parts_required=3)
@@ -342,7 +320,8 @@ def get_plugin_advertisement_info(input):
 		entry = new_available_entries[-1]
 		return {
 			"offer_type": "install" if installed_plugin_version == 0 else "update",
-			"download_url": entry["download_url"]
+			"download_url": entry["download_url"],
+			"plugin_version": entry["plugin_version"]
 		}
 	else:
 		if installed_plugin_version != 0:
@@ -400,8 +379,13 @@ def get_not_ignored_version_entries(ignored_plugin_versions, entries):
 def get_downloadable_version_entries(entries):
 	return [entry for entry in entries if "download_url" in entry]
 
-def set_plugin_install_ignored(ignored):
-	g_keyvaluestorage["ignored_plugin_version"] = AVAILABLE_PLUGIN_VERSION if ignored else 0
+def set_plugin_install_ignored(plugin_version, ignored):
+	ignored_state = g_keyvaluestorage.get("ignored_plugin_versions", [])
+	if plugin_version in ignored_state and not ignored:
+		ignored_state.remove(plugin_version)
+	elif plugin_version not in ignored_state and ignored:
+		ignored_state.append(plugin_version)
+	g_keyvaluestorage["ignored_plugin_versions"] = ignored_state
 
 def on_disconnected_from_ts3():
 	'''Called when TessuMod loses connection to TeamSpeak client.'''
@@ -530,7 +514,7 @@ def on_tsplugin_install(type_id, msg_id, data):
 
 def on_tsplugin_ignore_toggled(type_id, msg_id, data):
 	data["ignore_state"] = "on" if data["ignore_state"] == "off" else "off"
-	set_plugin_install_ignored(True if data["ignore_state"] == "on" else False)
+	set_plugin_install_ignored(data["plugin_version"], True if data["ignore_state"] == "on" else False)
 	notifications.update_message(type_id, msg_id, data)
 
 def on_tsplugin_moreinfo_clicked(type_id, msg_id, data):

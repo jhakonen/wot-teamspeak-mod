@@ -327,7 +327,7 @@ class TestCaseBase(unittest.TestCase):
 		key_path = os.path.join(states_dirpath, key)
 		if os.path.exists(key_path):
 			with open(key_path, "r") as file:
-				return file.read()
+				return json.load(file)
 
 	def call_later(self, callback, timeout=0):
 		self.event_loop.call(callback, timeout=timeout)

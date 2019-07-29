@@ -55,6 +55,18 @@ class TSPluginAdvertisement(TestCaseBase):
 	def test_ts_plugin_advertisement_is_not_shown_if_ignored(self):
 		# TODO: Slow test, replace with a unit test
 		self.start_ts_client()
+		self.change_mod_state_variables(ignored_plugin_versions=[1])
+		self.start_game(mode="lobby")
+		self.assert_finally_false(lambda: self.__is_advertisement_shown())
+		self.wait_at_least(secs=5)
+
+	@attr("slow")
+	@use_event_loop
+	def test_ts_plugin_advertisement_is_not_shown_if_ignored_deprecated(self):
+		# This tests that ignored_plugin_version state variable (from 0.6.x
+		# versions) still works
+		# TODO: Slow test, replace with a unit test
+		self.start_ts_client()
 		self.change_mod_state_variables(ignored_plugin_version=1)
 		self.start_game(mode="lobby")
 		self.assert_finally_false(lambda: self.__is_advertisement_shown())
@@ -85,5 +97,5 @@ class TSPluginAdvertisement(TestCaseBase):
 			entityID = msg.getID(),
 			action = "TessuModTSPluginIgnore"
 		))
-		assert self.get_mod_state_variable("ignored_plugin_version") != "1"
-		self.assert_finally_equal("1", lambda: self.get_mod_state_variable("ignored_plugin_version"))
+		assert self.get_mod_state_variable("ignored_plugin_versions") != [1]
+		self.assert_finally_equal([1], lambda: self.get_mod_state_variable("ignored_plugin_versions"))
