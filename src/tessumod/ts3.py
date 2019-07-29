@@ -38,12 +38,11 @@ import errno
 import clientquery
 import time
 import re
-import asyncore
-import asynchat
 import functools
 import weakref
 import Event
 import BigWorld
+from asyncore_utils import AsynchatExtended
 from utils import (
 	noop,
 	with_args,
@@ -71,7 +70,7 @@ class TS3Client(object):
 	PORT = 25639
 	NICK_META_PATTERN = "<wot_nickname_start>(.+)<wot_nickname_end>"
 
-	def __init__(self):
+	def __init__(self, event_loop):
 		# public events
 		self.on_connected = Event.Event()
 		self.on_disconnected = Event.Event()
@@ -90,14 +89,13 @@ class TS3Client(object):
 		self._ping_timer = RepeatTimer(_RETRY_TIMEOUT)
 		self._ping_timer.on_timeout += self._ping
 
-		self._socket_map = {}
 		self._wot_nickname = None
 		self._my_client_id = None
 		self._my_channel_id = None
 		self._schandler_id = None
 		self.__apikey = None
 
-		self._protocol = _ClientQueryProtocol(self, self._socket_map)
+		self._protocol = _ClientQueryProtocol(self, event_loop)
 		self._protocol.on_ready += functools.partial(self._send_sm_event, "protocol_ready")
 		self._protocol.on_closed += functools.partial(self._send_sm_event, "protocol_closed")
 
@@ -150,7 +148,6 @@ class TS3Client(object):
 
 	def check_events(self):
 		'''Event handler method. Call this periodically.'''
-		asyncore.loop(timeout=0, count=1, map=self._socket_map)
 		self._protocol.handle_out_commands()
 		self._sm.tick()
 
@@ -445,11 +442,11 @@ class TS3Client(object):
 			self._send_sm_event("server_disconnected")
 
 
-class _ClientQueryProtocol(asynchat.async_chat):
+class _ClientQueryProtocol(AsynchatExtended):
 	'''This class handles low level communication with the client query interface.'''
 
-	def __init__(self, event_receiver, map):
-		asynchat.async_chat.__init__(self, map=map)
+	def __init__(self, event_receiver, event_loop):
+		AsynchatExtended.__init__(self, event_loop)
 
 		# public events
 		self.on_connected = Event.Event()
@@ -467,29 +464,11 @@ class _ClientQueryProtocol(asynchat.async_chat):
 		self._commands = []
 		self._opened = False
 
-	def send(self, data):
-		try:
-			return asynchat.async_chat.send(self, data)
-		except socket.error as err:
-			if err.args[0] == errno.WSAEWOULDBLOCK:
-				return 0
-			raise
-
-	def connect(self, address):
-		try:
-			self._opened = True
-			return asynchat.async_chat.connect(self, address)
-		except socket.error as err:
-			if err.args[0] == errno.WSAEWOULDBLOCK:
-				self.addr = address
-				return
-			raise
-
 	def close(self):
 		'''Closes connection.'''
 		# Socket can be None if we connect() hasn't been called yet
 		if self.socket:
-			asynchat.async_chat.close(self)
+			AsynchatExtended.close(self)
 		if self._opened:
 			self._opened = False
 			self._data_in_handler = noop
@@ -506,12 +485,6 @@ class _ClientQueryProtocol(asynchat.async_chat):
 		self._in_line = ""
 		self._data_in_handler = self._handle_in_data_proto_test
 		self.on_connected()
-
-	def handle_close(self):
-		'''Hook method which is called by async_chat when connection is closed
-		or lost.
-		'''
-		self.close()
 
 	def handle_error(self):
 		'''Hook method which is called by aync_chat when an error happens which
@@ -549,7 +522,7 @@ class _ClientQueryProtocol(asynchat.async_chat):
 
 	@LOG_CALL(msg=">> {data}")
 	def push(self, data):
-		asynchat.async_chat.push(self, data)
+		AsynchatExtended.push(self, data)
 
 	def _handle_in_data_proto_test(self, line):
 		'''Checks that we really contacted TeamSpeak client query interface and
@@ -560,17 +533,6 @@ class _ClientQueryProtocol(asynchat.async_chat):
 		else:
 			LOG_ERROR("Not TS client query protocol")
 			self.close()
-
-	def log_info(self, message, type="info"):
-		'''Undocumented feature of asyncore. Called by asyncore to print log
-		messages. Converts the log message to WOT logging.
-		'''
-		if type == "info":
-			LOG_NOTE(message)
-		elif type == "error":
-			LOG_ERROR(message)
-		elif type == "warning":
-			LOG_WARNING(message)
 
 	def _handle_in_data_welcome_message(self, line):
 		'''Consumes welcome message.'''

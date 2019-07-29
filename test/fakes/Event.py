@@ -10,7 +10,6 @@ class Event(object):
 		return self
 
 	def __isub__(self, other):
-		print "Event.remove:", other
 		self.callbacks.remove(other)
 		return self
 
@@ -22,5 +21,4 @@ class Event(object):
 				LOG_CURRENT_EXCEPTION()
 
 	def clear(self):
-		print "Event.clear"
 		del self.callbacks[:]

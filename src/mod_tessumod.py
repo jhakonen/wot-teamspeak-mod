@@ -20,6 +20,8 @@ AVAILABLE_PLUGIN_VERSION = 1
 try:
 	import game
 	from tessumod.utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
+	from tessumod.asyncore_utils import EventLoopAdapter
+	from tessumod.http import HTTPClient
 	from tessumod.ts3 import TS3Client
 	from tessumod import utils, mytsplugin, notifications
 	from tessumod.settings import Settings
@@ -32,6 +34,7 @@ try:
 	import BattleReplay
 	from messenger.proto.events import g_messengerEvents
 	from PlayerEvents import g_playerEvents
+	import json
 	import os
 	import re
 	import subprocess
@@ -46,7 +49,7 @@ def init():
 	'''Mod's main entry point. Called by WoT's built-in mod loader.'''
 	try:
 		global g_ts, g_talk_states, g_minimap_ctrl, g_user_cache, g_positional_audio, g_keyvaluestorage
-		global g_authentication_error, g_settings, g_settings_timer, g_ts_timer
+		global g_authentication_error, g_settings, g_settings_timer, g_ts_timer, g_http_client
 
 		g_authentication_error = False
 		utils.init()
@@ -92,9 +95,13 @@ def init():
 		g_user_cache.on_read_error += on_user_cache_read_error
 		g_user_cache.init()
 
+		event_loop = EventLoopAdapter()
+
+		g_http_client = HTTPClient(event_loop)
+
 		g_talk_states = {}
 		g_minimap_ctrl = utils.MinimapMarkersController()
-		g_ts = TS3Client()
+		g_ts = TS3Client(event_loop)
 
 		g_positional_audio = positional_audio.PositionalAudio(
 			ts_users      = g_ts.users_in_my_channel,
@@ -102,6 +109,8 @@ def init():
 		)
 
 		load_settings()
+
+		event_loop.set_polling_interval(g_settings.get_client_query_interval())
 
 		g_ts.set_apikey(g_settings.get_client_query_apikey())
 		g_ts.connect()
@@ -273,38 +282,29 @@ def on_connected_to_ts3():
 		notifications.push_warning_message("Permission granted, connected to TeamSpeak client")
 	g_authentication_error = False
 
-	installer_path = utils.get_plugin_installer_path()
+	g_http_client.get("http://jhakonen.github.io/wot-teamspeak-mod/plugin_info.json", on_plugin_info_received)
 
-	# plugin doesn't work in WinXP so check that we are running on
-	# sufficiently recent Windows OS
-	if not is_vista_or_newer():
+def on_plugin_info_received(error, result):
+	if error:
+		LOG_ERROR(error)
 		return
-	if not os.path.isfile(installer_path):
+	info = get_plugin_advertisement_info(dict(
+		plugin_info = json.loads(result.body),
+		mod_version = utils.get_mod_version(),
+		installed_plugin_version = get_installed_plugin_version(),
+		ignored_plugin_versions = [get_ignored_plugin_version()] if get_ignored_plugin_version() else []
+	))
+	if not info:
 		return
-	if is_newest_plugin_version(get_installed_plugin_version()):
-		return
-	if is_newest_plugin_version(get_ignored_plugin_version()):
-		return
-
-	notifications.push_ts_plugin_install_message(
-		moreinfo_url   = "https://github.com/jhakonen/wot-teamspeak-mod/wiki/TeamSpeak-Plugins#tessumod-plugin",
-		ignore_state   = "off"
-	)
-
-def is_vista_or_newer():
-	'''Returns True if the game is running on Windows Vista or newer OS.'''
-	try:
-		import sys
-		return sys.getwindowsversion()[0] >= 6
-	except:
-		return True
+	if info["offer_type"] == "install":
+		notifications.push_ts_plugin_install_message(
+			moreinfo_url = "https://github.com/jhakonen/wot-teamspeak-mod/wiki/TeamSpeak-Plugins#tessumod-plugin",
+			ignore_state = "off"
+		)
 
 def get_installed_plugin_version():
 	with mytsplugin.InfoAPI() as api:
 		return api.get_api_version()
-
-def is_newest_plugin_version(plugin_version):
-	return plugin_version >= AVAILABLE_PLUGIN_VERSION
 
 def get_ignored_plugin_version():
 	if "ignored_plugin_version" in g_keyvaluestorage:

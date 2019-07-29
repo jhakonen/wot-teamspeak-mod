@@ -33,6 +33,8 @@ def tick():
 	try:
 		t = _time.time()
 		for handle in g_callback_events.keys():
+			if handle not in g_callback_events:
+				continue
 			event = g_callback_events[handle]
 			if t > event[0]:
 				cancelCallback(handle)

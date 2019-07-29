@@ -1,4 +1,4 @@
-from test_helpers.testcasebase import TestCaseBase, TS_PLUGIN_INSTALLER_PATH
+from test_helpers.testcasebase import TestCaseBase
 from test_helpers.utils import *
 
 import notification
@@ -46,16 +46,6 @@ class TSPluginAdvertisement(TestCaseBase):
 		# TODO: Slow test, replace with a unit test
 		self.start_ts_client()
 		self.enable_ts_client_tessumod_plugin(version=1)
-		self.start_game(mode="lobby")
-		self.assert_finally_false(lambda: self.__is_advertisement_shown())
-		self.wait_at_least(secs=5)
-
-	@attr("slow")
-	@use_event_loop
-	def test_ts_plugin_advertisement_is_not_shown_if_installer_is_missing(self):
-		# TODO: Slow test, replace with a unit test
-		self.start_ts_client()
-		os.remove(TS_PLUGIN_INSTALLER_PATH)
 		self.start_game(mode="lobby")
 		self.assert_finally_false(lambda: self.__is_advertisement_shown())
 		self.wait_at_least(secs=5)

@@ -342,7 +342,6 @@ class MinimapMarkerAnimation(object):
 		except AttributeError:
 			LOG_CURRENT_EXCEPTION()
 
-
 class RepeatTimer(object):
 
 	def __init__(self, timeout):

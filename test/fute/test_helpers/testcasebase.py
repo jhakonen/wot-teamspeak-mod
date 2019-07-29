@@ -36,7 +36,6 @@ TMP_DIRPATH              = os.path.join(os.getcwd(), "tmp")
 MODS_VERSION_DIRPATH     = os.path.join(TMP_DIRPATH, "mods", "version")
 TESSUMOD_DIRPATH         = os.path.join(MODS_VERSION_DIRPATH, "tessumod")
 INI_DIRPATH              = os.path.join(MODS_VERSION_DIRPATH, "..", "configs", "tessu_mod")
-TS_PLUGIN_INSTALLER_PATH = os.path.join(TESSUMOD_DIRPATH, "tessumod.ts3_plugin")
 
 class TestCaseBase(unittest.TestCase):
 
@@ -71,8 +70,6 @@ class TestCaseBase(unittest.TestCase):
 				"polling_interval": "0" # makes tests execute faster
 			}
 		)
-		# create empty ts plugin installer file
-		open(TS_PLUGIN_INSTALLER_PATH, "w").close()
 
 		self.event_loop.call(self.__on_loop, repeat=True, timeout=0.001)
 
