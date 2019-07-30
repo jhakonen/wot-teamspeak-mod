@@ -16,8 +16,8 @@ _NO_RESPONSE = (None, None)
 
 class TSClientQueryService(object):
 
-	def __init__(self):
-		self.__sock_map = {}
+	def __init__(self, sock_map):
+		self.__sock_map = sock_map
 		self._clids = []
 		self._server = None
 		self._data = Data()
@@ -41,17 +41,10 @@ class TSClientQueryService(object):
 				self._server.handler.close()
 			self._server.close()
 			self._server = None
-		if self.__sock_map:
-			for socket in self.__sock_map.values():
-				socket.close()
-			self.__sock_map.clear()
-		#self._data = None
 
 	def check(self):
-		if self.__sock_map:
-			asyncore.loop(0, map=self.__sock_map, count=1)
-			if self._server and self._server.handler:
-				self._server.handler.tick()
+		if self._server and self._server.handler:
+			self._server.handler.tick()
 
 	def insert_connect_message(self, index, message):
 		self._data.connect_messages[index] = message

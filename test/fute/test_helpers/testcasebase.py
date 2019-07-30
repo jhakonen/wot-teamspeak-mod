@@ -1,3 +1,4 @@
+import asyncore
 from functools import partial
 import gc
 import inspect
@@ -12,7 +13,9 @@ import sys
 import time
 import unittest
 
+import constants
 from event_loop import EventLoop
+from http_server import HTTPServer
 import mod_settings
 from ts_client_query import TSClientQueryService
 from utils import CheckerTruthy, CheckerEqual
@@ -51,6 +54,11 @@ class TestCaseBase(unittest.TestCase):
 		self.__max_end_time = None
 		self.__min_end_time = None
 		self.__event_handlers = {}
+		self.__sock_map = {}
+		self.__http_server = HTTPServer(self.__sock_map)
+		mod_tessumod.PLUGIN_INFO_URL = self.__http_server.get_url()
+
+		self.set_plugin_info(constants.PLUGIN_INFO)
 
 		shutil.rmtree(TMP_DIRPATH, ignore_errors=True)
 
@@ -79,6 +87,8 @@ class TestCaseBase(unittest.TestCase):
 			self.__ts_plugin_info.close()
 		if self.ts_client_query_server:
 			self.ts_client_query_server.stop()
+		if self.__http_server:
+			self.__http_server.close()
 		self.ts_client_query_server = None
 		self.event_loop.fini()
 		self.event_loop = None
@@ -126,7 +136,7 @@ class TestCaseBase(unittest.TestCase):
 
 	def start_ts_client(self, **state):
 		assert self.ts_client_query_server == None, "Cannot start TS client if it is already running"
-		self.ts_client_query_server = TSClientQueryService()
+		self.ts_client_query_server = TSClientQueryService(self.__sock_map)
 		self.ts_client_query_server.start()
 		self.change_ts_client_state(**state)
 
@@ -162,6 +172,9 @@ class TestCaseBase(unittest.TestCase):
 			},
 			"clients": clients
 		}
+
+	def set_plugin_info(self, obj):
+		self.__http_server.set_response(200, "OK", json.dumps(obj))
 
 	def on_event(self, name, callback):
 		def call_wrapper(callback, *args, **kwargs):
@@ -333,6 +346,7 @@ class TestCaseBase(unittest.TestCase):
 		self.event_loop.call(callback, timeout=timeout)
 
 	def __on_loop(self):
+		asyncore.loop(0, map=self.__sock_map, count=1)
 		BigWorld.tick()
 		if self.ts_client_query_server:
 			self.ts_client_query_server.check()

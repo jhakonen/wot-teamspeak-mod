@@ -15,6 +15,8 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
+PLUGIN_INFO_URL = "http://jhakonen.github.io/wot-teamspeak-mod/plugin_info.json"
+
 try:
 	import game
 	from tessumod.utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
@@ -256,7 +258,7 @@ def on_connected_to_ts3():
 		notifications.push_warning_message("Permission granted, connected to TeamSpeak client")
 	g_authentication_error = False
 
-	g_http_client.get("http://jhakonen.github.io/wot-teamspeak-mod/plugin_info.json", on_plugin_info_received)
+	g_http_client.get(PLUGIN_INFO_URL, on_plugin_info_received)
 
 def on_plugin_info_received(error, result):
 	if error:
