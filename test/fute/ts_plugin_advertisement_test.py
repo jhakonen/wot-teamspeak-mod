@@ -1,11 +1,14 @@
+from test_helpers import constants
 from test_helpers.testcasebase import TestCaseBase
 from test_helpers.utils import *
 
 import notification
 
 from nose.plugins.attrib import attr
+import copy
 import mock
 import os
+import time
 
 class TSPluginAdvertisement(TestCaseBase):
 	'''
@@ -99,3 +102,63 @@ class TSPluginAdvertisement(TestCaseBase):
 		))
 		assert self.get_mod_state_variable("ignored_plugin_versions") != [1]
 		self.assert_finally_equal([1], lambda: self.get_mod_state_variable("ignored_plugin_versions"))
+
+	def test_plugin_info_is_cached(self):
+		start_time = time.time()
+		self.start_ts_client()
+		self.start_game(mode="lobby")
+		self.wait_until(lambda: self.__is_advertisement_shown())
+		end_time = time.time()
+		cached_plugin_info = self.get_mod_state_variable("plugin_info")
+		cached_timestamp = self.get_mod_state_variable("plugin_info_timestamp")
+		assert cached_plugin_info == constants.PLUGIN_INFO
+		assert cached_timestamp > start_time
+		assert cached_timestamp < end_time
+
+	def test_plugin_info_is_read_from_cache(self):
+		self.stop_http_server()
+		self.change_mod_state_variables(
+			plugin_info=constants.PLUGIN_INFO,
+			plugin_info_timestamp=time.time()
+		)
+		self.start_ts_client()
+		self.start_game(mode="lobby")
+		self.wait_until(lambda: self.__is_advertisement_shown())
+
+	def test_cached_plugin_info_becomes_stale_after_a_week(self):
+		old_plugin_info = copy.deepcopy(constants.PLUGIN_INFO)
+		old_plugin_info["versions"][0]["download_url"] = "http://old.url/"
+		self.change_mod_state_variables(
+			plugin_info=old_plugin_info,
+			plugin_info_timestamp=time.time() - 60 * 60 * 24 * 7
+		)
+		start_time = time.time()
+		self.start_ts_client()
+		self.start_game(mode="lobby")
+		self.wait_until(lambda: self.__is_advertisement_shown())
+		end_time = time.time()
+		new_plugin_info = self.get_mod_state_variable("plugin_info")
+		new_timestamp = self.get_mod_state_variable("plugin_info_timestamp")
+		assert new_plugin_info == constants.PLUGIN_INFO
+		assert new_plugin_info != old_plugin_info
+		assert new_timestamp > start_time
+		assert new_timestamp < end_time
+
+	def test_cached_plugin_info_becomes_stale_if_timestamp_is_set_in_future_by_a_week(self):
+		old_plugin_info = copy.deepcopy(constants.PLUGIN_INFO)
+		old_plugin_info["versions"][0]["download_url"] = "http://old.url/"
+		self.change_mod_state_variables(
+			plugin_info=old_plugin_info,
+			plugin_info_timestamp=time.time() + 60 * 60 * 24 * 7 + 60
+		)
+		start_time = time.time()
+		self.start_ts_client()
+		self.start_game(mode="lobby")
+		self.wait_until(lambda: self.__is_advertisement_shown())
+		end_time = time.time()
+		new_plugin_info = self.get_mod_state_variable("plugin_info")
+		new_timestamp = self.get_mod_state_variable("plugin_info_timestamp")
+		assert new_plugin_info == constants.PLUGIN_INFO
+		assert new_plugin_info != old_plugin_info
+		assert new_timestamp > start_time
+		assert new_timestamp < end_time

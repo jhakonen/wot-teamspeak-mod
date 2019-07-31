@@ -219,6 +219,9 @@ class TestCaseBase(unittest.TestCase):
 		if self.mod_tessumod:
 			self.mod_tessumod.fini()
 
+	def stop_http_server(self):
+		self.__http_server.close()
+
 	def wait_event(self, name):
 		state = { "called": False }
 		def callback(*args, **kwargs):

@@ -39,6 +39,7 @@ try:
 	import re
 	import subprocess
 	import threading
+	import time
 	from functools import partial
 	on_player_speaking = Event.Event()
 except:
@@ -257,15 +258,26 @@ def on_connected_to_ts3():
 	if g_authentication_error:
 		notifications.push_warning_message("Permission granted, connected to TeamSpeak client")
 	g_authentication_error = False
+	has_cached_plugin_info = \
+		"plugin_info" in g_keyvaluestorage and \
+		"plugin_info_timestamp" in g_keyvaluestorage and \
+		abs(time.time() - g_keyvaluestorage["plugin_info_timestamp"]) < 60 * 60 * 24 * 7
+	if has_cached_plugin_info:
+		handle_plugin_info(g_keyvaluestorage["plugin_info"])
+	else:
+		def on_plugin_info_received(error, result):
+			if error:
+				LOG_ERROR(error)
+				return
+			plugin_info = json.loads(result.body)
+			g_keyvaluestorage["plugin_info"] = plugin_info
+			g_keyvaluestorage["plugin_info_timestamp"] = time.time()
+			handle_plugin_info(plugin_info)
+		g_http_client.get(PLUGIN_INFO_URL, on_plugin_info_received)
 
-	g_http_client.get(PLUGIN_INFO_URL, on_plugin_info_received)
-
-def on_plugin_info_received(error, result):
-	if error:
-		LOG_ERROR(error)
-		return
+def handle_plugin_info(plugin_info):
 	info = get_plugin_advertisement_info(dict(
-		plugin_info = json.loads(result.body),
+		plugin_info = plugin_info,
 		mod_version = utils.get_mod_version(),
 		installed_plugin_version = get_installed_plugin_version(),
 		ignored_plugin_versions = get_ignored_plugin_versions()
