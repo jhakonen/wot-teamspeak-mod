@@ -1,4 +1,6 @@
 import time as _time
+import webbrowser
+
 from debug_utils import LOG_CURRENT_EXCEPTION
 
 def reset_fake():
@@ -72,6 +74,9 @@ def camera():
 	if _camera is None:
 		_camera = Camera()
 	return _camera
+
+def wg_openWebBrowser(url):
+	webbrowser.open(url)
 
 class Camera(object):
 

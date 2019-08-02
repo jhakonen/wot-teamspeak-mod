@@ -2,6 +2,7 @@ from test_helpers import constants
 from test_helpers.testcasebase import TestCaseBase
 from test_helpers.utils import *
 
+import BigWorld
 import notification
 
 from nose.plugins.attrib import attr
@@ -9,6 +10,8 @@ import copy
 import mock
 import os
 import time
+
+BigWorld_wg_openWebBrowser = BigWorld.wg_openWebBrowser
 
 class TSPluginAdvertisement(TestCaseBase):
 	'''
@@ -19,9 +22,11 @@ class TSPluginAdvertisement(TestCaseBase):
 		TestCaseBase.setUp(self)
 		self.addNotification_mock = mock.Mock()
 		self.__get_model().on_addNotification += self.addNotification_mock
+		BigWorld.wg_openWebBrowser = mock.Mock()
 
 	def tearDown(self):
 		self.__get_model().on_addNotification.clear()
+		BigWorld.wg_openWebBrowser = BigWorld_wg_openWebBrowser
 		TestCaseBase.tearDown(self)
 
 	def __get_model(self):
@@ -29,7 +34,7 @@ class TSPluginAdvertisement(TestCaseBase):
 
 	def __is_advertisement_shown(self):
 		return mock_was_called_with(self.addNotification_mock, message_decorator_matches_fragments(
-			["TessuModTSPluginInstall", "TessuModTSPluginMoreInfo", "TessuModTSPluginIgnore"]))
+			["TessuModTSPluginDownload", "TessuModTSPluginMoreInfo", "TessuModTSPluginIgnore"]))
 
 	def __on_notification(self, callback):
 		self.__get_model().on_addNotification += callback
@@ -75,21 +80,15 @@ class TSPluginAdvertisement(TestCaseBase):
 		self.assert_finally_false(lambda: self.__is_advertisement_shown())
 		self.wait_at_least(secs=5)
 
-	@mock.patch("subprocess.call")
-	@use_event_loop
-	def test_install_button_starts_plugin_installer(self, subprocess_call_mock):
+	def test_download_button_opens_download_page_to_web_browser(self):
 		self.start_ts_client()
 		self.start_game(mode="lobby")
 		self.__on_notification(lambda msg: self.__handleAction(
 			typeID = msg.getType(),
 			entityID = msg.getID(),
-			action = "TessuModTSPluginInstall"
+			action = "TessuModTSPluginDownload"
 		))
-		self.assert_finally_true(lambda: mock_was_called_with(
-			subprocess_call_mock,
-			args = [contains_match("tessumod.ts3_plugin")],
-			shell = True
-		))
+		self.wait_until(lambda: mock_was_called_with(BigWorld.wg_openWebBrowser, "https://www.myteamspeak.com/addons/01a0f828-894c-45b7-a852-937b47ceb1ed"))
 
 	@use_event_loop
 	def test_ignore_link_saves_ignore_state(self):

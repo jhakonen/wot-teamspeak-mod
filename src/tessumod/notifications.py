@@ -32,7 +32,7 @@ from skeletons.gui.system_messages import ISystemMessages
 import resources
 import utils
 
-TSPLUGIN_INSTALL  = "TessuModTSPluginInstall"
+TSPLUGIN_DOWNLOAD  = "TessuModTSPluginDownload"
 TSPLUGIN_MOREINFO = "TessuModTSPluginMoreInfo"
 TSPLUGIN_IGNORED  = "TessuModTSPluginIgnore"
 SETTINGS_PATH     = "TessuModSettingsPath"
@@ -57,7 +57,7 @@ def push_ts_plugin_install_message(**data):
 	if not _is_plugin_install_shown:
 		msg_tmpl = resources.read_file(utils.get_resource_data_path() + "/tsplugin_install_notification.json")
 		_push_notification(_MessageDecorator(_get_new_message_id(), msg_tmpl, dict(data, **{
-			"install_action": TSPLUGIN_INSTALL,
+			"download_action": TSPLUGIN_DOWNLOAD,
 			"ignore_action": TSPLUGIN_IGNORED,
 			"moreinfo_action": TSPLUGIN_MOREINFO
 		})))

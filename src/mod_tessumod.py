@@ -38,7 +38,6 @@ try:
 	import os
 	import re
 	import subprocess
-	import threading
 	import time
 	from functools import partial
 	on_player_speaking = Event.Event()
@@ -119,7 +118,7 @@ def init():
 
 		add_onPlayerSpeaking_filter(g_messengerEvents.voip.onPlayerSpeaking)
 
-		notifications.add_event_handler(notifications.TSPLUGIN_INSTALL, on_tsplugin_install)
+		notifications.add_event_handler(notifications.TSPLUGIN_DOWNLOAD, on_tsplugin_download)
 		notifications.add_event_handler(notifications.TSPLUGIN_IGNORED, on_tsplugin_ignore_toggled)
 		notifications.add_event_handler(notifications.TSPLUGIN_MOREINFO, on_tsplugin_moreinfo_clicked)
 		notifications.add_event_handler(notifications.SETTINGS_PATH, on_settings_path_clicked)
@@ -288,7 +287,8 @@ def handle_plugin_info(plugin_info):
 		notifications.push_ts_plugin_install_message(
 			moreinfo_url = "https://github.com/jhakonen/wot-teamspeak-mod/wiki/TeamSpeak-Plugins#tessumod-plugin",
 			ignore_state = "off",
-			plugin_version = info["plugin_version"]
+			plugin_version = info["plugin_version"],
+			download_url = info["download_url"]
 		)
 
 def get_installed_plugin_version():
@@ -518,17 +518,8 @@ def on_users_list_received(tags):
 	for player in utils.get_players(clanmembers=True, friends=True):
 		g_user_cache.add_player(player.name, player.id)
 
-def on_tsplugin_install(type_id, msg_id, data):
-	# For this to work under the TeamSpeak client probably would need to be
-	# installed within the same prefix as the game is. File association for
-	# .ts3_plugin missing otherwise?
-	threading.Thread(
-		target = partial(
-			subprocess.call,
-			args  = [os.path.normpath(utils.get_plugin_installer_path())],
-			shell = True
-		)
-	).start()
+def on_tsplugin_download(type_id, msg_id, data):
+	BigWorld.wg_openWebBrowser(data["download_url"])
 
 def on_tsplugin_ignore_toggled(type_id, msg_id, data):
 	data["ignore_state"] = "on" if data["ignore_state"] == "off" else "off"
@@ -536,11 +527,7 @@ def on_tsplugin_ignore_toggled(type_id, msg_id, data):
 	notifications.update_message(type_id, msg_id, data)
 
 def on_tsplugin_moreinfo_clicked(type_id, msg_id, data):
-	# Using Popen here as opening the URL to a web browser using call() seems
-	# to not work under WINE, and just freezes the game client. Browser opens
-	# once you force close the client.
-	subprocess.Popen(["start", data["moreinfo_url"]], shell=True)
+	BigWorld.wg_openWebBrowser(data["moreinfo_url"])
 
 def on_settings_path_clicked(type_id, msg_id, data):
-	# Using call() for this under WINE works just fine, perplexing...
 	subprocess.call(["start", os.path.abspath(g_settings.get_filepath())], shell=True)
