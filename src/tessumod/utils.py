@@ -359,7 +359,12 @@ class RepeatTimer(object):
 	def stop(self):
 		self._stopped = True
 		if self._timer_id is not None:
-			BigWorld.cancelCallback(self._timer_id)
+			try:
+				BigWorld.cancelCallback(self._timer_id)
+			except ValueError:
+				# Ignore error:
+				#     ValueError: py_cancelCallback: Incorrect callback ID.
+				pass
 			self._timer_id = None
 
 	def _do_call(self):

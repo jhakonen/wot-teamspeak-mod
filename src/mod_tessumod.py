@@ -296,12 +296,16 @@ def get_installed_plugin_version():
 		return api.get_api_version()
 
 def get_ignored_plugin_versions():
+	results = []
 	if "ignored_plugin_versions" in g_keyvaluestorage:
-		return g_keyvaluestorage["ignored_plugin_versions"]
+		results = g_keyvaluestorage["ignored_plugin_versions"]
 	elif "ignored_plugin_version" in g_keyvaluestorage:
 		# Deprecated state variable (from 0.6.x versions)
-		return [int(g_keyvaluestorage["ignored_plugin_version"])]
-	return []
+		results = [int(g_keyvaluestorage["ignored_plugin_version"])]
+	# Filter out zero as zero means that plugin is not installed and it makes
+	# no sense to ignore that. I don't know how you could even get into to
+	# such state, but lets do this just in case
+	return [res for res in results if res]
 
 def get_plugin_advertisement_info(input):
 	mod_version = parse_version(input["mod_version"], parts_required=3)

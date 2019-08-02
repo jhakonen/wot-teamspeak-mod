@@ -20,6 +20,8 @@ from utils import RepeatTimer, LOG_NOTE, LOG_WARNING, LOG_ERROR
 import asynchat
 import asyncore
 import collections
+import errno
+import socket
 
 class EventLoopAdapter(object):
 

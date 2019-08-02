@@ -100,7 +100,12 @@ class HTTPProtocol(AsynchatExtended):
 		return data
 
 	def done(self, error=None, result=None):
-		BigWorld.cancelCallback(self._timeout_handle)
+		try:
+			BigWorld.cancelCallback(self._timeout_handle)
+		except ValueError:
+			# Ignore error:
+			#     ValueError: py_cancelCallback: Incorrect callback ID.
+			pass
 		self.close()
 		callback = self.callback
 		# Set self.callback to None so that we don't accidentally call it more
