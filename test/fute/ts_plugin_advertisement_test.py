@@ -32,9 +32,13 @@ class TSPluginAdvertisement(TestCaseBase):
 	def __get_model(self):
 		return notification.NotificationMVC.g_instance.getModel()
 
-	def __is_advertisement_shown(self):
+	def __is_install_advertisement_shown(self):
 		return mock_was_called_with(self.addNotification_mock, message_decorator_matches_fragments(
-			["TessuModTSPluginDownload", "TessuModTSPluginMoreInfo", "TessuModTSPluginIgnore"]))
+			["Would you like to install TessuMod plugin for TeamSpeak?"]))
+
+	def __is_update_advertisement_shown(self):
+		return mock_was_called_with(self.addNotification_mock, message_decorator_matches_fragments(
+			["There is a new version of TessuMod plugin available, would you like to download it?"]))
 
 	def __on_notification(self, callback):
 		self.__get_model().on_addNotification += callback
@@ -42,11 +46,21 @@ class TSPluginAdvertisement(TestCaseBase):
 	def __handleAction(self, **kwargs):
 		notification.NotificationMVC.g_instance.handleAction(**kwargs)
 
-	@use_event_loop
-	def test_ts_plugin_advertisement_is_shown(self):
+	def test_ts_plugin_install_advertisement_is_shown(self):
 		self.start_ts_client()
 		self.start_game(mode="lobby")
-		self.assert_finally_true(lambda: self.__is_advertisement_shown())
+		self.wait_until(lambda: self.__is_install_advertisement_shown())
+
+	def test_ts_plugin_update_advertisement_is_shown(self):
+		new_version = copy.copy(constants.PLUGIN_INFO["versions"][0])
+		new_version["plugin_version"] = 2
+		plugin_info = copy.deepcopy(constants.PLUGIN_INFO)
+		plugin_info["versions"].append(new_version)
+		self.set_plugin_info(plugin_info)
+		self.start_ts_client()
+		self.enable_ts_client_tessumod_plugin(version=1)
+		self.start_game(mode="lobby")
+		self.wait_until(lambda: self.__is_update_advertisement_shown())
 
 	@attr("slow")
 	@use_event_loop
@@ -55,7 +69,7 @@ class TSPluginAdvertisement(TestCaseBase):
 		self.start_ts_client()
 		self.enable_ts_client_tessumod_plugin(version=1)
 		self.start_game(mode="lobby")
-		self.assert_finally_false(lambda: self.__is_advertisement_shown())
+		self.assert_finally_false(lambda: self.__is_install_advertisement_shown())
 		self.wait_at_least(secs=5)
 
 	@attr("slow")
@@ -65,7 +79,7 @@ class TSPluginAdvertisement(TestCaseBase):
 		self.start_ts_client()
 		self.change_mod_state_variables(ignored_plugin_versions=[1])
 		self.start_game(mode="lobby")
-		self.assert_finally_false(lambda: self.__is_advertisement_shown())
+		self.assert_finally_false(lambda: self.__is_install_advertisement_shown())
 		self.wait_at_least(secs=5)
 
 	@attr("slow")
@@ -77,7 +91,7 @@ class TSPluginAdvertisement(TestCaseBase):
 		self.start_ts_client()
 		self.change_mod_state_variables(ignored_plugin_version=1)
 		self.start_game(mode="lobby")
-		self.assert_finally_false(lambda: self.__is_advertisement_shown())
+		self.assert_finally_false(lambda: self.__is_install_advertisement_shown())
 		self.wait_at_least(secs=5)
 
 	def test_download_button_opens_download_page_to_web_browser(self):
@@ -106,7 +120,7 @@ class TSPluginAdvertisement(TestCaseBase):
 		start_time = time.time()
 		self.start_ts_client()
 		self.start_game(mode="lobby")
-		self.wait_until(lambda: self.__is_advertisement_shown())
+		self.wait_until(lambda: self.__is_install_advertisement_shown())
 		end_time = time.time()
 		cached_plugin_info = self.get_mod_state_variable("plugin_info")
 		cached_timestamp = self.get_mod_state_variable("plugin_info_timestamp")
@@ -122,7 +136,7 @@ class TSPluginAdvertisement(TestCaseBase):
 		)
 		self.start_ts_client()
 		self.start_game(mode="lobby")
-		self.wait_until(lambda: self.__is_advertisement_shown())
+		self.wait_until(lambda: self.__is_install_advertisement_shown())
 
 	def test_cached_plugin_info_becomes_stale_after_a_week(self):
 		old_plugin_info = copy.deepcopy(constants.PLUGIN_INFO)
@@ -134,7 +148,7 @@ class TSPluginAdvertisement(TestCaseBase):
 		start_time = time.time()
 		self.start_ts_client()
 		self.start_game(mode="lobby")
-		self.wait_until(lambda: self.__is_advertisement_shown())
+		self.wait_until(lambda: self.__is_install_advertisement_shown())
 		end_time = time.time()
 		new_plugin_info = self.get_mod_state_variable("plugin_info")
 		new_timestamp = self.get_mod_state_variable("plugin_info_timestamp")
@@ -153,7 +167,7 @@ class TSPluginAdvertisement(TestCaseBase):
 		start_time = time.time()
 		self.start_ts_client()
 		self.start_game(mode="lobby")
-		self.wait_until(lambda: self.__is_advertisement_shown())
+		self.wait_until(lambda: self.__is_install_advertisement_shown())
 		end_time = time.time()
 		new_plugin_info = self.get_mod_state_variable("plugin_info")
 		new_timestamp = self.get_mod_state_variable("plugin_info_timestamp")

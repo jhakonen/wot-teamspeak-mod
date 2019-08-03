@@ -20,6 +20,7 @@ setup(
         'data/checkbox_off.png',
         'data/ts_notification_icon.png',
         'data/tsplugin_install_notification.json',
+        'data/tsplugin_update_notification.json',
     ],
     cmdclass = {
         'build_py': setup_helpers.GenerateInFilesCommand,

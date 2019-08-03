@@ -283,8 +283,9 @@ def handle_plugin_info(plugin_info):
 	))
 	if not info:
 		return
-	if info["offer_type"] == "install":
+	if info["offer_type"] in ("install", "update"):
 		notifications.push_ts_plugin_install_message(
+			message_type = info["offer_type"],
 			moreinfo_url = "https://github.com/jhakonen/wot-teamspeak-mod/wiki/TeamSpeak-Plugins#tessumod-plugin",
 			ignore_state = "off",
 			plugin_version = info["plugin_version"],
@@ -431,7 +432,7 @@ def on_ts3_authenticate_error():
 	LOG_NOTE("Failed to authenticate to TeamSpeak client")
 	settings_link = "<a href=\"event:{0}\">{1}</a>".format(notifications.SETTINGS_PATH, os.path.abspath(g_settings.get_filepath()))
 	notifications.push_warning_message("TessuMod needs permission to access your TeamSpeak client.\n\n"
-		+ "Plese enter ClientQuery API key (see TeamSpeak -> Tools -> Options -> Addons -> Plugins -> ClientQuery -> Settings) "
+		+ "Please enter ClientQuery API key (see TeamSpeak -> Tools -> Options -> Addons -> Plugins -> ClientQuery -> Settings) "
 		+ "to option <b>api_key</b> within section <b>[TSClientQueryService]</b> in TessuMod's settings file ({0}).\n\n".format(settings_link)
 		+ "<b>NOTE:</b> If your current settings file doesn't have this option, you can add it there yourself. "
 		+ "Alternatively you can delete the file and restart World of Tanks. "

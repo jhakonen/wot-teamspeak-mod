@@ -37,12 +37,20 @@ TSPLUGIN_MOREINFO = "TessuModTSPluginMoreInfo"
 TSPLUGIN_IGNORED  = "TessuModTSPluginIgnore"
 SETTINGS_PATH     = "TessuModSettingsPath"
 
+NOTIFICATION_FILES = {
+	"install": "tsplugin_install_notification.json",
+	"update": "tsplugin_update_notification.json"
+}
+
 def init():
 	global _event_handlers
 	global _is_plugin_install_shown
 	global _are_notifications_enabled
 	_event_handlers = []
-	_is_plugin_install_shown = False
+	_is_plugin_install_shown = {
+		"install": False,
+		"update": False
+	}
 	_are_notifications_enabled = True
 
 def set_notifications_enabled(enabled):
@@ -52,16 +60,15 @@ def set_notifications_enabled(enabled):
 def add_event_handler(action, handler):
 	_event_handlers.append((action, handler))
 
-def push_ts_plugin_install_message(**data):
-	global _is_plugin_install_shown
-	if not _is_plugin_install_shown:
-		msg_tmpl = resources.read_file(utils.get_resource_data_path() + "/tsplugin_install_notification.json")
+def push_ts_plugin_install_message(message_type, **data):
+	if not _is_plugin_install_shown[message_type]:
+		msg_tmpl = resources.read_file(utils.get_resource_data_path() + "/" + NOTIFICATION_FILES[message_type])
 		_push_notification(_MessageDecorator(_get_new_message_id(), msg_tmpl, dict(data, **{
 			"download_action": TSPLUGIN_DOWNLOAD,
 			"ignore_action": TSPLUGIN_IGNORED,
 			"moreinfo_action": TSPLUGIN_MOREINFO
 		})))
-		_is_plugin_install_shown = True
+		_is_plugin_install_shown[message_type] = True
 
 def update_message(type_id, msg_id, data):
 	model = NotificationMVC.g_instance.getModel()

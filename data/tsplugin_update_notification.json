@@ -1,0 +1,17 @@
+{
+	"icon": "mods/jhakonen.tessumod/ts_notification_icon.png",
+	"message": [
+		"<p>There is a new version of TessuMod plugin available, would you like to download it?</p>",
+		"<p>Click the button below to open plugin's download page to your web browser.</p>",
+		"",
+		"<p align=\"right\"><a href=\"event:%(ignore_action)s\">No thanks, don't show this again</a>   <img src=\"img://mods/jhakonen.tessumod/checkbox_%(ignore_state)s.png\" height=\"12\" width=\"12\" align=\"right\"/></p>",
+		""
+	],
+	"buttons": [
+		{
+			"label": "Download",
+			"action": "%(download_action)s",
+			"type": "submit"
+		}
+	]
+}
