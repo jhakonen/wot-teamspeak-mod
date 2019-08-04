@@ -291,6 +291,19 @@ def handle_plugin_info(plugin_info):
 			plugin_version = info["plugin_version"],
 			download_url = info["download_url"]
 		)
+	elif info["offer_type"] == "unsupported_mod":
+		notifications.push_warning_message(
+			"Your TessuMod version is older than what your current TessuMod "
+			"TeamSpeak plugin can support. Please upgrade TessuMod to a newer "
+			"version, otherwise positional audio will not work."
+		)
+	elif info["offer_type"] == "unsupported_plugin":
+		notifications.push_warning_message(
+			"TessuMod TeamSpeak plugin you have installed into your TeamSpeak "
+			"client is too old, and is not supported by the current TessuMod. "
+			"Please upgrade the plugin to a newer version, otherwise "
+			"positional audio will not work."
+		)
 
 def get_installed_plugin_version():
 	with mytsplugin.InfoAPI() as api:

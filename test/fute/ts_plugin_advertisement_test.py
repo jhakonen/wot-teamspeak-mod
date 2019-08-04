@@ -3,7 +3,10 @@ from test_helpers.testcasebase import TestCaseBase
 from test_helpers.utils import *
 
 import BigWorld
+from gui import SystemMessages
+from helpers import dependency
 import notification
+from skeletons.gui.system_messages import ISystemMessages
 
 from nose.plugins.attrib import attr
 import copy
@@ -23,6 +26,7 @@ class TSPluginAdvertisement(TestCaseBase):
 		self.addNotification_mock = mock.Mock()
 		self.__get_model().on_addNotification += self.addNotification_mock
 		BigWorld.wg_openWebBrowser = mock.Mock()
+		dependency.instance(ISystemMessages).pushMessage = mock.Mock()
 
 	def tearDown(self):
 		self.__get_model().on_addNotification.clear()
@@ -39,6 +43,13 @@ class TSPluginAdvertisement(TestCaseBase):
 	def __is_update_advertisement_shown(self):
 		return mock_was_called_with(self.addNotification_mock, message_decorator_matches_fragments(
 			["There is a new version of TessuMod plugin available, would you like to download it?"]))
+
+	def __is_warning_shown(self, message_fragment):
+		return mock_was_called_with(
+			dependency.instance(ISystemMessages).pushMessage,
+			contains_match(message_fragment),
+			SystemMessages.SM_TYPE.Warning,
+		)
 
 	def __on_notification(self, callback):
 		self.__get_model().on_addNotification += callback
@@ -61,6 +72,36 @@ class TSPluginAdvertisement(TestCaseBase):
 		self.enable_ts_client_tessumod_plugin(version=1)
 		self.start_game(mode="lobby")
 		self.wait_until(lambda: self.__is_update_advertisement_shown())
+
+	def test_ts_plugin_too_old_warning_shown(self):
+		self.set_plugin_info({
+			"versions": [{
+				"plugin_version": 1,
+				"supported_mod_versions": ["0.5", "0.6"],
+			}, {
+				"plugin_version": 2,
+				"supported_mod_versions": ["0.6"],
+				"download_url": "https://www.myteamspeak.com/addons/01a0f828-894c-45b7-a852-937b47ceb1ed"
+			}]
+		})
+		self.start_ts_client()
+		self.enable_ts_client_tessumod_plugin(version=1)
+		self.change_mod_state_variables(ignored_plugin_versions=[2])
+		self.start_game(mode="lobby")
+		self.wait_until(lambda: self.__is_warning_shown("TessuMod TeamSpeak plugin you have installed into your TeamSpeak client is too old"))
+
+	def test_game_mod_too_old_warning_shown(self):
+		self.set_plugin_info({
+			"versions": [{
+				"plugin_version": 1,
+				"supported_mod_versions": ["0.8"],
+				"download_url": "https://www.myteamspeak.com/addons/01a0f828-894c-45b7-a852-937b47ceb1ed"
+			}]
+		})
+		self.start_ts_client()
+		self.enable_ts_client_tessumod_plugin(version=1)
+		self.start_game(mode="lobby")
+		self.wait_until(lambda: self.__is_warning_shown("Your TessuMod version is older than what your current TessuMod TeamSpeak plugin can support"))
 
 	@attr("slow")
 	@use_event_loop
