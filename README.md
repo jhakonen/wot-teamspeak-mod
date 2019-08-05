@@ -10,12 +10,11 @@ The visual feedback includes:
 - and in battle (under player's name in side panels, speaker icon above vehicles and focus animation in minimap):  
 ![](https://github.com/jhakonen/wot-teamspeak-mod/blob/master/docs/wiki/battle_preview.jpg)
 
-For enabling audio positioning you need to [install TessuMod plugin](https://github.com/jhakonen/wot-teamspeak-mod/wiki/TeamSpeak-Plugins#tessumod-plugin) for TeamSpeak. Plugin's installer is included in mod's release archive.
-
 Installation
 ------------
 1. [Download newest release](https://github.com/jhakonen/wot-teamspeak-mod/releases) and extract it to your WOT folder.
 2. Download and install TS 3 client from http://www.teamspeak.com/?page=downloads
+3. Download and install [TessuMod TeamSpeak plugin](https://www.myteamspeak.com/addons/01a0f828-894c-45b7-a852-937b47ceb1ed)
 
 Usage
 -----
@@ -35,19 +34,24 @@ The mod also collects successful matches into a cache file (located at res_mods/
 
 If still no matching player is found then nothing happens.
 
-License
--------
-This mod is licensed with LGPL v2.1.
-
 Development
 -----------
+
+Running test suite:
+
+    ./setup.py test
+
+Building the mod from sources and installing it into World of Tanks:
+
+    ./setup.py bdist_wotmod --dist-dir=<game-dir>/mods/<version>/tessumod
+
+Creating release archive:
+
+    ./setup.py clean package
+
 With bugs and improvement ideas please use [issues page](https://github.com/jhakonen/wot-teamspeak-mod/issues) to report them.
 Also, pull requests are welcome. :)
 
-TODO
-----
-See [issues page](https://github.com/jhakonen/wot-teamspeak-mod/issues).
-
-Changelog
----------
-See [changelog in wiki](https://github.com/jhakonen/wot-teamspeak-mod/wiki/Changelog).
+License
+-------
+This mod is licensed with LGPL v2.1.
