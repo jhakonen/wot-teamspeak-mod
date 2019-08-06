@@ -286,7 +286,7 @@ def handle_plugin_info(plugin_info):
 	if info["offer_type"] in ("install", "update"):
 		notifications.push_ts_plugin_install_message(
 			message_type = info["offer_type"],
-			moreinfo_url = "https://github.com/jhakonen/wot-teamspeak-mod/wiki/TeamSpeak-Plugins#tessumod-plugin",
+			moreinfo_url = "https://github.com/jhakonen/wot-teamspeak-plugin",
 			ignore_state = "off",
 			plugin_version = info["plugin_version"],
 			download_url = info["download_url"]
