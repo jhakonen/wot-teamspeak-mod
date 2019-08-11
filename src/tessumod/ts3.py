@@ -32,18 +32,22 @@ The class provides several functions for querying information from TS client in
 a non-blocking asyncronous manner.
 '''
 
-import sys
-import socket
 import errno
-import clientquery
-import time
-import re
 import functools
+import re
+import socket
+import sys
+import time
 import weakref
-import Event
+
 import BigWorld
-from asyncore_utils import AsynchatExtended
-from utils import (
+import Event
+
+from . import async_tools
+from . import clientquery
+from .asyncore_utils import AsynchatExtended
+from .statemachine import StateMachine
+from .utils import (
 	noop,
 	with_args,
 	LOG_CALL,
@@ -54,8 +58,6 @@ from utils import (
 	LOG_CURRENT_EXCEPTION,
 	RepeatTimer
 )
-from statemachine import StateMachine
-import async
 
 _RETRY_TIMEOUT = 10
 _COMMAND_WAIT_TIMEOUT = 30
@@ -223,7 +225,7 @@ class TS3Client(object):
 		def on_finish(err, results):
 			self._sm.set_state_done()
 
-		async.series([
+		async_tools.series([
 			unregister,
 			register_connection_change,
 			get_currentschandlerid,
@@ -265,7 +267,7 @@ class TS3Client(object):
 		def on_finish(err, results):
 			self._sm.set_state_done()
 
-		async.series([
+		async_tools.series([
 			retrieve_clientlist,
 			update_wot_nickname,
 			notify_connected_to_server
@@ -460,7 +462,7 @@ class _ClientQueryProtocol(AsynchatExtended):
 			if matches:
 				name = matches.group(1)
 				self._event_handlers[name] = getattr(event_receiver, attr)
-		self.set_terminator("\n\r")
+		self.set_terminator(b"\n\r")
 		self._commands = []
 		self._opened = False
 
@@ -507,7 +509,7 @@ class _ClientQueryProtocol(AsynchatExtended):
 		'''Hook method which is called by async_chat to provide incoming data.
 		Data is provided just enough until terminator is found.
 		'''
-		self._in_line += data
+		self._in_line += data.decode('utf-8')
 
 	def found_terminator(self):
 		'''Hook method which is called by async_chat to indicate end-of-line.
@@ -522,7 +524,7 @@ class _ClientQueryProtocol(AsynchatExtended):
 
 	@LOG_CALL(msg=">> {data}")
 	def push(self, data):
-		AsynchatExtended.push(self, data)
+		AsynchatExtended.push(self, data.encode('utf-8'))
 
 	def _handle_in_data_proto_test(self, line):
 		'''Checks that we really contacted TeamSpeak client query interface and

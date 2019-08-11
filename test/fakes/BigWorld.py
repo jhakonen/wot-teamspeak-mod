@@ -11,9 +11,14 @@ def reset_fake():
 	global g_next_handle
 	_player = None
 	_camera = Camera()
-	entities = {}
+	entities = Entitites()
 	g_callback_events = {}
 	g_next_handle = 0
+
+class Entitites(dict):
+
+	def has_key(self, key):
+		return key in self
 
 class UserDataObject(object):
 	pass
@@ -34,7 +39,7 @@ def cancelCallback(handle):
 def tick():
 	try:
 		t = _time.time()
-		for handle in g_callback_events.keys():
+		for handle in list(g_callback_events.keys()):
 			if handle not in g_callback_events:
 				continue
 			event = g_callback_events[handle]

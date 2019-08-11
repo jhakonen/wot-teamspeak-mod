@@ -15,11 +15,11 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-import struct
 import mmap
-import time
-import platform
 import os
+import platform
+import struct
+import time
 
 class _SharedMemory(object):
 
@@ -46,7 +46,7 @@ class _SharedMemory(object):
 			file_path = os.path.join("/tmp", self.NAME)
 			if not os.path.exists(file_path):
 				with open(file_path, "wb") as file:
-					file.write('\x00' * self.SIZE)
+					file.write(b'\x00' * self.SIZE)
 			self.__memory = open(file_path, "r+b", 0)
 		else:
 			# Used when loaded into WoT on Windows (or Linux over WINE)

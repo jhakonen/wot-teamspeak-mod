@@ -15,23 +15,33 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-import BigWorld
-import debug_utils
-from gui.battle_control.battle_constants import FEEDBACK_EVENT_ID
-from helpers import dependency
-from skeletons.gui.battle_session import IBattleSessionProvider
-from gui.prb_control.dispatcher import _PrbControlLoader
-from gui.prb_control.entities.listener import IGlobalListener
-from messenger.storage import storage_getter
-from messenger.proto.events import g_messengerEvents
-from messenger.proto.shared_find_criteria import FriendsFindCriteria
-import ResMgr
-import Event
+from __future__ import print_function
 import os
 import functools
 import inspect
 import time
 from datetime import datetime
+
+import BigWorld
+import debug_utils
+import Event
+from gui.battle_control.battle_constants import FEEDBACK_EVENT_ID
+from gui.prb_control.dispatcher import _PrbControlLoader
+from gui.prb_control.entities.listener import IGlobalListener
+from helpers import dependency
+from messenger.proto.events import g_messengerEvents
+from messenger.proto.shared_find_criteria import FriendsFindCriteria
+from messenger.storage import storage_getter
+import ResMgr
+from skeletons.gui.battle_session import IBattleSessionProvider
+
+def iteritems(value):
+	try:
+		# Python 2
+		return value.iteritems()
+	except AttributeError:
+		# Python 3
+		return value.items()
 
 def noop(*args, **kwargs):
 	'''Function that does nothing. A safe default value for callback
@@ -111,7 +121,7 @@ def find_prebattle_account_info(matcher):
 			if matcher(player):
 				return dict(player)
 	except AttributeError as error:
-		print error
+		print(error)
 
 def get_player_info_by_dbid(dbid):
 	'''Extracts player information with matching account 'dbid' from

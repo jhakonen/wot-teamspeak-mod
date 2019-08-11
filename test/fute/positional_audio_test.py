@@ -1,8 +1,5 @@
-from test_helpers.testcasebase import TestCaseBase
-from test_helpers.utils import *
-import mock
-import mmap
-import struct
+from .test_helpers.testcasebase import TestCaseBase
+from .test_helpers.utils import *
 
 class PositionalAudioTest(TestCaseBase):
 	'''

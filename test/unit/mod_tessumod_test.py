@@ -63,12 +63,6 @@ class TestPluginAdvertisement(object):
 				"supported_mod_versions": mod_versions,
 				"download_url": "https://github.com/jhakonen/wot-teamspeak-plugin/releases/tag/v0.8.0"
 			}]})
-		for download_url in (None, [], "", 1):
-			yield t, dict(plugin_info={"versions": [{
-				"plugin_version": 1,
-				"supported_mod_versions": ["0.6", "0.7"],
-				"download_url": download_url
-			}]})
 		yield t, dict(plugin_info={"versions": [{"plugin_version": 1}]})
 		yield t, dict(plugin_info={"versions": [{"supported_mod_versions": ["0.6", "0.7"]}]})
 

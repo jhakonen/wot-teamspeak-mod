@@ -19,7 +19,7 @@
 The StateMachine class allows you define states and transitions between them.
 '''
 
-from utils import LOG_DEBUG
+from .utils import LOG_DEBUG
 
 def noop(*args, **kwargs):
 	pass

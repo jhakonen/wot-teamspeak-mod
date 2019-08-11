@@ -28,14 +28,14 @@ class HTTPHandler(asynchat.async_chat):
     def __init__(self, sock, sock_map, response):
         asynchat.async_chat.__init__(self, sock=sock, map=sock_map)
         self._response = response
-        self.set_terminator("\r\n\r\n")
+        self.set_terminator(b"\r\n\r\n")
 
     def collect_incoming_data(self, data):
         pass
 
     def found_terminator(self):
-        self.push("HTTP/1.0 %d %s\r\n" % self._response[:2])
-        self.push("Content-Length: %d\r\n" % len(self._response[2]))
-        self.push("\r\n")
-        self.push(self._response[2])
+        self.push(("HTTP/1.0 %d %s\r\n" % self._response[:2]).encode('ascii'))
+        self.push(("Content-Length: %d\r\n" % len(self._response[2])).encode('ascii'))
+        self.push(b"\r\n")
+        self.push(self._response[2].encode('utf8'))
         self.close_when_done()

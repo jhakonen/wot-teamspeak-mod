@@ -1,8 +1,9 @@
-from test_helpers.testcasebase import TestCaseBase
-from test_helpers.utils import *
+from unittest import mock
 
 from nose.plugins.attrib import attr
-import mock
+
+from .test_helpers.testcasebase import TestCaseBase
+from .test_helpers.utils import *
 
 class LobbyNotifications(TestCaseBase):
 	'''

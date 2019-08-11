@@ -16,19 +16,21 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 import os
-import ConfigParser
+
+from configparser import RawConfigParser
+
 from tessumod.user_cache import UserCache
 
 base_path = os.path.dirname(os.path.realpath(__file__))
 ini_path = os.path.realpath(os.path.join(base_path, "..", "..", "tmp", "tessu_mod_cache.ini"))
 
 def get_cache_value(section, name):
-	parser = ConfigParser.RawConfigParser()
+	parser = RawConfigParser()
 	parser.read([ini_path])
 	return parser.get(section, name)
 
 def has_cache_value(section, name):
-	parser = ConfigParser.RawConfigParser()
+	parser = RawConfigParser()
 	parser.read([ini_path])
 	return parser.has_option(section, name)
 
@@ -54,7 +56,7 @@ class TestUserCache(object):
 
 	def write_cache_file(self, contents):
 		contents = "\n".join([line.strip() for line in contents.split("\n")])
-		print contents
+		print(contents)
 		with open(ini_path, "w") as file:
 			file.write(contents)
 		self.cache._ini_cache._sync_time = 0
@@ -117,7 +119,7 @@ class TestUserCache(object):
 		""")
 		orig_contents = self.get_cache_file_contents()
 		self.cache.sync()
-		assert "erkkituhoaja" in self.error_message
+		assert "erkkituhoaja" in str(self.error_message)
 		self.assert_ini_contents_not_modified(orig_contents)
 
 	def test_error_received_on_missing_ts_user_definition(self):
@@ -130,7 +132,7 @@ class TestUserCache(object):
 		""")
 		orig_contents = self.get_cache_file_contents()
 		self.cache.sync()
-		assert "matti" in self.error_message
+		assert "matti" in str(self.error_message)
 		self.assert_ini_contents_not_modified(orig_contents)
 
 	def test_error_received_on_missing_section(self):
@@ -142,7 +144,7 @@ class TestUserCache(object):
 		""")
 		orig_contents = self.get_cache_file_contents()
 		self.cache.sync()
-		assert "TeamSpeakUsers" in self.error_message
+		assert "TeamSpeakUsers" in str(self.error_message)
 		self.assert_ini_contents_not_modified(orig_contents)
 
 	def test_file_unchanged_after_read_error_and_modify(self):

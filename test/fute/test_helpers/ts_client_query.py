@@ -1,7 +1,7 @@
 import asynchat
 import asyncore
 import copy
-from Queue import Queue, Empty
+from queue import Queue, Empty
 import random
 import re
 import socket
@@ -177,7 +177,7 @@ class TSClientQueryHandler(asynchat.async_chat):
 	def __init__(self, socket, socket_map, data_source):
 		asynchat.async_chat.__init__(self, sock=socket, map=socket_map)
 		self._data_source = data_source
- 		self.set_terminator("\n")
+		self.set_terminator(b"\n")
 		self._buffer = ""
 		self._data_source = data_source
 		self._registered_events = []
@@ -186,7 +186,7 @@ class TSClientQueryHandler(asynchat.async_chat):
 			self.push(message + "\n\r")
  
 	def collect_incoming_data(self, data):
-		self._buffer += data
+		self._buffer += data.decode('utf8')
  
 	def found_terminator(self):
 		command = self._buffer.strip()
@@ -194,7 +194,7 @@ class TSClientQueryHandler(asynchat.async_chat):
 		self.handle_command(command)
 
 	def push(self, data):
-		asynchat.async_chat.push(self, data.encode('ascii'))
+		asynchat.async_chat.push(self, data.encode('utf8'))
 		self._data_source.responses.append(data)
 
 	def handle_command(self, command):
@@ -220,7 +220,7 @@ class TSClientQueryHandler(asynchat.async_chat):
 				self.send_status()
 		else:
 			self.send_status(256, "command not found")
-			print "ERROR: Response missing for command:", repr(command)
+			print("ERROR: Response missing for command:", repr(command))
 
 	def send_status(self, code=0, message="ok"):
 		if code is None or message is None:

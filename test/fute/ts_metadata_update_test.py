@@ -1,10 +1,7 @@
-from test_helpers.testcasebase import TestCaseBase
-from test_helpers.utils import *
-
-from nose.plugins.attrib import attr
-import mock
-
 from Avatar import Avatar
+
+from .test_helpers.testcasebase import TestCaseBase
+from .test_helpers.utils import *
 
 class TSMetadataUpdates(TestCaseBase):
 	'''

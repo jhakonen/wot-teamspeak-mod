@@ -15,15 +15,19 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-import ConfigParser
-import os
 import csv
+import io
+import os
 import re
-from utils import LOG_ERROR
+
 import BigWorld
 import Event
 
-DEFAULT_INI = """
+from .py3compat import to_unicode
+from .unicode_aware import ConfigParser
+from .utils import LOG_ERROR
+
+DEFAULT_INI = u"""
 ; Defines configuration options for TessuMod.
 
 [General]
@@ -174,36 +178,40 @@ class Settings(object):
 
 	def _write_default_file(self):
 		if not os.path.isfile(self._ini_path):
-			with open(self._ini_path, "w") as f:
+			with io.open(self._ini_path, "wt", encoding="utf8") as f:
 				f.write(DEFAULT_INI)
 
 	def _load_parser(self):
-		self._parser = ConfigParser.SafeConfigParser()
-		self._parser.add_section("General")
-		self._parser.set("General", "log_level", "1")
-		self._parser.set("General", "ini_check_interval", "5")
-		self._parser.set("General", "speak_stop_delay", "1")
-		self._parser.set("General", "get_wot_nick_from_ts_metadata", "on")
-		self._parser.set("General", "update_cache_in_replays", "off")
-		self._parser.set("General", "ts_nick_search_enabled", "on")
-		self._parser.set("General", "nick_extract_patterns", "")
-		self._parser.add_section("NameMappings")
-		self._parser.add_section("TSClientQueryService")
-		self._parser.set("TSClientQueryService", "host", "localhost")
-		self._parser.set("TSClientQueryService", "port", "25639")
-		self._parser.set("TSClientQueryService", "polling_interval", "0.1")
-		self._parser.add_section("VoiceChatNotifications")
-		self._parser.set("VoiceChatNotifications", "enabled", "on")
-		self._parser.set("VoiceChatNotifications", "self_enabled", "on")
-		self._parser.add_section("MinimapNotifications")
-		self._parser.set("MinimapNotifications", "enabled", "on")
-		self._parser.set("MinimapNotifications", "self_enabled", "on")
-		self._parser.set("MinimapNotifications", "action", "attackSender")
-		self._parser.set("MinimapNotifications", "repeat_interval", "3.5")
-		if self._parser.read(self._ini_path):
-			self._load_time = self._get_modified_time()
-		else:
-			LOG_ERROR("Failed to parse ini file '{0}'".format(self._ini_path))
+		self._parser = ConfigParser()
+		self._parser.add_section(u"General")
+		self._parser.set(u"General", u"log_level", u"1")
+		self._parser.set(u"General", u"ini_check_interval", u"5")
+		self._parser.set(u"General", u"speak_stop_delay", u"1")
+		self._parser.set(u"General", u"get_wot_nick_from_ts_metadata", u"on")
+		self._parser.set(u"General", u"update_cache_in_replays", u"off")
+		self._parser.set(u"General", u"ts_nick_search_enabled", u"on")
+		self._parser.set(u"General", u"nick_extract_patterns", u"")
+		self._parser.add_section(u"NameMappings")
+		self._parser.add_section(u"TSClientQueryService")
+		self._parser.set(u"TSClientQueryService", u"host", u"localhost")
+		self._parser.set(u"TSClientQueryService", u"port", u"25639")
+		self._parser.set(u"TSClientQueryService", u"polling_interval", u"0.1")
+		self._parser.add_section(u"VoiceChatNotifications")
+		self._parser.set(u"VoiceChatNotifications", u"enabled", u"on")
+		self._parser.set(u"VoiceChatNotifications", u"self_enabled", u"on")
+		self._parser.add_section(u"MinimapNotifications")
+		self._parser.set(u"MinimapNotifications", u"enabled", u"on")
+		self._parser.set(u"MinimapNotifications", u"self_enabled", u"on")
+		self._parser.set(u"MinimapNotifications", u"action", u"attackSender")
+		self._parser.set(u"MinimapNotifications", u"repeat_interval", u"3.5")
+
+		try:
+			with io.open(self._ini_path, "rt", encoding="utf8") as f:
+				self._parser.readfp(f)
+				self._load_time = self._get_modified_time()
+		except Exception as error:
+			LOG_ERROR(u"Failed to parse ini file '{0}', reason: {1}"
+				.format(self._ini_path, to_unicode(error)))
 
 	def _get_modified_time(self):
 		return os.path.getmtime(self._ini_path)
@@ -221,62 +229,62 @@ class Settings(object):
 		return self._load_time < self._get_modified_time()
 
 	def get_log_level(self):
-		return self._parser.getint("General", "log_level")
+		return self._parser.getint(u"General", u"log_level")
 
 	def get_ini_check_interval(self):
-		return self._parser.getfloat("General", "ini_check_interval")
+		return self._parser.getfloat(u"General", u"ini_check_interval")
 
 	def get_speak_stop_delay(self):
-		return self._parser.getfloat("General", "speak_stop_delay")
+		return self._parser.getfloat(u"General", u"speak_stop_delay")
 
 	def get_wot_nick_from_ts_metadata(self):
-		return self._parser.getboolean("General", "get_wot_nick_from_ts_metadata")
+		return self._parser.getboolean(u"General", u"get_wot_nick_from_ts_metadata")
 
 	def should_update_cache_in_replays(self):
-		return self._parser.getboolean("General", "update_cache_in_replays")
+		return self._parser.getboolean(u"General", u"update_cache_in_replays")
 
 	def is_ts_nick_search_enabled(self):
-		return self._parser.getboolean("General", "ts_nick_search_enabled")
+		return self._parser.getboolean(u"General", u"ts_nick_search_enabled")
 
 	def get_nick_extract_patterns(self):
 		patterns = []
-		for row in csv.reader([self._parser.get("General", "nick_extract_patterns")]):
+		for row in csv.reader([self._parser.get(u"General", u"nick_extract_patterns")]):
 			for pattern in row:
 				patterns.append(re.compile(pattern, re.IGNORECASE))
 		return patterns
 
 	def get_name_mappings(self):
 		results = {}
-		for option in self._parser.options("NameMappings"):
-			results[option.lower()] = self._parser.get("NameMappings", option).lower()
+		for option in self._parser.options(u"NameMappings"):
+			results[option.lower()] = self._parser.get(u"NameMappings", option).lower()
 		return results
 
 	def get_client_query_apikey(self):
-		return self._parser.get("TSClientQueryService", "api_key")
+		return self._parser.get(u"TSClientQueryService", u"api_key")
 
 	def get_client_query_host(self):
-		return self._parser.get("TSClientQueryService", "host")
+		return self._parser.get(u"TSClientQueryService", u"host")
 
 	def get_client_query_port(self):
-		return self._parser.getint("TSClientQueryService", "port")
+		return self._parser.getint(u"TSClientQueryService", u"port")
 
 	def get_client_query_interval(self):
-		return self._parser.getfloat("TSClientQueryService", "polling_interval")
+		return self._parser.getfloat(u"TSClientQueryService", u"polling_interval")
 
 	def is_voice_chat_notifications_enabled(self):
-		return self._parser.getboolean("VoiceChatNotifications", "enabled")
+		return self._parser.getboolean(u"VoiceChatNotifications", u"enabled")
 
 	def is_self_voice_chat_notifications_enabled(self):
-		return self._parser.getboolean("VoiceChatNotifications", "self_enabled")
+		return self._parser.getboolean(u"VoiceChatNotifications", u"self_enabled")
 
 	def is_minimap_notifications_enabled(self):
-		return self._parser.getboolean("MinimapNotifications", "enabled")
+		return self._parser.getboolean(u"MinimapNotifications", u"enabled")
 
 	def is_self_minimap_notifications_enabled(self):
-		return self._parser.getboolean("MinimapNotifications", "self_enabled")
+		return self._parser.getboolean(u"MinimapNotifications", u"self_enabled")
 
 	def get_minimap_action(self):
-		return self._parser.get("MinimapNotifications", "action")
+		return self._parser.get(u"MinimapNotifications", u"action")
 
 	def get_minimap_action_interval(self):
-		return self._parser.getfloat("MinimapNotifications", "repeat_interval")
+		return self._parser.getfloat(u"MinimapNotifications", u"repeat_interval")

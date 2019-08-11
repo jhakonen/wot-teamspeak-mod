@@ -13,12 +13,12 @@ import sys
 import time
 import unittest
 
-import constants
-from event_loop import EventLoop
-from http_server import HTTPServer
-import mod_settings
-from ts_client_query import TSClientQueryService
-from utils import CheckerTruthy, CheckerEqual
+from . import constants
+from .event_loop import EventLoop
+from .http_server import HTTPServer
+from . import mod_settings
+from .ts_client_query import TSClientQueryService
+from .utils import CheckerTruthy, CheckerEqual
 
 import fakes
 
@@ -205,7 +205,7 @@ class TestCaseBase(unittest.TestCase):
 		self.mod_tessumod = mod_tessumod
 		self.mod_tessumod.init()
 
-		for name, callbacks in self.__event_handlers.iteritems():
+		for name, callbacks in self.__event_handlers.items():
 			for callback in callbacks:
 				self.__install_event_handler(name, callback)
 
@@ -272,7 +272,7 @@ class TestCaseBase(unittest.TestCase):
 		if "connected_to_server" in state:
 			self.ts_client_query_server.set_connected_to_server(state["connected_to_server"])
 		if "users" in state:
-			for name, data in state["users"].iteritems():
+			for name, data in state["users"].items():
 				self.ts_client_query_server.set_user(name, **data)
 
 	def change_game_state(self, **state):
@@ -310,31 +310,31 @@ class TestCaseBase(unittest.TestCase):
 
 	def get_player_id(self, name):
 		if hasattr(BigWorld.player(), "arena"):
-			for vehicle in BigWorld.player().arena.vehicles.itervalues():
+			for vehicle in BigWorld.player().arena.vehicles.values():
 				if vehicle["name"] == name:
 					return vehicle["accountDBID"]
 
 	def get_vehicle_id(self, name):
 		if hasattr(BigWorld.player(), "arena"):
-			for vehicle_id, vehicle in BigWorld.player().arena.vehicles.iteritems():
+			for vehicle_id, vehicle in BigWorld.player().arena.vehicles.items():
 				if vehicle["name"] == name:
 					return vehicle_id
 
 	def change_mod_settings(self, **groups):
-		for group_name, variables in groups.iteritems():
-			for var_name, var_value in variables.iteritems():
+		for group_name, variables in groups.items():
+			for var_name, var_value in variables.items():
 				mod_settings.set_setting(group_name, var_name, var_value)
 
 	def change_mod_user_cache(self, **groups):
-		for group_name, variables in groups.iteritems():
-			for var_name, var_value in variables.iteritems():
+		for group_name, variables in groups.items():
+			for var_name, var_value in variables.items():
 				mod_settings.set_cache_entry(group_name, var_name, var_value)
 
 	def change_mod_state_variables(self, **variables):
 		states_dirpath = os.path.join(INI_DIRPATH, "states")
 		if not os.path.exists(states_dirpath):
 			os.makedirs(states_dirpath)
-		for key, value in variables.iteritems():
+		for key, value in variables.items():
 			with open(os.path.join(states_dirpath, key), "w") as file:
 				file.write(json.dumps(value))
 
@@ -361,7 +361,7 @@ class TestCaseBase(unittest.TestCase):
 			if time.time() >= self.__min_end_time and all(verifier() for verifier in self.__verifiers):
 				self.event_loop.exit()
 		except Exception as error:
-			print error
+			print(error)
 
 	def assert_finally_equal(self, a, b):
 		actual_getter = a if callable(a) else b
@@ -383,7 +383,7 @@ def create_mmap(name, length):
 		file_path = os.path.join("/tmp", name)
 		if not os.path.exists(file_path):
 			with open(file_path, "wb") as file:
-				file.write('\x00' * length)
+				file.write(b'\x00' * length)
 		obj = open(file_path, "r+b", 0)
 		return obj
 	else:

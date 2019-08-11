@@ -1,4 +1,4 @@
-import ConfigParser
+from configparser import SafeConfigParser
 import os
 
 INI_DIRPATH = ""
@@ -15,7 +15,7 @@ def reset_settings_file():
 		os.makedirs(get_ini_dirpath())
 	path = os.path.join(get_ini_dirpath(), "tessu_mod.ini")
 	remove_file(path)
-	parser = ConfigParser.SafeConfigParser()
+	parser = SafeConfigParser()
 	parser.add_section("General")
 	parser.set("General", "log_level", "1")
 	parser.set("General", "ini_check_interval", "5")
@@ -46,7 +46,7 @@ def reset_cache_file():
 		os.makedirs(get_ini_dirpath())
 	path = os.path.join(get_ini_dirpath(), "tessu_mod_cache.ini")
 	remove_file(path)
-	parser = ConfigParser.SafeConfigParser()
+	parser = SafeConfigParser()
 	parser.add_section("TeamSpeakUsers")
 	parser.add_section("GamePlayers")
 	parser.add_section("UserPlayerPairings")
@@ -60,7 +60,7 @@ def set_cache_entry(group, name, value):
 	_set_ini_value(os.path.join(get_ini_dirpath(), "tessu_mod_cache.ini"), group, name, value)
 
 def _set_ini_value(filepath, group, name, value):
-	parser = ConfigParser.SafeConfigParser()
+	parser = SafeConfigParser()
 	parser.read([filepath])
 	parser.set(group, name, value)
 	with open(filepath, "w") as f:

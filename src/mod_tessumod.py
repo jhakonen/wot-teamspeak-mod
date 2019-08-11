@@ -15,35 +15,33 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-PLUGIN_INFO_URL = "http://jhakonen.github.io/wot-teamspeak-mod/plugin_info.json"
+from __future__ import print_function
+from functools import partial
+import json
+import os
+import re
+import subprocess
+import time
 
-try:
-	import game
-	from tessumod.utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
-	from tessumod.asyncore_utils import EventLoopAdapter
-	from tessumod.http import HTTPClient
-	from tessumod.ts3 import TS3Client
-	from tessumod import utils, mytsplugin, notifications
-	from tessumod.settings import Settings
-	from tessumod.user_cache import UserCache
-	from tessumod.keyvaluestorage import KeyValueStorage
-	import tessumod.positional_audio as positional_audio
-	import BigWorld
-	import Event
-	from VOIP.VOIPManager import VOIPManager
-	import BattleReplay
-	from messenger.proto.events import g_messengerEvents
-	from PlayerEvents import g_playerEvents
-	import json
-	import os
-	import re
-	import subprocess
-	import time
-	from functools import partial
-	on_player_speaking = Event.Event()
-except:
-	import traceback
-	print traceback.format_exc()
+import BattleReplay
+import BigWorld
+import Event
+from messenger.proto.events import g_messengerEvents
+from PlayerEvents import g_playerEvents
+from VOIP.VOIPManager import VOIPManager
+
+from tessumod import mytsplugin, notifications, positional_audio, utils
+from tessumod.asyncore_utils import EventLoopAdapter
+from tessumod.http import HTTPClient
+from tessumod.keyvaluestorage import KeyValueStorage
+from tessumod.settings import Settings
+from tessumod.ts3 import TS3Client
+from tessumod.user_cache import UserCache
+from tessumod.utils import LOG_DEBUG, LOG_NOTE, LOG_ERROR, LOG_CURRENT_EXCEPTION
+
+on_player_speaking = Event.Event()
+
+PLUGIN_INFO_URL = "http://jhakonen.github.io/wot-teamspeak-mod/plugin_info.json"
 
 def init():
 	'''Mod's main entry point. Called by WoT's built-in mod loader.'''
@@ -126,7 +124,7 @@ def init():
 		g_keyvaluestorage = KeyValueStorage(utils.get_states_dir_path())
 
 		g_settings_timer = utils.call_in_loop(g_settings.get_ini_check_interval(), sync_configs)
-		print "TessuMod version {0} ({1})".format(utils.get_mod_version(), utils.get_support_url())
+		print("TessuMod version {0} ({1})".format(utils.get_mod_version(), utils.get_support_url()))
 
 	except:
 		LOG_CURRENT_EXCEPTION()
@@ -340,7 +338,6 @@ def get_plugin_advertisement_info(input):
 		assert type(entry["supported_mod_versions"]) is list
 		assert len(entry["supported_mod_versions"]) < 3
 		if "download_url" in entry:
-			assert type(entry["download_url"]) in (str, unicode)
 			assert entry["download_url"]
 
 	supported_entries = get_supported_version_entries(mod_version, version_entries)

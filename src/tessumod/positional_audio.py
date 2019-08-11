@@ -15,15 +15,15 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-import Event
 import mmap
-import struct
 import os
-import BigWorld
+import struct
 
-import mytsplugin
-from utils import RepeatTimer
-import utils
+import BigWorld
+import Event
+
+from . import mytsplugin
+from .utils import RepeatTimer
 
 ENTITY_REFRESH_TIMEOUT = 1
 TS_UPDATE_TIMEOUT = 0.1

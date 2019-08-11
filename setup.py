@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from setuptools import setup, find_packages
 import os
@@ -27,7 +27,10 @@ setup(
         'clean': setup_helpers.CleanCommand,
         'package': setup_helpers.PackageCommand
     },
-    setup_requires = ['setuptools-wotmod', 'nose>=1.0'],
+    setup_requires = [
+        'nose>=1.0',
+        'setuptools-wotmod',
+    ],
     # Required as setuptools-wotmod is not yet in PyPI
     dependency_links = [
         'https://github.com/jhakonen/setuptools-wotmod/tarball/master#egg=setuptools-wotmod'

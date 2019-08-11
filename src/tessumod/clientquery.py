@@ -22,8 +22,12 @@ def getParamValue(data, key):
 def unescape(data):
 	'''Tries to unescape any escapes that client query might return.
 	Only tested with very limited amount of special characters.
-	''' 
-	return data.decode('string-escape').replace('\s', ' ').replace('\/', '/')
+	'''
+	try:
+		return data.decode('string-escape').replace('\s', ' ').replace('\/', '/')
+	except AttributeError:
+		# Python 3 error: 'str' object has no attribute 'decode'
+		return data.replace('\s', ' ').replace('\/', '/')
 
 #
 # Check received data for error message

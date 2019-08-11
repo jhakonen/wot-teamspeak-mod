@@ -1,6 +1,19 @@
-from asyncore_utils import AsynchatExtended
-
-import BigWorld
+# TessuMod: Mod for integrating TeamSpeak into World of Tanks
+# Copyright (C) 2019  Janne Hakonen
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 import collections
 import email.parser
@@ -8,7 +21,16 @@ import re
 import socket
 import sys
 import traceback
-import urlparse
+try:
+	# Python 2 (game)
+	from urlparse import urlparse
+except ImportError:
+	# Python 3 (test suite)
+	from urllib.parse import urlparse
+
+import BigWorld
+
+from .asyncore_utils import AsynchatExtended
 
 READ_STATUS = 0
 READ_HEADERS = 1
@@ -30,7 +52,7 @@ class HTTPProtocol(AsynchatExtended):
 	def __init__(self, event_loop, url, callback):
 		AsynchatExtended.__init__(self, event_loop)
 		self._url = url
-		result = urlparse.urlparse(url)
+		result = urlparse(url)
 		port = 80 if result.port is None else result.port
 		host = result.netloc.split(':')[0]
 		path = result.path
@@ -50,7 +72,7 @@ class HTTPProtocol(AsynchatExtended):
 		self._timeout_handle = BigWorld.callback(CONNECT_TIMEOUT, self._connect_timeout)
 		self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.connect((host, port))
-		self.set_terminator("\r\n")
+		self.set_terminator(b"\r\n")
 
 	def _connect_timeout(self):
 		self.done(RuntimeError("HTTP GET timed out: %s" % self._url))
@@ -62,7 +84,7 @@ class HTTPProtocol(AsynchatExtended):
 		pass
 
 	def handle_write(self):
-		sent = self.send(self.out_buffer)
+		sent = self.send(self.out_buffer.encode('utf8'))
 		self.out_buffer = self.out_buffer[sent:]
 
 	def handle_error(self):
@@ -70,7 +92,7 @@ class HTTPProtocol(AsynchatExtended):
 		self.done(sys.exc_info()[1])
 
 	def collect_incoming_data(self, data):
-		self.in_buffer.append(data)
+		self.in_buffer.append(data.decode('utf8'))
 
 	def found_terminator(self):
 		if self.reading_state == READ_STATUS:
@@ -80,7 +102,7 @@ class HTTPProtocol(AsynchatExtended):
 				self.status_code = match.group(1)
 				self.status_message = match.group(2)
 				self.reading_state = READ_HEADERS
-				self.set_terminator("\r\n\r\n")
+				self.set_terminator(b"\r\n\r\n")
 			else:
 				self.done(RuntimeError("Failed to parse response's status line"))
 		elif self.reading_state == READ_HEADERS:

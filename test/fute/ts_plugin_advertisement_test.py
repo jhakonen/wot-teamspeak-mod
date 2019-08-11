@@ -1,6 +1,9 @@
-from test_helpers import constants
-from test_helpers.testcasebase import TestCaseBase
-from test_helpers.utils import *
+import copy
+import os
+import time
+from unittest import mock
+
+from nose.plugins.attrib import attr
 
 import BigWorld
 from gui import SystemMessages
@@ -8,11 +11,9 @@ from helpers import dependency
 import notification
 from skeletons.gui.system_messages import ISystemMessages
 
-from nose.plugins.attrib import attr
-import copy
-import mock
-import os
-import time
+from .test_helpers import constants
+from .test_helpers.testcasebase import TestCaseBase
+from .test_helpers.utils import *
 
 BigWorld_wg_openWebBrowser = BigWorld.wg_openWebBrowser
 

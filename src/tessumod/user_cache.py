@@ -15,16 +15,18 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-import ConfigParser
-import os
+from .unicode_aware import ConfigParser
 import csv
-import re
 import io
-import cStringIO
-from utils import LOG_ERROR, LOG_NOTE
+import os
+import re
+
 import Event
 
-_GENERAL_HELP = """
+from .py3compat import PY2, to_unicode
+from .utils import LOG_ERROR, LOG_NOTE, iteritems
+
+_GENERAL_HELP = u"""
 ; This file stores paired TeamSpeak users and WOT players. When TessuMod
 ; manages to match a TeamSpeak user to a WOT player ingame it stores the match
 ; into this file. This allows TessuMod to match users in future even if the
@@ -44,7 +46,7 @@ _GENERAL_HELP = """
 ; are replaced with '*'.
 """.strip()
 
-_TS_USERS_HELP = """
+_TS_USERS_HELP = u"""
 ; TessuMod will populate this section with TeamSpeak users who are in the same
 ; TeamSpeak channel with you.
 ; 
@@ -54,7 +56,7 @@ _TS_USERS_HELP = """
 ; update names used in UserPlayerPairings.
 """.strip()
 
-_PLAYERS_HELP  = """
+_PLAYERS_HELP  = u"""
 ; TessuMod will populate this section with players from your friend and clan
 ; member lists. Players are also added when someone speaks in your TeamSpeak
 ; channel and TessuMod manages to match the user to player which isn't yet in
@@ -66,7 +68,7 @@ _PLAYERS_HELP  = """
 ; names used in UserPlayerPairings.
 """.strip()
 
-_PAIRINGS_HELP = """
+_PAIRINGS_HELP = u"""
 ; This section is updated when TessuMod, using nick matching rules, manages to
 ; match TeamSpeak user to a WOT player.
 ; 
@@ -97,25 +99,26 @@ class UserCache(object):
 	def _on_read(self, parser):
 		error_message = None
 		try:
-			ts_users      = {nick.lower(): id for nick, id in parser.items("TeamSpeakUsers")}
-			players       = {nick.lower(): id for nick, id in parser.items("GamePlayers")}
-			nick_pairings = {ts_nick.lower(): csv_split(p_nicks.lower()) for ts_nick, p_nicks in parser.items("UserPlayerPairings")}
+			ts_users      = {nick.lower(): id for nick, id in parser.items(u"TeamSpeakUsers")}
+			players       = {nick.lower(): id for nick, id in parser.items(u"GamePlayers")}
+			nick_pairings = {ts_nick.lower(): csv_split(p_nicks.lower()) \
+								for ts_nick, p_nicks in parser.items(u"UserPlayerPairings")}
 			id_pairings   = {}
 
 			for ts_nick in nick_pairings:
 				try:
 					player_ids = [players[player_nick] for player_nick in nick_pairings[ts_nick]]
 				except KeyError as error:
-					error_message = "Player {0} is not defined".format(error)
+					error_message = u"Player {0} is not defined".format(error)
 					raise
 				try:
 					id_pairings[ts_users[ts_nick]] = player_ids
 				except KeyError as error:
-					error_message = "TeamSpeak user {0} is not defined".format(error)
+					error_message = u"TeamSpeak user {0} is not defined".format(error)
 					raise
 
-			self._ts_users = {id: nick for nick, id in ts_users.iteritems()}
-			self._players = {id: nick for nick, id in players.iteritems()}
+			self._ts_users = {id: nick for nick, id in iteritems(ts_users)}
+			self._players = {id: nick for nick, id in iteritems(players)}
 			self._pairings = id_pairings
 			self._read_error = False
 			self._update_write_allowed()
@@ -130,7 +133,7 @@ class UserCache(object):
 		'''Removes TeamSpeak user and WOT players who do not appear in the pairings.'''
 		cleanup_ts_ids = [id for id in self._ts_users]
 		cleanup_player_ids = [id for id in self._players]
-		for ts_id, player_ids in self._pairings.iteritems():
+		for ts_id, player_ids in iteritems(self._pairings):
 			cleanup_ts_ids.remove(ts_id)
 			for player_id in self._pairings[ts_id]:
 				try:
@@ -145,25 +148,26 @@ class UserCache(object):
 			self.on_updated()
 
 	def _on_write(self, parser):
-		parser.add_section("TeamSpeakUsers")
-		parser.add_section("GamePlayers")
-		parser.add_section("UserPlayerPairings")
-		for id, nick in self._ts_users.iteritems():
-			parser.set("TeamSpeakUsers", ini_escape(nick), str(id))
-		for id, nick in self._players.iteritems():
-			parser.set("GamePlayers", ini_escape(nick), str(id))
-		for ts_id, player_ids in self._pairings.iteritems():
-			parser.set("UserPlayerPairings",
+		parser.add_section(u"TeamSpeakUsers")
+		parser.add_section(u"GamePlayers")
+		parser.add_section(u"UserPlayerPairings")
+		for id, nick in iteritems(self._ts_users):
+			parser.set(u"TeamSpeakUsers", ini_escape(nick), id)
+		for id, nick in iteritems(self._players):
+			parser.set(u"GamePlayers", ini_escape(nick), id)
+		for ts_id, player_ids in iteritems(self._pairings):
+			parser.set(u"UserPlayerPairings",
 				ini_escape(self._ts_users[ts_id]),
 				ini_escape(csv_join([self._players[player_id] for player_id in player_ids]))
 			)
 
 	def _on_write_io(self, string_io):
 		ini_contents = string_io.getvalue()
-		ini_contents = ini_contents.replace("[TeamSpeakUsers]",     _TS_USERS_HELP + "\n[TeamSpeakUsers]", 1)
-		ini_contents = ini_contents.replace("[GamePlayers]",        _PLAYERS_HELP  + "\n[GamePlayers]", 1)
-		ini_contents = ini_contents.replace("[UserPlayerPairings]", _PAIRINGS_HELP + "\n[UserPlayerPairings]", 1)
+		ini_contents = ini_contents.replace(u"[TeamSpeakUsers]",     _TS_USERS_HELP + u"\n[TeamSpeakUsers]", 1)
+		ini_contents = ini_contents.replace(u"[GamePlayers]",        _PLAYERS_HELP  + u"\n[GamePlayers]", 1)
+		ini_contents = ini_contents.replace(u"[UserPlayerPairings]", _PAIRINGS_HELP + u"\n[UserPlayerPairings]", 1)
 		string_io.truncate(0)
+		string_io.seek(0)
 		string_io.write(_GENERAL_HELP + "\n\n\n" + ini_contents)
 
 	@property
@@ -184,20 +188,20 @@ class UserCache(object):
 
 	def add_ts_user(self, name, id):
 		if id not in self._ts_users:
-			self._ts_users[id] = name.lower()
+			self._ts_users[to_unicode(id)] = to_unicode(name).lower()
 			self._ini_cache.write_needed()
 			self.on_updated()
 
 	def add_player(self, name, id):
-		id = str(id)
+		id = to_unicode(id)
 		if id not in self._players:
-			self._players[id] = name.lower()
+			self._players[id] = to_unicode(name).lower()
 			self._ini_cache.write_needed()
 			self.on_updated()
 
 	def pair(self, player_id, ts_user_id):
-		player_id = str(player_id)
-		ts_user_id = str(ts_user_id)
+		player_id = to_unicode(player_id)
+		ts_user_id = to_unicode(ts_user_id)
 		if ts_user_id not in self._pairings:
 			self._pairings[ts_user_id] = []
 		if player_id not in self._pairings[ts_user_id]:
@@ -206,7 +210,7 @@ class UserCache(object):
 			self.on_updated()
 
 	def get_paired_player_ids(self, ts_user_id):
-		ts_user_id = str(ts_user_id)
+		ts_user_id = to_unicode(ts_user_id)
 		if ts_user_id in self._pairings:
 			for player_id in self._pairings[ts_user_id]:
 				yield int(player_id)
@@ -243,10 +247,14 @@ class INICache(object):
 	def _read_cache_file(self):
 		if not os.path.isfile(self.ini_path):
 			return
-		parser = ConfigParser.RawConfigParser()
-		if not parser.read(self.ini_path):
-			LOG_ERROR("Failed to parse ini file '{0}'"
-				.format(self.ini_path))
+		parser = ConfigParser()
+
+		try:
+			with io.open(self.ini_path, "rt", encoding="utf8") as f:
+				parser.readfp(f)
+		except Exception as error:
+			LOG_ERROR(u"Failed to parse ini file '{0}', reason: {1}"
+				.format(self.ini_path, to_unicode(error)))
 			return
 		self.on_read(parser)
 		self._update_sync_time()
@@ -256,10 +264,10 @@ class INICache(object):
 
 	def _write_cache_file(self):
 		if self.is_write_allowed:
-			parser = ConfigParser.RawConfigParser()
+			parser = ConfigParser()
 			self.on_write(parser)
-			with open(self.ini_path, "w") as f:
-				string_io = cStringIO.StringIO()
+			with io.open(self.ini_path, "wt", encoding="utf8") as f:
+				string_io = io.StringIO()
 				parser.write(string_io)
 				self.on_write_io(string_io)
 				f.write(string_io.getvalue())
@@ -282,13 +290,13 @@ class INICache(object):
 		return self._write_needed or not os.path.isfile(self.ini_path)
 
 def csv_split(string_value):
-	return csv.reader([string_value]).next()
+	return [to_unicode(value) for value in next(csv.reader([string_value]))]
 
 def csv_join(list_value):
-	bytes_io = io.BytesIO()
-	csv_out = csv.writer(bytes_io)
+	stream = io.BytesIO() if PY2 else io.StringIO()
+	csv_out = csv.writer(stream)
 	csv_out.writerow(list_value)
-	return bytes_io.getvalue().rstrip("\r\n")
+	return to_unicode(stream.getvalue()).rstrip(u"\r\n")
 
 def ini_escape(value):
 	return re.sub(r"[\[\]=:\\]", "*", value)

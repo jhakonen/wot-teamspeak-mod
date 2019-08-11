@@ -1,14 +1,16 @@
-from test_helpers.testcasebase import TestCaseBase
-from test_helpers.utils import *
-from messenger.proto.events import g_messengerEvents
-from skeletons.gui.battle_session import IBattleSessionProvider
-from helpers import dependency
-from VOIP.VOIPManager import getVOIPManager
+from unittest import mock
 
-import mock
 from nose.tools import assert_equal, assert_false, assert_true
 
+from helpers import dependency
+from messenger.proto.events import g_messengerEvents
+from skeletons.gui.battle_session import IBattleSessionProvider
+from VOIP.VOIPManager import getVOIPManager
+
 import mod_tessumod
+
+from .test_helpers.testcasebase import TestCaseBase
+from .test_helpers.utils import *
 
 class SpeakStatusChanges(TestCaseBase):
 	'''

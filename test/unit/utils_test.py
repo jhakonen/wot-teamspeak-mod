@@ -18,7 +18,7 @@
 from tessumod import utils, ts3
 import random
 import re
-import mock
+from unittest import mock
 
 class TestUtilsTSUserToPlayer(object):
 

@@ -15,22 +15,22 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-import os
-import types
 import functools
 import json
+import os
+import types
 
 import BigWorld
 from gui import SystemMessages
-from notification import NotificationMVC
-from notification.settings import NOTIFICATION_TYPE
-from notification.decorators import _NotificationDecorator
 from gui.shared.notifications import NotificationGuiSettings
 from helpers import dependency
+from notification import NotificationMVC
+from notification.decorators import _NotificationDecorator
+from notification.settings import NOTIFICATION_TYPE
 from skeletons.gui.system_messages import ISystemMessages
 
-import resources
-import utils
+from . import resources
+from . import utils
 
 TSPLUGIN_DOWNLOAD  = "TessuModTSPluginDownload"
 TSPLUGIN_MOREINFO = "TessuModTSPluginMoreInfo"
@@ -62,7 +62,7 @@ def add_event_handler(action, handler):
 
 def push_ts_plugin_install_message(message_type, **data):
 	if not _is_plugin_install_shown[message_type]:
-		msg_tmpl = resources.read_file(utils.get_resource_data_path() + "/" + NOTIFICATION_FILES[message_type])
+		msg_tmpl = resources.read_file(utils.get_resource_data_path() + "/" + NOTIFICATION_FILES[message_type], read_as_binary=False)
 		_push_notification(_MessageDecorator(_get_new_message_id(), msg_tmpl, dict(data, **{
 			"download_action": TSPLUGIN_DOWNLOAD,
 			"ignore_action": TSPLUGIN_IGNORED,
