@@ -3,7 +3,7 @@ import os
 import time
 from unittest import mock
 
-from nose.plugins.attrib import attr
+import pytest
 
 import BigWorld
 from gui import SystemMessages
@@ -104,7 +104,7 @@ class TSPluginAdvertisement(TestCaseBase):
 		self.start_game(mode="lobby")
 		self.wait_until(lambda: self.__is_warning_shown("Your TessuMod version is older than what your current TessuMod TeamSpeak plugin can support"))
 
-	@attr("slow")
+	@pytest.mark.slow
 	@use_event_loop
 	def test_ts_plugin_advertisement_is_not_shown_if_already_installed(self):
 		# TODO: Slow test, replace with a unit test
@@ -114,7 +114,7 @@ class TSPluginAdvertisement(TestCaseBase):
 		self.assert_finally_false(lambda: self.__is_install_advertisement_shown())
 		self.wait_at_least(secs=5)
 
-	@attr("slow")
+	@pytest.mark.slow
 	@use_event_loop
 	def test_ts_plugin_advertisement_is_not_shown_if_ignored(self):
 		# TODO: Slow test, replace with a unit test
@@ -124,7 +124,7 @@ class TSPluginAdvertisement(TestCaseBase):
 		self.assert_finally_false(lambda: self.__is_install_advertisement_shown())
 		self.wait_at_least(secs=5)
 
-	@attr("slow")
+	@pytest.mark.slow
 	@use_event_loop
 	def test_ts_plugin_advertisement_is_not_shown_if_ignored_deprecated(self):
 		# This tests that ignored_plugin_version state variable (from 0.6.x

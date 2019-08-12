@@ -28,12 +28,16 @@ setup(
         'package': setup_helpers.PackageCommand
     },
     setup_requires = [
-        'nose>=1.0',
+        'pytest-runner',
         'setuptools-wotmod',
+    ],
+    tests_require = [
+        'pytest',
+        'pytest-pythonpath',
+        'nose',
     ],
     # Required as setuptools-wotmod is not yet in PyPI
     dependency_links = [
         'https://github.com/jhakonen/setuptools-wotmod/tarball/master#egg=setuptools-wotmod'
     ],
-    test_suite = 'nose.collector'
 )

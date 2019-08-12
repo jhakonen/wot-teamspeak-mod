@@ -15,10 +15,11 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
+import unittest
 from nose.tools import assert_equal
 from tessumod import ts3
 
-class TestCQParameterParsing(object):
+class TestCQParameterParsing(unittest.TestCase):
 
 	def test_can_parse_arg(self):
 		assert 3 == int(ts3.parse_client_query_parameters("clid=3")[0]["clid"])
@@ -54,7 +55,7 @@ class TestCQParameterParsing(object):
 		assert 1 == int(p2["clid"])
 		assert 2 == int(p3["clid"])
 
-class TestCommandStringBuilding(object):
+class TestCommandStringBuilding(unittest.TestCase):
 
 	def test_builds_command_without_args(self):
 		cmd_str = ts3.build_command_string("whoami", [], {})

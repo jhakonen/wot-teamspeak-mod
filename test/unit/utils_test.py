@@ -15,18 +15,20 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-from tessumod import utils, ts3
 import random
 import re
-from unittest import mock
+import unittest
+import unittest.mock
 
-class TestUtilsTSUserToPlayer(object):
+from tessumod import utils, ts3
+
+class TestUtilsTSUserToPlayer(unittest.TestCase):
 
 	def setUp(self):
 		pass
 
 	def create_ts_user(self, nick=None, wot_nick=None):
-		ts_user = ts3.User(mock.Mock())
+		ts_user = ts3.User(unittest.mock.Mock())
 		ts_user.nick = nick
 		ts_user.wot_nick = wot_nick
 		return ts_user

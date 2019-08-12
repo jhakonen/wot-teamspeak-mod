@@ -15,6 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
+import unittest
 from tessumod.statemachine import StateMachine
 
 def call_counter():
@@ -23,7 +24,7 @@ def call_counter():
 	func.count = 0
 	return func
 
-class TestStateMachine(object):
+class TestStateMachine(unittest.TestCase):
 
 	def setUp(self):
 		self.sm = StateMachine()

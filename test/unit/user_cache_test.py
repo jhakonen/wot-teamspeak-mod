@@ -16,6 +16,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 import os
+import unittest
 
 from configparser import RawConfigParser
 
@@ -34,7 +35,7 @@ def has_cache_value(section, name):
 	parser.read([ini_path])
 	return parser.has_option(section, name)
 
-class TestUserCache(object):
+class TestUserCache(unittest.TestCase):
 
 	def setUp(self):
 		try:

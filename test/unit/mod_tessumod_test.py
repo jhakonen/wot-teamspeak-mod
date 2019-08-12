@@ -16,11 +16,14 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 from nose.tools import *
+import pytest
+
 import mod_tessumod
 
-class TestPluginAdvertisement(object):
+class TestPluginAdvertisement:
 
-	def setUp(self):
+	@pytest.fixture(autouse=True)
+	def setup(self):
 		self.input = dict(
 			plugin_info = {
 				"versions": [
@@ -41,33 +44,62 @@ class TestPluginAdvertisement(object):
 			ignored_plugin_versions = []
 		)
 
-	def test_sanity_check_inputs(self):
-		t = self.sanity_check_inputs
-		for version in (None, 0.5, "", "1", "1.0", [1, 2, 0]):
-			yield t, dict(mod_version=version)
-		for version in (None, "", "1", False, [0]):
-			yield t, dict(installed_plugin_version=version)
-		for versions in (None, 0, "", "1", False, [0], ["1"], {}):
-			yield t, dict(ignored_plugin_versions=versions)
-		for plugin_info in (None, [], {}, {"versions": None}, {"versions": {}}):
-			yield t, dict(plugin_info=plugin_info)
-		for plugin_version in (None, 0.1, "", "1", False, []):
-			yield t, dict(plugin_info={"versions": [{
-				"plugin_version": plugin_version,
-				"supported_mod_versions": ["0.6", "0.7"],
-				"download_url": "https://github.com/jhakonen/wot-teamspeak-plugin/releases/tag/v0.8.0"
-			}]})
-		for mod_versions in (None, [], "", "1", [""], ["1", "2", "3"]):
-			yield t, dict(plugin_info={"versions": [{
-				"plugin_version": 1,
-				"supported_mod_versions": mod_versions,
-				"download_url": "https://github.com/jhakonen/wot-teamspeak-plugin/releases/tag/v0.8.0"
-			}]})
-		yield t, dict(plugin_info={"versions": [{"plugin_version": 1}]})
-		yield t, dict(plugin_info={"versions": [{"supported_mod_versions": ["0.6", "0.7"]}]})
+	plugin_version_dict = {
+		"plugin_version": 1,
+		"supported_mod_versions": ["0.6", "0.7"],
+		"download_url": "https://github.com/jhakonen/wot-teamspeak-plugin/releases/tag/v0.8.0"
+	}
 
-	def sanity_check_inputs(self, kwargs):
-		self.input = dict(self.input, **kwargs)
+	insane_inputs = [
+		dict(mod_version=None),
+		dict(mod_version=0.5),
+		dict(mod_version=""),
+		dict(mod_version="1"),
+		dict(mod_version="1.0"),
+		dict(mod_version=[1, 2, 0]),
+
+		dict(installed_plugin_version=None),
+		dict(installed_plugin_version=""),
+		dict(installed_plugin_version="1"),
+		dict(installed_plugin_version=False),
+		dict(installed_plugin_version=[0]),
+
+		dict(ignored_plugin_versions=None),
+		dict(ignored_plugin_versions=0),
+		dict(ignored_plugin_versions=""),
+		dict(ignored_plugin_versions="1"),
+		dict(ignored_plugin_versions=False),
+		dict(ignored_plugin_versions=[0]),
+		dict(ignored_plugin_versions=["1"]),
+		dict(ignored_plugin_versions={}),
+
+		dict(plugin_info=None),
+		dict(plugin_info=[]),
+		dict(plugin_info={}),
+		dict(plugin_info={"versions": None}),
+		dict(plugin_info={"versions": {}}),
+
+		dict(plugin_info={"versions": [{"plugin_version": 1}]}),
+		dict(plugin_info={"versions": [{"supported_mod_versions": ["0.6", "0.7"]}]}),
+
+		dict(plugin_info={"versions": [dict(plugin_version_dict, plugin_version=None)]}),
+		dict(plugin_info={"versions": [dict(plugin_version_dict, plugin_version=0.1)]}),
+		dict(plugin_info={"versions": [dict(plugin_version_dict, plugin_version="")]}),
+		dict(plugin_info={"versions": [dict(plugin_version_dict, plugin_version="1")]}),
+		dict(plugin_info={"versions": [dict(plugin_version_dict, plugin_version=False)]}),
+		dict(plugin_info={"versions": [dict(plugin_version_dict, plugin_version=[])]}),
+
+		dict(plugin_info={"versions": [dict(plugin_version_dict, supported_mod_versions=None)]}),
+		dict(plugin_info={"versions": [dict(plugin_version_dict, supported_mod_versions=[])]}),
+		dict(plugin_info={"versions": [dict(plugin_version_dict, supported_mod_versions="")]}),
+		dict(plugin_info={"versions": [dict(plugin_version_dict, supported_mod_versions="1")]}),
+		dict(plugin_info={"versions": [dict(plugin_version_dict, supported_mod_versions=[""])]}),
+		dict(plugin_info={"versions": [dict(plugin_version_dict, supported_mod_versions=["1", "2", "3"])]}),
+	]
+
+	@pytest.mark.parametrize("input", insane_inputs)
+	def test_sanity_check_inputs(self, input):
+		self.input = dict(self.input, **input)
 		assert_raises(Exception, mod_tessumod.get_plugin_advertisement_info, self.input)
 
 	def test_returns_none_with_too_old_mod_version_and_no_plugin_installed(self):
