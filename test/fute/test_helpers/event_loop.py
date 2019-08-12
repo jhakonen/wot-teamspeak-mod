@@ -1,65 +1,35 @@
+import asyncio
 
-import time
+loop = asyncio.get_event_loop()
 
 class EventLoop(object):
 
 	def __init__(self):
-		self.__once_callbacks = []
-		self.__repeat_callbacks = []
+		self.__handles = {}
 
 	def fini(self):
-		del self.__once_callbacks[:]
-		del self.__repeat_callbacks[:]
+		for handle in self.__handles.values():
+			handle.cancel()
+		self.__handles.clear()
 
 	def execute(self):
-		self.__exit_called = False
-		while not self.__exit_called:
-			for callback in list(self.__once_callbacks):
-				if callback.should_call():
-					self.__once_callbacks.remove(callback)
-					callback.call()
-			for callback in list(self.__repeat_callbacks):
-				if callback.should_call():
-					callback.call()
-					callback.reset()
-			time.sleep(0.001)
+		loop.run_forever()
 
 	def exit(self):
-		self.__exit_called = True
+		loop.stop()
 
 	def call(self, callback, repeat=False, timeout=0):
 		if repeat:
-			self.__repeat_callbacks.append(Callback(callback, timeout))
+			handle = loop.create_task(repeat_call(timeout, callback))
 		else:
-			self.__once_callbacks.append(Callback(callback, timeout))
+			handle = loop.call_later(timeout, callback)
+		self.__handles[callback] = handle
 
 	def cancel_call(self, callback):
-		found = False
-		for callback_obj in self.__once_callbacks:
-			if callback_obj.callback == callback:
-				self.__once_callbacks.remove(callback_obj)
-				found = True
-				break
-		if not found:
-			for callback_obj in self.__repeat_callbacks:
-				if callback_obj.callback == callback:
-					self.__repeat_callbacks.remove(callback_obj)
-					found = True
-					break
-		assert found, "No such callback: %s" % callback
+		self.__handles[callback].cancel()
+		del self.__handles[callback]
 
-class Callback(object):
-
-	def __init__(self, callback, timeout):
-		self.callback = callback
-		self.timeout = timeout
-		self.reset()
-
-	def reset(self):
-		self.time_end = time.time() + self.timeout
-
-	def should_call(self):
-		return time.time() >= self.time_end
-
-	def call(self):
-		self.callback()
+async def repeat_call(timeout, callback):
+	while True:
+		await asyncio.sleep(timeout)
+		callback()
