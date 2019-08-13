@@ -33,6 +33,7 @@ setup(
     ],
     tests_require = [
         'pytest',
+        'pytest-asyncio',
         'pytest-pythonpath',
         'nose',
     ],

@@ -43,6 +43,18 @@ on_player_speaking = Event.Event()
 
 PLUGIN_INFO_URL = "http://jhakonen.github.io/wot-teamspeak-mod/plugin_info.json"
 
+g_authentication_error = None
+g_http_client = None
+g_keyvaluestorage = None
+g_minimap_ctrl = None
+g_positional_audio = None
+g_settings = None
+g_settings_timer = None
+g_talk_states = None
+g_ts = None
+g_ts_timer = None
+g_user_cache = None
+
 def init():
 	'''Mod's main entry point. Called by WoT's built-in mod loader.'''
 	try:

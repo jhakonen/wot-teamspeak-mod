@@ -215,8 +215,8 @@ class UserCache(object):
 			for player_id in self._pairings[ts_user_id]:
 				yield int(player_id)
 
-	def sync(self):
-		self._ini_cache.sync()
+	def sync(self, force=False):
+		self._ini_cache.sync(force)
 
 class INICache(object):
 
@@ -274,8 +274,8 @@ class INICache(object):
 			self._update_sync_time()
 		self._write_needed = False
 
-	def sync(self):
-		if self._is_cache_file_modified():
+	def sync(self, force=False):
+		if force or self._is_cache_file_modified():
 			self._read_cache_file()
 		elif self._should_write_cache_file():
 			self._write_cache_file()

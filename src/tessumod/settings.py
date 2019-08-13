@@ -216,8 +216,8 @@ class Settings(object):
 	def _get_modified_time(self):
 		return os.path.getmtime(self._ini_path)
 
-	def sync(self):
-		if self._is_modified():
+	def sync(self, force=False):
+		if force or self._is_modified():
 			self._load_parser()
 			self.on_reloaded()
 
