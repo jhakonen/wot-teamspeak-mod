@@ -32,6 +32,7 @@ setup(
         'setuptools-wotmod',
     ],
     tests_require = [
+        'pydash',
         'pytest',
         'pytest-asyncio',
         'pytest-pythonpath',

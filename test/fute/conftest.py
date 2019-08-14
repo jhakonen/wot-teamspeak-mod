@@ -4,8 +4,10 @@ import json
 import os
 import random
 import shutil
+import struct
 from unittest import mock
 
+from pydash import _
 import pytest
 
 import Account
@@ -23,7 +25,7 @@ import tessumod.utils
 from .test_helpers import constants, mod_settings
 from .test_helpers.http_server import HTTPServer
 from .test_helpers.ts_client_query import TSClientQueryService
-from .test_helpers.v2_tools import mock_was_called_with, wait_until_true
+from .test_helpers.v2_tools import mock_was_called_with, wait_until_equal, wait_until_true
 
 TMP_DIRPATH          = os.path.join(os.getcwd(), "tmp")
 MODS_VERSION_DIRPATH = os.path.join(TMP_DIRPATH, "mods", "version")
@@ -36,9 +38,6 @@ INI_DIRPATH          = os.path.join(MODS_VERSION_DIRPATH, "..", "configs", "tess
 @pytest.fixture()
 async def game():
 	obj = GameFixture()
-	shutil.rmtree(TMP_DIRPATH, ignore_errors=True)
-	os.makedirs(TMP_DIRPATH)
-	ResMgr.RES_MODS_VERSION_PATH = MODS_VERSION_DIRPATH.replace("mods", "res_mods")
 	yield obj
 	await obj.quit()
 
@@ -51,6 +50,9 @@ class GameFixture:
 
 	def start(self, **state):
 		assert not self._running, "Game has already been started"
+		shutil.rmtree(TMP_DIRPATH, ignore_errors=True)
+		os.makedirs(TMP_DIRPATH)
+		ResMgr.RES_MODS_VERSION_PATH = MODS_VERSION_DIRPATH.replace("mods", "res_mods")
 		self._system_messages = dependency.instance(ISystemMessages)
 		self._system_messages.pushMessage = mock.Mock()
 		self._running = True
@@ -193,47 +195,111 @@ class TessuModFixture:
 		assert self.mod_tessumod, "Mod has not been loaded, please start the game first!"
 		await wait_until_true(lambda: "on_disconnected_from_ts_client" in self._events, timeout)
 
+	async def wait_until_connected_to_ts_server(self, timeout=5):
+		assert self.mod_tessumod, "Mod has not been loaded, please start the game first!"
+		await wait_until_true(lambda: "on_connected_to_ts_server" in self._events, timeout)
+
 
 @pytest.fixture()
-async def tsclient():
-	obj = TSClientFixture()
+async def cq_tsplugin():
+	obj = CQTSPluginFixture()
 	yield obj
-	await obj.quit()
+	await obj.unload()
 
-class TSClientFixture:
+class CQTSPluginFixture:
 
 	def __init__(self):
 		self._service = None
 		self._sock_map = {}
 		self._check_task = None
 
-	def start(self, **state):
-		assert self._service == None, "Cannot start TS client if it is already running"
+	def load(self, **state):
+		assert self._service == None, "Client query plugin is already loaded"
 		self._service = TSClientQueryService(self._sock_map)
 		self._service.start()
 		self.change_state(**state)
 		self._check_task = asyncio.get_event_loop().create_task(self._service_check())
 
 	def change_state(self, **state):
-		assert self._service, "TS client must be running to change its state"
+		assert self._service, "Client query plugin must be already loaded to change its state"
 		if "connected_to_server" in state:
 			self._service.set_connected_to_server(state["connected_to_server"])
 		if "users" in state:
 			for name, data in state["users"].items():
 				self._service.set_user(name, **data)
 
-	async def quit(self):
+	async def unload(self):
 		if self._service:
 			self._service.stop()
 			self._service = None
 		if self._check_task:
 			await self._check_task
 
+	def get_user(self, **kwargs):
+		assert self._service, "Client query plugin must be loaded first"
+		return self._service.get_user(**kwargs)
+
 	async def _service_check(self):
 		while self._service:
 			asyncore.loop(0, map=self._sock_map, count=1)
 			self._service.check()
 			await asyncio.sleep(0.001)
+
+@pytest.fixture()
+async def my_tsplugin(cq_tsplugin):
+	obj = MyTSPluginFixture(cq_tsplugin)
+	yield obj
+	obj.unload()
+
+class MyTSPluginFixture:
+
+	def __init__(self, cq_tsplugin):
+		self._loaded = False
+		self._cq_tsplugin = cq_tsplugin
+
+	def load(self, version=1):
+		assert not self._loaded, "My plugin is already loaded"
+		self._info = create_mmap_fake("TessuModTSPluginInfo", 1)
+		self._info.write(struct.pack("=B", version))
+		self._loaded = True
+
+	def unload(self):
+		if self._loaded:
+			cleanup_mmap_fake("TessuModTSPluginInfo")
+			cleanup_mmap_fake("TessuModTSPlugin3dAudio")
+			self._loaded = False
+
+	async def wait_until_received_data_match(self, obj_path, expected, timeout=5):
+		assert self._loaded, "My plugin has not been loaded"
+		await wait_until_equal(lambda: _.get(self.get_received_data(), obj_path), expected, timeout)
+
+	def get_received_data(self):
+		shmem = create_mmap_fake("TessuModTSPlugin3dAudio", 1024)
+		(
+			timestamp,
+			camera_pos_x,
+			camera_pos_y,
+			camera_pos_z,
+			camera_dir_x,
+			camera_dir_y,
+			camera_dir_z,
+			client_count
+		) = struct.unpack("=I3f3fB", shmem.read(4+3*4+3*4+1))
+		clients = {}
+		for client_index in range(0, client_count):
+			client_id, x, y, z = struct.unpack("=h3f", shmem.read(2+3*4))
+			clients[self._cq_tsplugin.get_user(clid=client_id).name] = {
+				"position": (x, y, z)
+			}
+		result = {
+			"timestamp": timestamp,
+			"camera": {
+				"position": (camera_pos_x, camera_pos_y, camera_pos_z),
+				"direction": (camera_dir_x, camera_dir_y, camera_dir_z)
+			},
+			"clients": clients
+		}
+		return result
 
 
 @pytest.fixture()
@@ -272,3 +338,17 @@ class HTTPServerFixture:
 		while self._service:
 			asyncore.loop(0, map=self._sock_map, count=1)
 			await asyncio.sleep(0.001)
+
+
+def create_mmap_fake(name, length):
+	file_path = os.path.join("/tmp", name)
+	if not os.path.exists(file_path):
+		with open(file_path, "wb") as file:
+			file.write(b"\x00" * length)
+	obj = open(file_path, "r+b", 0)
+	return obj
+
+def cleanup_mmap_fake(name):
+	path = os.path.join("/tmp", name)
+	if os.path.exists(path):
+		os.remove(path)
