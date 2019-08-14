@@ -25,7 +25,7 @@ import tessumod.utils
 from .test_helpers import constants, mod_settings
 from .test_helpers.http_server import HTTPServer
 from .test_helpers.ts_client_query import TSClientQueryService
-from .test_helpers.v2_tools import mock_was_called_with, wait_until_equal, wait_until_true
+from .test_helpers.v2_tools import *
 
 TMP_DIRPATH          = os.path.join(os.getcwd(), "tmp")
 MODS_VERSION_DIRPATH = os.path.join(TMP_DIRPATH, "mods", "version")
@@ -50,22 +50,29 @@ class GameFixture:
 
 	def start(self, **state):
 		assert not self._running, "Game has already been started"
-		shutil.rmtree(TMP_DIRPATH, ignore_errors=True)
-		os.makedirs(TMP_DIRPATH)
-		ResMgr.RES_MODS_VERSION_PATH = MODS_VERSION_DIRPATH.replace("mods", "res_mods")
 		self._system_messages = dependency.instance(ISystemMessages)
 		self._system_messages.pushMessage = mock.Mock()
+		self._original_wg_openWebBrowser = BigWorld.wg_openWebBrowser
+		self._add_notification_mock = mock.Mock()
 		self._running = True
 		self._tick_task = asyncio.get_event_loop().create_task(self._tick())
+
+		ResMgr.RES_MODS_VERSION_PATH = MODS_VERSION_DIRPATH.replace("mods", "res_mods")
+		BigWorld.wg_openWebBrowser = mock.Mock()
+		NotificationMVC.g_instance.getModel().on_addNotification += self._add_notification_mock
+
 		[mod.load() for mod in self._mods]
+
 		self.change_state(**state)
 
 	async def quit(self):
 		if self._running:
+			BigWorld.fake_clear_player()
 			self._running = False
 			if self._tick_task:
 				await self._tick_task
-			BigWorld.fake_clear_player()
+			fakes.reset()
+			BigWorld.wg_openWebBrowser = self._original_wg_openWebBrowser
 			NotificationMVC.g_instance.cleanUp()
 
 	def add_mod(self, mod):
@@ -115,6 +122,18 @@ class GameFixture:
 			sm_type = gui.SystemMessages.SM_TYPE.Error
 		return mock_was_called_with(self._system_messages.pushMessage, message, sm_type)
 
+	def is_complex_notification_sent(self, messages):
+		return mock_was_called_with(self._add_notification_mock, message_decorator_matches_fragments(messages))
+
+	def get_latest_complex_notification(self):
+		return self._add_notification_mock.call_args[0][0]
+
+	async def wait_until_url_opened_to_web_browser(self, url):
+		await wait_until_true(lambda: mock_was_called_with(BigWorld.wg_openWebBrowser, url))
+
+	def send_notification_action(self, msg, action):
+		NotificationMVC.g_instance.handleAction(typeID=msg.getType(), entityID=msg.getID(), action=action)
+
 	async def _tick(self):
 		while self._running:
 			BigWorld.tick()
@@ -123,6 +142,15 @@ class GameFixture:
 
 @pytest.fixture(name="tessumod")
 async def tessumod_fixture(game):
+	shutil.rmtree(TMP_DIRPATH, ignore_errors=True)
+	os.makedirs(TESSUMOD_DIRPATH)
+	tessumod.utils.get_ini_dir_path = lambda: INI_DIRPATH
+	tessumod.utils.get_resource_data_path = lambda: RESOURCE_DIRPATH
+	mod_settings.INI_DIRPATH = INI_DIRPATH
+	mod_settings.reset_cache_file()
+	mod_settings.reset_settings_file()
+	# hack to speed up testing
+	tessumod.ts3._UNREGISTER_WAIT_TIMEOUT = 0.05
 	obj = TessuModFixture()
 	game.add_mod(obj)
 	yield obj
@@ -137,13 +165,6 @@ class TessuModFixture:
 	def load(self):
 		assert not self.mod_tessumod, "The mod has already been loaded"
 		self.mod_tessumod = mod_tessumod
-		tessumod.utils.get_ini_dir_path = lambda: INI_DIRPATH
-		tessumod.utils.get_resource_data_path = lambda: RESOURCE_DIRPATH
-		shutil.rmtree(TMP_DIRPATH, ignore_errors=True)
-		os.makedirs(TESSUMOD_DIRPATH)
-		mod_settings.INI_DIRPATH = INI_DIRPATH
-		mod_settings.reset_cache_file()
-		mod_settings.reset_settings_file()
 		self.change_settings(
 			General = {
 				"log_level": os.environ.get("LOG_LEVEL", "1"),
@@ -154,8 +175,6 @@ class TessuModFixture:
 			}
 		)
 		self.mod_tessumod.init()
-		# hack to speed up testing
-		tessumod.ts3._UNREGISTER_WAIT_TIMEOUT = 0.05
 
 		del self._events[:]
 
@@ -186,6 +205,21 @@ class TessuModFixture:
 		# working at all, so command the mod to load the file by force
 		if self.mod_tessumod.g_user_cache:
 			self.mod_tessumod.g_user_cache.sync(force=True)
+
+	def change_state_variables(self, **variables):
+		states_dirpath = os.path.join(INI_DIRPATH, "states")
+		if not os.path.exists(states_dirpath):
+			os.makedirs(states_dirpath)
+		for key, value in variables.items():
+			with open(os.path.join(states_dirpath, key), "w") as file:
+				file.write(json.dumps(value))
+
+	def get_state_variable(self, key):
+		states_dirpath = os.path.join(INI_DIRPATH, "states")
+		key_path = os.path.join(states_dirpath, key)
+		if os.path.exists(key_path):
+			with open(key_path, "r") as file:
+				return json.load(file)
 
 	async def wait_until_connected_to_ts_client(self, timeout=5):
 		assert self.mod_tessumod, "Mod has not been loaded, please start the game first!"
@@ -308,7 +342,6 @@ async def httpserver():
 	obj.start()
 	yield obj
 	await obj.stop()
-	fakes.reset()
 
 class HTTPServerFixture:
 

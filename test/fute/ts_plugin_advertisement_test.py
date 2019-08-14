@@ -1,219 +1,177 @@
+import asyncio
 import copy
-import os
 import time
-from unittest import mock
 
 import pytest
 
-import BigWorld
-from gui import SystemMessages
-from helpers import dependency
-import notification
-from skeletons.gui.system_messages import ISystemMessages
-
 from .test_helpers import constants
-from .test_helpers.testcasebase import TestCaseBase
-from .test_helpers.utils import *
+from .test_helpers.v2_tools import *
 
-BigWorld_wg_openWebBrowser = BigWorld.wg_openWebBrowser
+'''
+These futes test that TessuMod Plugin is advertised in lobby.
+'''
 
-class TSPluginAdvertisement(TestCaseBase):
-	'''
-	This fute test tests TessuMod Plugin is advertised in lobby.
-	'''
+pytestmark = [
+	pytest.mark.asyncio
+]
 
-	def setUp(self):
-		TestCaseBase.setUp(self)
-		self.addNotification_mock = mock.Mock()
-		self.__get_model().on_addNotification += self.addNotification_mock
-		BigWorld.wg_openWebBrowser = mock.Mock()
-		dependency.instance(ISystemMessages).pushMessage = mock.Mock()
+def is_install_advertisement_shown(game):
+	return game.is_complex_notification_sent(["Would you like to install TessuMod plugin for TeamSpeak?"])
 
-	def tearDown(self):
-		self.__get_model().on_addNotification.clear()
-		BigWorld.wg_openWebBrowser = BigWorld_wg_openWebBrowser
-		TestCaseBase.tearDown(self)
+def is_update_advertisement_shown(game):
+	return game.is_complex_notification_sent(["There is a new version of TessuMod plugin available, would you like to download it?"])
 
-	def __get_model(self):
-		return notification.NotificationMVC.g_instance.getModel()
+def __on_notification(callback):
+	self.__get_model().on_addNotification += callback
 
-	def __is_install_advertisement_shown(self):
-		return mock_was_called_with(self.addNotification_mock, message_decorator_matches_fragments(
-			["Would you like to install TessuMod plugin for TeamSpeak?"]))
+def __handleAction(**kwargs):
+	notification.NotificationMVC.g_instance.handleAction(**kwargs)
 
-	def __is_update_advertisement_shown(self):
-		return mock_was_called_with(self.addNotification_mock, message_decorator_matches_fragments(
-			["There is a new version of TessuMod plugin available, would you like to download it?"]))
+async def test_ts_plugin_install_advertisement_is_shown(game, tessumod, cq_tsplugin, my_tsplugin, httpserver):
+	cq_tsplugin.load()
+	game.start(mode="lobby")
+	await wait_until_true(lambda: is_install_advertisement_shown(game))
 
-	def __is_warning_shown(self, message_fragment):
-		return mock_was_called_with(
-			dependency.instance(ISystemMessages).pushMessage,
-			contains_match(message_fragment),
-			SystemMessages.SM_TYPE.Warning,
-		)
+async def test_ts_plugin_update_advertisement_is_shown(game, tessumod, cq_tsplugin, my_tsplugin, httpserver):
+	new_version = copy.copy(constants.PLUGIN_INFO["versions"][0])
+	new_version["plugin_version"] = 2
+	plugin_info = copy.deepcopy(constants.PLUGIN_INFO)
+	plugin_info["versions"].append(new_version)
+	httpserver.set_plugin_info(plugin_info)
+	cq_tsplugin.load()
+	my_tsplugin.load(version=1)
+	game.start(mode="lobby")
+	await wait_until_true(lambda: is_update_advertisement_shown(game))
 
-	def __on_notification(self, callback):
-		self.__get_model().on_addNotification += callback
+async def test_ts_plugin_too_old_warning_shown(game, tessumod, cq_tsplugin, my_tsplugin, httpserver):
+	httpserver.set_plugin_info({
+		"versions": [{
+			"plugin_version": 1,
+			"supported_mod_versions": ["0.5", "0.6"],
+		}, {
+			"plugin_version": 2,
+			"supported_mod_versions": ["0.6"],
+			"download_url": "https://www.myteamspeak.com/addons/01a0f828-894c-45b7-a852-937b47ceb1ed"
+		}]
+	})
+	cq_tsplugin.load()
+	my_tsplugin.load(version=1)
+	tessumod.change_state_variables(ignored_plugin_versions=[2])
+	game.start(mode="lobby")
+	await game.wait_until_system_notification_sent(
+		message=contains_match("TessuMod TeamSpeak plugin you have installed into your TeamSpeak client is too old"),
+		type="warning"
+	)
 
-	def __handleAction(self, **kwargs):
-		notification.NotificationMVC.g_instance.handleAction(**kwargs)
+async def test_game_mod_too_old_warning_shown(game, tessumod, cq_tsplugin, my_tsplugin, httpserver):
+	httpserver.set_plugin_info({
+		"versions": [{
+			"plugin_version": 1,
+			"supported_mod_versions": ["0.8"],
+			"download_url": "https://www.myteamspeak.com/addons/01a0f828-894c-45b7-a852-937b47ceb1ed"
+		}]
+	})
+	cq_tsplugin.load()
+	my_tsplugin.load(version=1)
+	game.start(mode="lobby")
+	await game.wait_until_system_notification_sent(
+		message=contains_match("Your TessuMod version is older than what your current TessuMod TeamSpeak plugin can support"),
+		type="warning"
+	)
 
-	def test_ts_plugin_install_advertisement_is_shown(self):
-		self.start_ts_client()
-		self.start_game(mode="lobby")
-		self.wait_until(lambda: self.__is_install_advertisement_shown())
+@pytest.mark.slow
+async def test_ts_plugin_advertisement_is_not_shown_if_already_installed(game, tessumod, cq_tsplugin, my_tsplugin, httpserver):
+	cq_tsplugin.load()
+	my_tsplugin.load(version=1)
+	game.start(mode="lobby")
+	await asyncio.sleep(2)
+	assert not is_install_advertisement_shown(game)
 
-	def test_ts_plugin_update_advertisement_is_shown(self):
-		new_version = copy.copy(constants.PLUGIN_INFO["versions"][0])
-		new_version["plugin_version"] = 2
-		plugin_info = copy.deepcopy(constants.PLUGIN_INFO)
-		plugin_info["versions"].append(new_version)
-		self.set_plugin_info(plugin_info)
-		self.start_ts_client()
-		self.enable_ts_client_tessumod_plugin(version=1)
-		self.start_game(mode="lobby")
-		self.wait_until(lambda: self.__is_update_advertisement_shown())
+@pytest.mark.slow
+async def test_ts_plugin_advertisement_is_not_shown_if_ignored(game, tessumod, cq_tsplugin, my_tsplugin, httpserver):
+	cq_tsplugin.load()
+	tessumod.change_state_variables(ignored_plugin_versions=[1])
+	game.start(mode="lobby")
+	await asyncio.sleep(2)
+	assert not is_install_advertisement_shown(game)
 
-	def test_ts_plugin_too_old_warning_shown(self):
-		self.set_plugin_info({
-			"versions": [{
-				"plugin_version": 1,
-				"supported_mod_versions": ["0.5", "0.6"],
-			}, {
-				"plugin_version": 2,
-				"supported_mod_versions": ["0.6"],
-				"download_url": "https://www.myteamspeak.com/addons/01a0f828-894c-45b7-a852-937b47ceb1ed"
-			}]
-		})
-		self.start_ts_client()
-		self.enable_ts_client_tessumod_plugin(version=1)
-		self.change_mod_state_variables(ignored_plugin_versions=[2])
-		self.start_game(mode="lobby")
-		self.wait_until(lambda: self.__is_warning_shown("TessuMod TeamSpeak plugin you have installed into your TeamSpeak client is too old"))
+@pytest.mark.slow
+async def test_ts_plugin_advertisement_is_not_shown_if_ignored_deprecated(game, tessumod, cq_tsplugin, my_tsplugin, httpserver):
+	# This tests that ignored_plugin_version state variable (from 0.6.x
+	# versions) still works
+	cq_tsplugin.load()
+	tessumod.change_state_variables(ignored_plugin_version=1)
+	game.start(mode="lobby")
+	await asyncio.sleep(2)
+	assert not is_install_advertisement_shown(game)
 
-	def test_game_mod_too_old_warning_shown(self):
-		self.set_plugin_info({
-			"versions": [{
-				"plugin_version": 1,
-				"supported_mod_versions": ["0.8"],
-				"download_url": "https://www.myteamspeak.com/addons/01a0f828-894c-45b7-a852-937b47ceb1ed"
-			}]
-		})
-		self.start_ts_client()
-		self.enable_ts_client_tessumod_plugin(version=1)
-		self.start_game(mode="lobby")
-		self.wait_until(lambda: self.__is_warning_shown("Your TessuMod version is older than what your current TessuMod TeamSpeak plugin can support"))
+async def test_download_button_opens_download_page_to_web_browser(game, tessumod, cq_tsplugin, my_tsplugin, httpserver):
+	cq_tsplugin.load()
+	game.start(mode="lobby")
+	await wait_until_true(lambda: is_install_advertisement_shown(game))
+	msg = game.get_latest_complex_notification()
+	game.send_notification_action(msg, "TessuModTSPluginDownload")
+	await game.wait_until_url_opened_to_web_browser("https://www.myteamspeak.com/addons/01a0f828-894c-45b7-a852-937b47ceb1ed")
 
-	@pytest.mark.slow
-	@use_event_loop
-	def test_ts_plugin_advertisement_is_not_shown_if_already_installed(self):
-		# TODO: Slow test, replace with a unit test
-		self.start_ts_client()
-		self.enable_ts_client_tessumod_plugin(version=1)
-		self.start_game(mode="lobby")
-		self.assert_finally_false(lambda: self.__is_install_advertisement_shown())
-		self.wait_at_least(secs=5)
+async def test_ignore_link_saves_ignore_state(game, tessumod, cq_tsplugin, my_tsplugin, httpserver):
+	cq_tsplugin.load()
+	game.start(mode="lobby")
+	await wait_until_true(lambda: is_install_advertisement_shown(game))
+	msg = game.get_latest_complex_notification()
+	assert tessumod.get_state_variable("ignored_plugin_versions") != [1]
+	game.send_notification_action(msg, "TessuModTSPluginIgnore")
+	assert tessumod.get_state_variable("ignored_plugin_versions") == [1]
 
-	@pytest.mark.slow
-	@use_event_loop
-	def test_ts_plugin_advertisement_is_not_shown_if_ignored(self):
-		# TODO: Slow test, replace with a unit test
-		self.start_ts_client()
-		self.change_mod_state_variables(ignored_plugin_versions=[1])
-		self.start_game(mode="lobby")
-		self.assert_finally_false(lambda: self.__is_install_advertisement_shown())
-		self.wait_at_least(secs=5)
+async def test_plugin_info_is_cached(game, tessumod, cq_tsplugin, my_tsplugin, httpserver):
+	cq_tsplugin.load()
+	with ExecTimer() as t:
+		game.start(mode="lobby")
+		await wait_until_true(lambda: is_install_advertisement_shown(game))
+	cached_plugin_info = tessumod.get_state_variable("plugin_info")
+	cached_timestamp = tessumod.get_state_variable("plugin_info_timestamp")
+	assert cached_plugin_info == constants.PLUGIN_INFO
+	assert cached_timestamp > t.start and cached_timestamp < t.end
 
-	@pytest.mark.slow
-	@use_event_loop
-	def test_ts_plugin_advertisement_is_not_shown_if_ignored_deprecated(self):
-		# This tests that ignored_plugin_version state variable (from 0.6.x
-		# versions) still works
-		# TODO: Slow test, replace with a unit test
-		self.start_ts_client()
-		self.change_mod_state_variables(ignored_plugin_version=1)
-		self.start_game(mode="lobby")
-		self.assert_finally_false(lambda: self.__is_install_advertisement_shown())
-		self.wait_at_least(secs=5)
+async def test_plugin_info_is_read_from_cache(game, tessumod, cq_tsplugin, my_tsplugin, httpserver):
+	await httpserver.stop()
+	tessumod.change_state_variables(
+		plugin_info=constants.PLUGIN_INFO,
+		plugin_info_timestamp=time.time()
+	)
+	cq_tsplugin.load()
+	game.start(mode="lobby")
+	await wait_until_true(lambda: is_install_advertisement_shown(game))
 
-	def test_download_button_opens_download_page_to_web_browser(self):
-		self.start_ts_client()
-		self.start_game(mode="lobby")
-		self.__on_notification(lambda msg: self.__handleAction(
-			typeID = msg.getType(),
-			entityID = msg.getID(),
-			action = "TessuModTSPluginDownload"
-		))
-		self.wait_until(lambda: mock_was_called_with(BigWorld.wg_openWebBrowser, "https://www.myteamspeak.com/addons/01a0f828-894c-45b7-a852-937b47ceb1ed"))
+async def test_cached_plugin_info_becomes_stale_after_a_week(game, tessumod, cq_tsplugin, my_tsplugin, httpserver):
+	old_plugin_info = copy.deepcopy(constants.PLUGIN_INFO)
+	old_plugin_info["versions"][0]["download_url"] = "http://old.url/"
+	tessumod.change_state_variables(
+		plugin_info=old_plugin_info,
+		plugin_info_timestamp=time.time() - 60 * 60 * 24 * 7
+	)
+	cq_tsplugin.load()
+	with ExecTimer() as t:
+		game.start(mode="lobby")
+		await wait_until_true(lambda: is_install_advertisement_shown(game))
+	new_plugin_info = tessumod.get_state_variable("plugin_info")
+	new_timestamp = tessumod.get_state_variable("plugin_info_timestamp")
+	assert new_plugin_info == constants.PLUGIN_INFO
+	assert new_plugin_info != old_plugin_info
+	assert new_timestamp > t.start and new_timestamp < t.end
 
-	@use_event_loop
-	def test_ignore_link_saves_ignore_state(self):
-		self.start_ts_client()
-		self.start_game(mode="lobby")
-		self.__on_notification(lambda msg: self.__handleAction(
-			typeID = msg.getType(),
-			entityID = msg.getID(),
-			action = "TessuModTSPluginIgnore"
-		))
-		assert self.get_mod_state_variable("ignored_plugin_versions") != [1]
-		self.assert_finally_equal([1], lambda: self.get_mod_state_variable("ignored_plugin_versions"))
-
-	def test_plugin_info_is_cached(self):
-		start_time = time.time()
-		self.start_ts_client()
-		self.start_game(mode="lobby")
-		self.wait_until(lambda: self.__is_install_advertisement_shown())
-		end_time = time.time()
-		cached_plugin_info = self.get_mod_state_variable("plugin_info")
-		cached_timestamp = self.get_mod_state_variable("plugin_info_timestamp")
-		assert cached_plugin_info == constants.PLUGIN_INFO
-		assert cached_timestamp > start_time
-		assert cached_timestamp < end_time
-
-	def test_plugin_info_is_read_from_cache(self):
-		self.stop_http_server()
-		self.change_mod_state_variables(
-			plugin_info=constants.PLUGIN_INFO,
-			plugin_info_timestamp=time.time()
-		)
-		self.start_ts_client()
-		self.start_game(mode="lobby")
-		self.wait_until(lambda: self.__is_install_advertisement_shown())
-
-	def test_cached_plugin_info_becomes_stale_after_a_week(self):
-		old_plugin_info = copy.deepcopy(constants.PLUGIN_INFO)
-		old_plugin_info["versions"][0]["download_url"] = "http://old.url/"
-		self.change_mod_state_variables(
-			plugin_info=old_plugin_info,
-			plugin_info_timestamp=time.time() - 60 * 60 * 24 * 7
-		)
-		start_time = time.time()
-		self.start_ts_client()
-		self.start_game(mode="lobby")
-		self.wait_until(lambda: self.__is_install_advertisement_shown())
-		end_time = time.time()
-		new_plugin_info = self.get_mod_state_variable("plugin_info")
-		new_timestamp = self.get_mod_state_variable("plugin_info_timestamp")
-		assert new_plugin_info == constants.PLUGIN_INFO
-		assert new_plugin_info != old_plugin_info
-		assert new_timestamp > start_time
-		assert new_timestamp < end_time
-
-	def test_cached_plugin_info_becomes_stale_if_timestamp_is_set_in_future_by_a_week(self):
-		old_plugin_info = copy.deepcopy(constants.PLUGIN_INFO)
-		old_plugin_info["versions"][0]["download_url"] = "http://old.url/"
-		self.change_mod_state_variables(
-			plugin_info=old_plugin_info,
-			plugin_info_timestamp=time.time() + 60 * 60 * 24 * 7 + 60
-		)
-		start_time = time.time()
-		self.start_ts_client()
-		self.start_game(mode="lobby")
-		self.wait_until(lambda: self.__is_install_advertisement_shown())
-		end_time = time.time()
-		new_plugin_info = self.get_mod_state_variable("plugin_info")
-		new_timestamp = self.get_mod_state_variable("plugin_info_timestamp")
-		assert new_plugin_info == constants.PLUGIN_INFO
-		assert new_plugin_info != old_plugin_info
-		assert new_timestamp > start_time
-		assert new_timestamp < end_time
+async def test_cached_plugin_info_becomes_stale_if_timestamp_is_set_in_future_by_a_week(game, tessumod, cq_tsplugin, my_tsplugin, httpserver):
+	old_plugin_info = copy.deepcopy(constants.PLUGIN_INFO)
+	old_plugin_info["versions"][0]["download_url"] = "http://old.url/"
+	tessumod.change_state_variables(
+		plugin_info=old_plugin_info,
+		plugin_info_timestamp=time.time() + 60 * 60 * 24 * 7 + 60
+	)
+	cq_tsplugin.load()
+	with ExecTimer() as t:
+		game.start(mode="lobby")
+		await wait_until_true(lambda: is_install_advertisement_shown(game))
+	new_plugin_info = tessumod.get_state_variable("plugin_info")
+	new_timestamp = tessumod.get_state_variable("plugin_info_timestamp")
+	assert new_plugin_info == constants.PLUGIN_INFO
+	assert new_plugin_info != old_plugin_info
+	assert new_timestamp > t.start and new_timestamp < t.end
