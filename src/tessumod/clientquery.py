@@ -42,13 +42,15 @@ def checkError(data):
 		return None
 	msg = getParamValue(e[2], 'msg')
 	if id == _API_NOT_CONNECTED_TO_SERVER:
-		return APINotConnectedError(msg)
+		return APINotConnectedError(msg, id)
 	if id == _API_INVALID_SCHANDLER_ID:
-		return APIInvalidSchandlerIDError(msg)
-	return APIError(str(id) + ": " + msg)
+		return APIInvalidSchandlerIDError(msg, id)
+	return APIError(str(id) + ": " + msg, id)
 
 class APIError(Exception):
-	pass
+	def __init__(self, message, id):
+		super(APIError, self).__init__(message)
+		self.id = id
 
 class APINotConnectedError(APIError):
 	pass

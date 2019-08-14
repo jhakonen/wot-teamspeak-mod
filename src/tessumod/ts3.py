@@ -179,7 +179,7 @@ class TS3Client(object):
 		def on_finish(err, lines):
 			if not err:
 				self._send_sm_event("authenticated")
-			elif err[0] == 256:
+			elif getattr(err, "id", None) == 256:
 				# Command not found, TeamSpeak is version 3.1.2 or older
 				self._send_sm_event("authenticated")
 			else:
