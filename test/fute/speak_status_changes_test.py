@@ -6,9 +6,7 @@ from .test_helpers.v2_tools import *
 These futes test that changes in TeamSpeak user's speaking status is shown in-game.
 '''
 
-pytestmark = [
-	pytest.mark.asyncio
-]
+pytestmark = [pytest.mark.asyncio]
 
 @pytest.fixture()
 async def test_setup(game, tessumod, cq_tsplugin):
@@ -52,7 +50,7 @@ class SpeakStateFixture:
 		await wait_until_true(lambda: speaking == self._game.is_player_speaking(self._game.get_player_id(name)))
 
 
-async def test_speak_feedback_starts_for_player_with_tessumod_installed(test_setup, game, tessumod):
+async def test_speak_feedback_starts_for_player_with_tessumod_installed(test_setup, tessumod):
 	test_setup.create_user("Erkki Meikalainen")
 	test_setup.insert_player_name_to_user_metadata("TuhoajaErkki", "Erkki Meikalainen")
 	tessumod.change_settings(
@@ -66,7 +64,7 @@ async def test_speak_feedback_starts_for_player_with_tessumod_installed(test_set
 	await test_setup.wait_minimap_feedback("TuhoajaErkki", "attack")
 	await test_setup.wait_speak_feedback("TuhoajaErkki", True)
 
-async def test_speak_feedback_ends_for_player_with_tessumod_installed(test_setup, game, tessumod):
+async def test_speak_feedback_ends_for_player_with_tessumod_installed(test_setup, tessumod):
 	test_setup.create_user("Erkki Meikalainen")
 	test_setup.insert_player_name_to_user_metadata("TuhoajaErkki", "Erkki Meikalainen")
 	await tessumod.wait_until_connected_to_ts_server()
@@ -77,7 +75,7 @@ async def test_speak_feedback_ends_for_player_with_tessumod_installed(test_setup
 	await test_setup.wait_until_player_speaking("TuhoajaErkki", False)
 	await test_setup.wait_speak_feedback("TuhoajaErkki", False)
 
-async def test_speak_feedback_starts_for_player_with_matching_name(test_setup, game, tessumod):
+async def test_speak_feedback_starts_for_player_with_matching_name(test_setup, tessumod):
 	test_setup.create_user("TuhoajaERKKI [DUMMY]")
 	tessumod.change_settings(
 		MinimapNotifications = {
@@ -90,7 +88,7 @@ async def test_speak_feedback_starts_for_player_with_matching_name(test_setup, g
 	await test_setup.wait_minimap_feedback("TuhoajaErkki", "help_me")
 	await test_setup.wait_speak_feedback("TuhoajaErkki", True)
 
-async def test_speak_feedback_starts_for_player_with_extract_rule(test_setup, game, tessumod):
+async def test_speak_feedback_starts_for_player_with_extract_rule(test_setup, tessumod):
 	test_setup.create_user("TuhoajaErkki / Erkki Meikalainen [DUMMY]")
 	tessumod.change_settings(
 		General = {
@@ -107,7 +105,7 @@ async def test_speak_feedback_starts_for_player_with_extract_rule(test_setup, ga
 	await test_setup.wait_minimap_feedback("TuhoajaErkki", "negative")
 	await test_setup.wait_speak_feedback("TuhoajaErkki", True)
 
-async def test_speak_feedback_starts_for_player_with_mapping_rule(test_setup, game, tessumod):
+async def test_speak_feedback_starts_for_player_with_mapping_rule(test_setup, tessumod):
 	test_setup.create_user("Erkki Meikalainen")
 	tessumod.change_settings(
 		NameMappings = {
@@ -123,7 +121,7 @@ async def test_speak_feedback_starts_for_player_with_mapping_rule(test_setup, ga
 	await test_setup.wait_minimap_feedback("TuhoajaErkki", "positive")
 	await test_setup.wait_speak_feedback("TuhoajaErkki", True)
 
-async def test_speak_feedback_starts_for_player_with_combined_extract_and_mapping_rules(test_setup, game, tessumod):
+async def test_speak_feedback_starts_for_player_with_combined_extract_and_mapping_rules(test_setup, tessumod):
 	test_setup.create_user("Erkki Meikalainen [DUMMY]")
 	tessumod.change_settings(
 		General = {
@@ -143,16 +141,16 @@ async def test_speak_feedback_starts_for_player_with_combined_extract_and_mappin
 	await test_setup.wait_minimap_feedback("TuhoajaErkki", "stop")
 	await test_setup.wait_speak_feedback("TuhoajaErkki", True)
 
-async def test_starting_speech_in_game_voice_chat_shows_speak_feedback(test_setup, game):
+async def test_starting_speech_in_game_voice_chat_shows_speak_feedback(test_setup):
 	test_setup.set_game_voice_chat_speaking("TuhoajaErkki", True)
 	assert test_setup.get_speak_feedback_state("TuhoajaErkki") == True
 
-async def test_ending_speech_in_game_voice_chat_shows_speak_feedback(test_setup, game):
+async def test_ending_speech_in_game_voice_chat_shows_speak_feedback(test_setup):
 	test_setup.set_game_voice_chat_speaking("TuhoajaErkki", True)
 	test_setup.set_game_voice_chat_speaking("TuhoajaErkki", False)
 	assert test_setup.get_speak_feedback_state("TuhoajaErkki") == False
 
-async def test_starting_speech_in_both_chats_shows_speak_feedback(test_setup, game, tessumod):
+async def test_starting_speech_in_both_chats_shows_speak_feedback(test_setup, tessumod):
 	test_setup.create_user("Erkki Meikalainen")
 	test_setup.insert_player_name_to_user_metadata("TuhoajaErkki", "Erkki Meikalainen")
 	await tessumod.wait_until_connected_to_ts_server()
@@ -161,7 +159,7 @@ async def test_starting_speech_in_both_chats_shows_speak_feedback(test_setup, ga
 	test_setup.set_game_voice_chat_speaking("TuhoajaErkki", True)
 	await test_setup.wait_speak_feedback("TuhoajaErkki", True)
 
-async def test_ending_speech_in_game_chat_but_not_in_ts_does_not_end_feedback(test_setup, game, tessumod):
+async def test_ending_speech_in_game_chat_but_not_in_ts_does_not_end_feedback(test_setup, tessumod):
 	test_setup.create_user("Erkki Meikalainen")
 	test_setup.insert_player_name_to_user_metadata("TuhoajaErkki", "Erkki Meikalainen")
 	await tessumod.wait_until_connected_to_ts_server()
@@ -172,7 +170,7 @@ async def test_ending_speech_in_game_chat_but_not_in_ts_does_not_end_feedback(te
 	test_setup.set_game_voice_chat_speaking("TuhoajaErkki", False)
 	await test_setup.wait_speak_feedback("TuhoajaErkki", True)
 
-async def test_ending_speech_in_ts_but_not_in_game_chat_does_not_end_feedback(test_setup, game, tessumod):
+async def test_ending_speech_in_ts_but_not_in_game_chat_does_not_end_feedback(test_setup, tessumod):
 	test_setup.create_user("Erkki Meikalainen")
 	test_setup.insert_player_name_to_user_metadata("TuhoajaErkki", "Erkki Meikalainen")
 	await tessumod.wait_until_connected_to_ts_server()
@@ -184,7 +182,7 @@ async def test_ending_speech_in_ts_but_not_in_game_chat_does_not_end_feedback(te
 	await test_setup.wait_until_player_speaking("TuhoajaErkki", True)
 	await test_setup.wait_speak_feedback("TuhoajaErkki", True)
 
-async def test_no_speak_feedback_with_chat_notifications_disabled(test_setup, game, tessumod):
+async def test_no_speak_feedback_with_chat_notifications_disabled(test_setup, tessumod):
 	test_setup.create_user("Erkki Meikalainen")
 	test_setup.insert_player_name_to_user_metadata("TuhoajaErkki", "Erkki Meikalainen")
 	tessumod.change_settings(
@@ -201,7 +199,7 @@ async def test_no_speak_feedback_with_chat_notifications_disabled(test_setup, ga
 	await test_setup.wait_minimap_feedback("TuhoajaErkki", "attack")
 	await test_setup.wait_speak_feedback("TuhoajaErkki", False)
 
-async def test_no_speak_feedback_with_minimap_notifications_disabled(test_setup, game, tessumod):
+async def test_no_speak_feedback_with_minimap_notifications_disabled(test_setup, tessumod):
 	test_setup.create_user("Erkki Meikalainen")
 	test_setup.insert_player_name_to_user_metadata("TuhoajaErkki", "Erkki Meikalainen")
 	tessumod.change_settings(

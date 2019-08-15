@@ -39,7 +39,7 @@ TESSUMOD_DIRPATH     = os.path.join(MODS_VERSION_DIRPATH, "tessumod")
 INI_DIRPATH          = os.path.join(MODS_VERSION_DIRPATH, "..", "configs", "tessu_mod")
 
 
-@pytest.fixture()
+@pytest.fixture(autouse=True)
 async def game():
 	obj = GameFixture()
 	yield obj
@@ -52,6 +52,7 @@ class GameFixture:
 		self._tick_task = None
 		self._mods = []
 		self._voip_player_speaking_state = {}
+		self._state = None
 
 	def start(self, **state):
 		assert not self._running, "Game has already been started"
@@ -88,8 +89,16 @@ class GameFixture:
 		self._mods.append(mod)
 
 	def change_state(self, **state):
-		if state["mode"] == "battle":
-			BigWorld.player(Avatar.Avatar(state["player_name"] if "player_name" in state else "not set"))
+		if "mode" in state:
+			if state["mode"] == "battle":
+				BigWorld.player(Avatar.Avatar(state["player_name"] if "player_name" in state else "not set"))
+			elif state["mode"] == "lobby":
+				BigWorld.player(Account.PlayerAccount())
+				assert "player_name" not in state, "Setting player name not implemented for lobby"
+			else:
+				assert False, "Unknown state"
+			self._state = state["mode"]
+		if self._state == "battle":
 			if "players" in state:
 				for player in state["players"]:
 					vehicle_id = random.randint(0, 1000000)
@@ -109,15 +118,15 @@ class GameFixture:
 					BigWorld.camera().position = BigWorld.Vector(*state["camera"]["position"])
 				if "direction" in state["camera"]:
 					BigWorld.camera().direction = BigWorld.Vector(*state["camera"]["direction"])
-		elif state["mode"] == "lobby":
-			BigWorld.player(Account.PlayerAccount())
-			assert "player_name" not in state, "Setting player name not implemented for lobby"
+		elif self._state == "lobby":
 			if "players" in state:
 				for id, player in enumerate(state["players"]):
 					BigWorld.player().prebattle.rosters[0][id] = {
 						"name": player["name"],
 						"dbID": random.randint(0, 1000000)
 					}
+		else:
+			assert False, "State not defined"
 
 	async def wait_until_system_notification_sent(self, message, type):
 		await wait_until_true(lambda: self.is_system_notification_sent(message, type))
@@ -185,7 +194,7 @@ class GameFixture:
 			await asyncio.sleep(0.001)
 
 
-@pytest.fixture(name="tessumod")
+@pytest.fixture(name="tessumod", autouse=True)
 async def tessumod_fixture(game):
 	shutil.rmtree(TMP_DIRPATH, ignore_errors=True)
 	os.makedirs(TESSUMOD_DIRPATH)
@@ -288,7 +297,7 @@ class TessuModFixture:
 		self._ts_speak_state[id] = speaking
 
 @pytest.fixture()
-async def cq_tsplugin():
+async def cq_tsplugin(autouse=True):
 	obj = CQTSPluginFixture()
 	yield obj
 	await obj.unload()
@@ -342,7 +351,7 @@ class CQTSPluginFixture:
 			self._service.check()
 			await asyncio.sleep(0.001)
 
-@pytest.fixture()
+@pytest.fixture(autouse=True)
 async def my_tsplugin(cq_tsplugin):
 	obj = MyTSPluginFixture(cq_tsplugin)
 	yield obj
@@ -399,7 +408,7 @@ class MyTSPluginFixture:
 		return result
 
 
-@pytest.fixture()
+@pytest.fixture(autouse=True)
 async def httpserver():
 	obj = HTTPServerFixture()
 	obj.start()

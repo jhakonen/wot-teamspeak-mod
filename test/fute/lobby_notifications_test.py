@@ -8,18 +8,15 @@ from .test_helpers.v2_tools import contains_match, wait_until_true
 These fute test tests that notifications are shown in lobby.
 '''
 
-pytestmark = [
-	pytest.mark.asyncio,
-	pytest.mark.usefixtures("httpserver")
-]
+pytestmark = [pytest.mark.asyncio]
 
-async def test_notification_connected_to_teamspeak_server_is_shown(tessumod, game, cq_tsplugin):
+async def test_notification_connected_to_teamspeak_server_is_shown(game, cq_tsplugin):
 	cq_tsplugin.load(connected_to_server=True)
 	game.start(mode="lobby")
 	await game.wait_until_system_notification_sent(message=contains_match("Connected to TeamSpeak server"), type="info")
 
 @pytest.mark.slow
-async def test_notification_connected_to_teamspeak_server_is_not_shown(tessumod, game, cq_tsplugin):
+async def test_notification_connected_to_teamspeak_server_is_not_shown(game, cq_tsplugin):
 	cq_tsplugin.load(connected_to_server=False)
 	game.start(mode="lobby")
 	await asyncio.sleep(2)
