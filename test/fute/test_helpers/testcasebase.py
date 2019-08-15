@@ -279,7 +279,7 @@ class TestCaseBase(unittest.TestCase):
 		assert self.mod_tessumod, "Mod must be loaded first before changing game state"
 
 		if state["mode"] == "battle":
-			BigWorld.player(Avatar.Avatar())
+			BigWorld.player(Avatar.Avatar("not set"))
 			if "players" in state:
 				for player in state["players"]:
 					vehicle_id = random.randint(0, 1000000)

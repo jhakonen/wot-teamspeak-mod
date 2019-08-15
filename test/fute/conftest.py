@@ -80,7 +80,7 @@ class GameFixture:
 
 	def change_state(self, **state):
 		if state["mode"] == "battle":
-			BigWorld.player(Avatar.Avatar())
+			BigWorld.player(Avatar.Avatar(state["player_name"] if "player_name" in state else "not set"))
 			if "players" in state:
 				for player in state["players"]:
 					vehicle_id = random.randint(0, 1000000)
@@ -102,6 +102,7 @@ class GameFixture:
 					BigWorld.camera().direction = BigWorld.Vector(*state["camera"]["direction"])
 		elif state["mode"] == "lobby":
 			BigWorld.player(Account.PlayerAccount())
+			assert "player_name" not in state, "Setting player name not implemented for lobby"
 			if "players" in state:
 				for id, player in enumerate(state["players"]):
 					BigWorld.player().prebattle.rosters[0][id] = {
@@ -272,6 +273,15 @@ class CQTSPluginFixture:
 	def get_user(self, **kwargs):
 		assert self._service, "Client query plugin must be loaded first"
 		return self._service.get_user(**kwargs)
+
+	async def wait_until_user_metadata_equals(self, name, metadata):
+		await wait_until_equal(lambda: self.get_user_metadata(name), metadata)
+
+	def get_user_metadata(self, name):
+		return getattr(self.get_user(name=name), 'metadata', None)
+
+	def set_user_metadata(self, name, metadata):
+		self.get_user(name=name).metadata = metadata
 
 	async def _service_check(self):
 		while self._service:

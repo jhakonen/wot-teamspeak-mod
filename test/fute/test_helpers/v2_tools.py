@@ -28,7 +28,7 @@ async def wait_until_true(checker_func, timeout=5):
 		assert time.time() < timeout_time, "Wait timed out"
 		await asyncio.sleep(0.001)
 
-async def wait_until_equal(checker_func, expected, timeout):
+async def wait_until_equal(checker_func, expected, timeout=5):
 	timeout_time = time.time() + timeout
 	while True:
 		value = checker_func()
