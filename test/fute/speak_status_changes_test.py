@@ -1,6 +1,6 @@
 import pytest
 
-from .test_helpers.v2_tools import *
+from .test_helpers.tools import *
 
 '''
 These futes test that changes in TeamSpeak user's speaking status is shown in-game.

@@ -5,7 +5,7 @@ import time
 import pytest
 
 from .test_helpers import constants
-from .test_helpers.v2_tools import *
+from .test_helpers.tools import *
 
 '''
 These futes test that TessuMod Plugin is advertised in lobby.

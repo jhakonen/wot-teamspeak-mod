@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from .test_helpers.v2_tools import contains_match, wait_until_true
+from .test_helpers.tools import contains_match, wait_until_true
 
 '''
 These fute test tests that notifications are shown in lobby.

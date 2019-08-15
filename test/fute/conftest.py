@@ -29,7 +29,7 @@ import tessumod.utils
 from .test_helpers import constants, mod_settings
 from .test_helpers.http_server import HTTPServer
 from .test_helpers.ts_client_query import TSClientQueryService
-from .test_helpers.v2_tools import *
+from .test_helpers.tools import *
 
 TMP_DIRPATH          = os.path.join(os.getcwd(), "tmp")
 MODS_VERSION_DIRPATH = os.path.join(TMP_DIRPATH, "mods", "version")
