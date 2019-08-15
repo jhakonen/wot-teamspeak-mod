@@ -14,10 +14,14 @@ import Account
 import Avatar
 import BigWorld
 import fakes
+from gui.battle_control.battle_constants import FEEDBACK_EVENT_ID
 from helpers import dependency
+from messenger.proto.events import g_messengerEvents
 from notification import NotificationMVC
 import ResMgr
+from skeletons.gui.battle_session import IBattleSessionProvider
 from skeletons.gui.system_messages import ISystemMessages
+from VOIP.VOIPManager import getVOIPManager
 
 import mod_tessumod
 import tessumod.utils
@@ -47,6 +51,7 @@ class GameFixture:
 		self._running = False
 		self._tick_task = None
 		self._mods = []
+		self._voip_player_speaking_state = {}
 
 	def start(self, **state):
 		assert not self._running, "Game has already been started"
@@ -60,6 +65,10 @@ class GameFixture:
 		ResMgr.RES_MODS_VERSION_PATH = MODS_VERSION_DIRPATH.replace("mods", "res_mods")
 		BigWorld.wg_openWebBrowser = mock.Mock()
 		NotificationMVC.g_instance.getModel().on_addNotification += self._add_notification_mock
+
+		session_provider = dependency.instance(IBattleSessionProvider)
+		session_provider.shared.feedback.onMinimapFeedbackReceived = mock.Mock()
+		g_messengerEvents.voip.onPlayerSpeaking += self._on_voip_player_speaking
 
 		[mod.load() for mod in self._mods]
 
@@ -135,6 +144,41 @@ class GameFixture:
 	def send_notification_action(self, msg, action):
 		NotificationMVC.g_instance.handleAction(typeID=msg.getType(), entityID=msg.getID(), action=action)
 
+	def get_player_id(self, name):
+		assert hasattr(BigWorld.player(), "arena"), "Getting player id in lobby not implemented"
+		for vehicle in BigWorld.player().arena.vehicles.values():
+			if vehicle["name"] == name:
+				return vehicle["accountDBID"]
+
+	def get_vehicle_id(self, name):
+		assert hasattr(BigWorld.player(), "arena"), "Getting vehicle id outside of battle makes no sense"
+		for vehicle_id, vehicle in BigWorld.player().arena.vehicles.items():
+			if vehicle["name"] == name:
+				return vehicle_id
+
+	def is_player_speaking(self, player_id):
+		received = self._voip_player_speaking_state.get(player_id, None)
+		queried = getVOIPManager().isParticipantTalking(player_id)
+		if received != queried:
+			return None
+		return received
+
+	def set_game_voice_chat_speaking(self, player_id, speaking):
+		getVOIPManager().fake_talkers[player_id] = speaking
+		g_messengerEvents.voip.onPlayerSpeaking(player_id, speaking)
+
+	def has_minimap_feedback(self, vehicle_id, action):
+		session_provider = dependency.instance(IBattleSessionProvider)
+		return mock_was_called_with(
+			session_provider.shared.feedback.onMinimapFeedbackReceived,
+			FEEDBACK_EVENT_ID.MINIMAP_SHOW_MARKER,
+			vehicle_id,
+			action
+		)
+
+	def _on_voip_player_speaking(self, player_id, speaking):
+		self._voip_player_speaking_state[player_id] = speaking
+
 	async def _tick(self):
 		while self._running:
 			BigWorld.tick()
@@ -162,6 +206,7 @@ class TessuModFixture:
 	def __init__(self):
 		self.mod_tessumod = None
 		self._events = []
+		self._ts_speak_state = {}
 
 	def load(self):
 		assert not self.mod_tessumod, "The mod has already been loaded"
@@ -179,6 +224,7 @@ class TessuModFixture:
 
 		del self._events[:]
 
+		self.mod_tessumod.on_player_speaking += self._on_player_speaking_in_ts
 		self.mod_tessumod.g_ts.on_connected_to_server += lambda *args, **kwargs: self._events.append("on_connected_to_ts_server")
 		self.mod_tessumod.g_ts.on_connected += lambda: self._events.append("on_connected_to_ts_client")
 		self.mod_tessumod.g_ts.on_disconnected += lambda: self._events.append("on_disconnected_from_ts_client")
@@ -234,6 +280,12 @@ class TessuModFixture:
 		assert self.mod_tessumod, "Mod has not been loaded, please start the game first!"
 		await wait_until_true(lambda: "on_connected_to_ts_server" in self._events, timeout)
 
+	async def wait_player_speaking_in_ts(self, id, speaking, timeout=5):
+		assert self.mod_tessumod, "Mod has not been loaded, please start the game first!"
+		await wait_until_equal(lambda: self._ts_speak_state.get(id, None), speaking, timeout)
+
+	def _on_player_speaking_in_ts(self, id, speaking):
+		self._ts_speak_state[id] = speaking
 
 @pytest.fixture()
 async def cq_tsplugin():
@@ -274,13 +326,14 @@ class CQTSPluginFixture:
 		assert self._service, "Client query plugin must be loaded first"
 		return self._service.get_user(**kwargs)
 
-	async def wait_until_user_metadata_equals(self, name, metadata):
-		await wait_until_equal(lambda: self.get_user_metadata(name), metadata)
+	async def wait_until_user_metadata_equals(self, name, metadata, timeout=5):
+		await wait_until_equal(lambda: self.get_user_metadata(name), metadata, timeout)
 
 	def get_user_metadata(self, name):
 		return getattr(self.get_user(name=name), 'metadata', None)
 
 	def set_user_metadata(self, name, metadata):
+		# TODO: Remove as change_state() can do this already
 		self.get_user(name=name).metadata = metadata
 
 	async def _service_check(self):
