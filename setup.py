@@ -32,6 +32,7 @@ setup(
         'setuptools-wotmod',
     ],
     tests_require = [
+        'aiohttp',
         'pydash',
         'pytest',
         'pytest-asyncio',

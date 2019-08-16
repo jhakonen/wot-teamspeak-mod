@@ -1,5 +1,4 @@
 import asyncio
-import asyncore
 import json
 import os
 import random
@@ -7,6 +6,7 @@ import shutil
 import struct
 from unittest import mock
 
+from aiohttp import web
 from pydash import _
 import pytest
 
@@ -27,7 +27,6 @@ import mod_tessumod
 import tessumod.utils
 
 from .test_helpers import constants, mod_settings
-from .test_helpers.http_server import HTTPServer
 from .test_helpers.cq_tsplugin_fake import TSClientQueryService, TSClientQueryDataModel
 from .test_helpers.tools import *
 
@@ -401,38 +400,32 @@ class MyTSPluginFixture:
 @pytest.fixture(autouse=True)
 async def httpserver():
 	obj = HTTPServerFixture()
-	obj.start()
+	await obj.start()
 	yield obj
 	await obj.stop()
 
 class HTTPServerFixture:
 
 	def __init__(self):
-		self._service = None
-		self._sock_map = {}
-		self._check_task = None
+		self._plugin_info_data = constants.PLUGIN_INFO
+		self._app = web.Application()
+		self._app.add_routes([web.get("/", self._plugin_info_handler)])
+		self._runner = web.AppRunner(self._app)
 
-	def start(self):
-		assert self._service == None, "Cannot start HTTP server if it is already running"
-		self._service = HTTPServer(self._sock_map)
-		self.set_plugin_info(constants.PLUGIN_INFO)
-		self._check_task = asyncio.get_event_loop().create_task(self._service_check())
-		mod_tessumod.PLUGIN_INFO_URL = self._service.get_url()
+	async def start(self):
+		await self._runner.setup()
+		site = web.TCPSite(self._runner, "localhost", 0)
+		await site.start()
+		mod_tessumod.PLUGIN_INFO_URL = "http://%s:%d/" % self._runner.addresses[0]
 
 	async def stop(self):
-		if self._service:
-			self._service.close()
-			self._service = None
-		if self._check_task:
-			await self._check_task
+		await self._runner.cleanup()
 
 	def set_plugin_info(self, obj):
-		self._service.set_response(200, "OK", json.dumps(obj))
+		self._plugin_info_data = obj
 
-	async def _service_check(self):
-		while self._service:
-			asyncore.loop(0, map=self._sock_map, count=1)
-			await asyncio.sleep(0.001)
+	def _plugin_info_handler(self, request):
+		return web.Response(text=json.dumps(self._plugin_info_data))
 
 
 def create_mmap_fake(name, length):
