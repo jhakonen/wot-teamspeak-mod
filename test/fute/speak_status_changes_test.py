@@ -10,6 +10,8 @@ pytestmark = [pytest.mark.asyncio]
 
 @pytest.fixture()
 async def test_setup(game, tessumod, cq_tsplugin):
+	await cq_tsplugin.load(connected_to_server=True)
+	game.start(mode="battle", players=[{"name": "TuhoajaErkki"}])
 	yield SpeakStateFixture(game, tessumod, cq_tsplugin)
 
 class SpeakStateFixture:
@@ -18,8 +20,6 @@ class SpeakStateFixture:
 		self._game = game
 		self._tessumod = tessumod
 		self._cq_tsplugin = cq_tsplugin
-		self._cq_tsplugin.load(connected_to_server=True)
-		self._game.start(mode="battle", players=[{"name": "TuhoajaErkki"}])
 
 	def create_user(self, name):
 		self._cq_tsplugin.change_state(users={name: {}})

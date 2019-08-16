@@ -28,7 +28,7 @@ import tessumod.utils
 
 from .test_helpers import constants, mod_settings
 from .test_helpers.http_server import HTTPServer
-from .test_helpers.ts_client_query import TSClientQueryService
+from .test_helpers.cq_tsplugin_fake import TSClientQueryService, TSClientQueryDataModel
 from .test_helpers.tools import *
 
 TMP_DIRPATH          = os.path.join(os.getcwd(), "tmp")
@@ -306,34 +306,30 @@ class CQTSPluginFixture:
 
 	def __init__(self):
 		self._service = None
-		self._sock_map = {}
-		self._check_task = None
 
-	def load(self, **state):
+	async def load(self, **state):
 		assert self._service == None, "Client query plugin is already loaded"
-		self._service = TSClientQueryService(self._sock_map)
-		self._service.start()
+		self._model = TSClientQueryDataModel()
+		self._service = TSClientQueryService(self._model)
+		await self._service.start()
 		self.change_state(**state)
-		self._check_task = asyncio.get_event_loop().create_task(self._service_check())
 
 	def change_state(self, **state):
 		assert self._service, "Client query plugin must be already loaded to change its state"
 		if "connected_to_server" in state:
-			self._service.set_connected_to_server(state["connected_to_server"])
+			self._model.set_connected_to_server(state["connected_to_server"])
 		if "users" in state:
 			for name, data in state["users"].items():
-				self._service.set_user(name, **data)
+				self._model.set_user(name, **data)
 
 	async def unload(self):
 		if self._service:
-			self._service.stop()
+			await self._service.stop()
 			self._service = None
-		if self._check_task:
-			await self._check_task
 
 	def get_user(self, **kwargs):
 		assert self._service, "Client query plugin must be loaded first"
-		return self._service.get_user(**kwargs)
+		return self._model.get_user(**kwargs)
 
 	async def wait_until_user_metadata_equals(self, name, metadata, timeout=5):
 		await wait_until_equal(lambda: self.get_user_metadata(name), metadata, timeout)
@@ -344,12 +340,6 @@ class CQTSPluginFixture:
 	def set_user_metadata(self, name, metadata):
 		# TODO: Remove as change_state() can do this already
 		self.get_user(name=name).metadata = metadata
-
-	async def _service_check(self):
-		while self._service:
-			asyncore.loop(0, map=self._sock_map, count=1)
-			self._service.check()
-			await asyncio.sleep(0.001)
 
 @pytest.fixture(autouse=True)
 async def my_tsplugin(cq_tsplugin):

@@ -9,7 +9,7 @@ pytestmark = [pytest.mark.asyncio]
 @pytest.fixture(autouse=True)
 async def test_setup(game, cq_tsplugin, my_tsplugin):
 	my_tsplugin.load()
-	cq_tsplugin.load(connected_to_server=True)
+	await cq_tsplugin.load(connected_to_server=True)
 	game.start(mode="battle")
 
 
