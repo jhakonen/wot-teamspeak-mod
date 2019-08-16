@@ -37,17 +37,25 @@ If still no matching player is found then nothing happens.
 Development
 -----------
 
+Requirements:
+- Python 2.7 (for compiling the mod)
+- Python 3.7 (for running test suite)
+
+Define environment variable with path to Python 2.7:
+
+    export BDIST_WOTMOD_PYTHON27=/usr/bin/python2
+
 Running test suite:
 
-    ./setup.py test
+    python3 setup.py test
 
 Building the mod from sources and installing it into World of Tanks:
 
-    ./setup.py bdist_wotmod --dist-dir=<game-dir>/mods/<version>/tessumod
+    python3 setup.py bdist_wotmod --dist-dir=<game-dir>/mods/<version>/tessumod
 
 Creating release archive:
 
-    ./setup.py clean package
+    python3 setup.py clean package
 
 With bugs and improvement ideas please use [issues page](https://github.com/jhakonen/wot-teamspeak-mod/issues) to report them.
 Also, pull requests are welcome. :)
