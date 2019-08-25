@@ -30,7 +30,7 @@ setup(
     setup_requires = ['setuptools-wotmod', 'nose>=1.0'],
     # Required as setuptools-wotmod is not yet in PyPI
     dependency_links = [
-        'https://github.com/jhakonen/setuptools-wotmod/tarball/master#egg=setuptools-wotmod'
+        'https://github.com/jhakonen/setuptools-wotmod/tarball/0.2.0#egg=setuptools-wotmod'
     ],
     test_suite = 'nose.collector'
 )
