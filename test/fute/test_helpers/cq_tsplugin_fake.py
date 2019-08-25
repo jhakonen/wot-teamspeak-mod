@@ -196,7 +196,7 @@ class TSClientQueryConnection:
 				clid = cmd_params["clid"]
 				client_meta_data = cmd_params.get("client_meta_data", None)
 				user = self._model.get_user(clid=clid)
-				if "client_meta_data" is not None:
+				if client_meta_data is not None:
 					await self._write_line(f"clid={clid} client_meta_data={escape_client_query_value(user.metadata)}")
 				else:
 					await self._write_line(f"clid={clid}")

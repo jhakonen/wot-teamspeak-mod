@@ -1,0 +1,45 @@
+version: '3.7'
+services:
+  musicbot:
+    build: ./ts3audiobot
+    restart: always
+    ports:
+      - 58913:58913
+    volumes:
+      - musicbot:/app
+      - ${PWD}/testaudio:/testaudio:ro
+      #- ${PWD}/NLog.config:/opt/bot/NLog.config
+    depends_on:
+      - tsserver
+
+  tsserver:
+    image: teamspeak
+    restart: always
+    ports:
+      - 9987:9987/udp
+      - 10011:10011
+      - 30033:30033
+    environment:
+      TS3SERVER_DB_PLUGIN: ts3db_mariadb
+      TS3SERVER_DB_SQLCREATEPATH: create_mariadb
+      TS3SERVER_DB_HOST: db
+      TS3SERVER_DB_USER: root
+      TS3SERVER_DB_PASSWORD: expensive-dropbox-crust-making-headsman-saggy
+      TS3SERVER_DB_NAME: teamspeak
+      TS3SERVER_LICENSE: accept
+    networks:
+      default:
+        aliases:
+          # Use this as musicbot's host address to avoid it trying to resolve
+          # the host as a nickname (and getting it wrong)
+          - ts.server
+
+  db:
+    image: mariadb
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: expensive-dropbox-crust-making-headsman-saggy
+      MYSQL_DATABASE: teamspeak
+
+volumes:
+  musicbot:
