@@ -7,7 +7,7 @@ import setup_helpers
 
 setup(
     name = 'tessumod',
-    version = '0.7.0',
+    version = '0.7.1',
     description = 'Mod for integrating Teamspeak to World of Tanks',
     author = 'jhakonen',
     license = 'LGPL 2.1 License',
