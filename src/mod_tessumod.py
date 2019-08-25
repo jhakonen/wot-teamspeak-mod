@@ -116,7 +116,7 @@ def init():
 
 		g_messengerEvents.users.onUsersListReceived += on_users_list_received
 
-		add_onPlayerSpeaking_filter(g_messengerEvents.voip.onPlayerSpeaking)
+		g_messengerEvents.voip.onPlayerSpeaking = wrap_onPlayerSpeaking(g_messengerEvents.voip.onPlayerSpeaking)
 
 		notifications.add_event_handler(notifications.TSPLUGIN_DOWNLOAD, on_tsplugin_download)
 		notifications.add_event_handler(notifications.TSPLUGIN_IGNORED, on_tsplugin_ignore_toggled)
@@ -141,7 +141,7 @@ def fini():
 	g_playerEvents.onAvatarReady           -= g_positional_audio.enable
 	g_playerEvents.onAvatarBecomeNonPlayer -= g_positional_audio.disable
 
-	remove_onPlayerSpeaking_filter(g_messengerEvents.voip.onPlayerSpeaking)
+	g_messengerEvents.voip.onPlayerSpeaking = g_messengerEvents.voip.onPlayerSpeaking.get_original_event()
 
 	g_authentication_error = None
 	g_keyvaluestorage = None
@@ -503,25 +503,15 @@ def BattleReplay_play(orig_method):
 		return orig_method(*args, **kwargs)
 	return wrapper
 
-def add_onPlayerSpeaking_filter(obj):
-	class FilterEvent(type(obj)):
-		def __call__(self, dbid, talking):
-			if talking:
-				self.unfiltered_call(dbid, talking)
-			elif has_speak_feedback(dbid):
-				pass
-			else:
-				self.unfiltered_call(dbid, talking)
-
-		def unfiltered_call(self, *args, **kwargs):
-			self.original_class.__call__(self, *args, **kwargs)
-
-	obj.original_class = obj.__class__
-	obj.__class__ = FilterEvent
-
-def remove_onPlayerSpeaking_filter(obj):
-	obj.__class__ = obj.original_class
-	del obj.original_class
+def wrap_onPlayerSpeaking(obj):
+	def filter_func(self, orig_func, dbid, talking):
+		if talking:
+			orig_func(dbid, talking)
+		elif has_speak_feedback(dbid):
+			pass
+		else:
+			orig_func(dbid, talking)
+	return utils.EventFilter(obj, filter_func)
 
 def on_users_list_received(tags):
 	'''This function populates user cache with friends and clan members from

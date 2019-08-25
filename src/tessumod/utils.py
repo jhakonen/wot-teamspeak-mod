@@ -273,6 +273,31 @@ class Player(object):
 	def __repr__(self):
 		return "Player(name={0}, id={1})".format(self._name, self._id)
 
+class EventFilter(object):
+	def __init__(self, orig_event, filter_func):
+		self._orig_event = orig_event
+		self._filter_func = filter_func
+
+	def __call__(self, *args, **kwargs):
+		return self._filter_func(self, self.unfiltered_call, *args, **kwargs)
+
+	def __iadd__(self, delegate):
+		self._orig_event.__iadd__(delegate)
+		return self
+
+	def __isub__(self, delegate):
+		self._orig_event.__isub__(delegate)
+		return self
+
+	def clear(self):
+		self._orig_event.clear()
+
+	def unfiltered_call(self, *args, **kwargs):
+		return self._orig_event.__call__(*args, **kwargs)
+
+	def get_original_event(self):
+		return self._orig_event
+
 class MinimapMarkersController(object):
 	'''MinimapMarkersController class repeatably starts given marker 'action' every
 	'interval' seconds in minimap over given 'vehicle_id', effectively creating
