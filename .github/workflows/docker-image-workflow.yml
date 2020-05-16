@@ -18,16 +18,7 @@ env:
 jobs:
   build:
     name: Build docker image for building Tessumod
-    strategy:
-      matrix:
-        config:
-          - os: ubuntu
-            runner: ubuntu-latest
-          - os: windows
-            runner: windows-2016
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
 
@@ -37,7 +28,7 @@ jobs:
         IMAGE_NAME=${IMAGE_PREFIX}-ubuntu-latest
 
         echo "Build docker image: $IMAGE_NAME"
-        docker build -t $IMAGE_NAME docker/ubuntu
+        docker build -t $IMAGE_NAME docker
         docker history $IMAGE_NAME
 
     - name: Push docker image to Docker Hub
