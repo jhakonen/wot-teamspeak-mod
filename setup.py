@@ -28,19 +28,15 @@ setup(
         'package': setup_helpers.PackageCommand
     },
     setup_requires = [
-        'pytest-runner',
-        'setuptools-wotmod',
+        'pytest-runner==5.2',
+        'setuptools-wotmod@git+https://github.com/jhakonen/setuptools-wotmod.git@master',
     ],
     tests_require = [
-        'aiohttp',
-        'pydash',
-        'pytest',
-        'pytest-asyncio',
-        'pytest-pythonpath',
-        'nose',
-    ],
-    # Required as setuptools-wotmod is not yet in PyPI
-    dependency_links = [
-        'https://github.com/jhakonen/setuptools-wotmod/tarball/master#egg=setuptools-wotmod'
+        'aiohttp==3.6.2',
+        'pydash==4.7.6',
+        'pytest==5.4.2',
+        'pytest-asyncio==0.12.0',
+        'pytest-pythonpath==0.7.3',
+        'nose==1.3.7',
     ],
 )

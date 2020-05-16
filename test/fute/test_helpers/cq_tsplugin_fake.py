@@ -89,7 +89,7 @@ class TSClientQueryService(object):
 	async def start(self):
 		if self._server:
 			return
-		self._server = await asyncio.start_server(self.handle_accept, "localhost", 25639)
+		self._server = await asyncio.start_server(self.handle_accept, "127.0.0.1", 25639)
 		await self._server.start_serving()
 
 	def handle_accept(self, reader, writer):
