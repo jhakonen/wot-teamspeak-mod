@@ -191,3 +191,10 @@ class TestPluginAdvertisement:
 		assert_equal(output["offer_type"], "install")
 		assert_equal(output["download_url"], "https://github.com/jhakonen/wot-teamspeak-plugin/releases/tag/v0.8.0")
 		assert_equal(output["plugin_version"], 1)
+
+	def test_offers_plugin_install_with_not_tagged_version(self):
+		self.input["mod_version"] = self.input["mod_version"] + ".post18+gccf7b38.d20200517"
+		output = mod_tessumod.get_plugin_advertisement_info(self.input)
+		assert_equal(output["offer_type"], "install")
+		assert_equal(output["download_url"], "https://github.com/jhakonen/wot-teamspeak-plugin/releases/tag/v0.8.0")
+		assert_equal(output["plugin_version"], 1)

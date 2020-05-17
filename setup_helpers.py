@@ -104,3 +104,6 @@ class PackageCommand(Command):
 		with zipfile.ZipFile(release_filepath, 'w', zipfile.ZIP_DEFLATED) as release_file:
 			release_file.write(readme_src_filepath, "tessumod/%s" % readme_dst_filename)
 			release_file.write(wotmod_filepath, "tessumod/%s" % wotmod_filename)
+
+		# Notify Github Actions workflow location of the release file
+		print(f"::set-output name=release-package::{os.path.relpath(release_filepath)}")
