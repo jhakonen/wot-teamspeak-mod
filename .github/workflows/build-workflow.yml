@@ -21,10 +21,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-      with:
-        # Setuptools_scm requires non-shallow repository
-        fetch-depth: 0
+    # NOTE: Using old version of 'checkout' as v2 does not pull tags and those
+    # are needed by setuptools_scm to determine mod's version
+    - uses: actions/checkout@v1.2.0
 
     - name: Pull docker image from Docker Hub
       shell: bash
