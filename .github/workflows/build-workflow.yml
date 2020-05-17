@@ -21,11 +21,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    # Checkout sources and get plugin version string from latest tag
     - uses: actions/checkout@v2
-
-    - name: Fetch all tags
-      run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+      with:
+        # Setuptools_scm requires non-shallow repository
+        fetch-depth: 0
 
     - name: Pull docker image from Docker Hub
       shell: bash
