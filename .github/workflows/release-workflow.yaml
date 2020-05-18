@@ -86,3 +86,4 @@ jobs:
         asset_path: ${{ steps.package.outputs.release-package }}
         asset_name: ${{ steps.package.outputs.release-package }}
         asset_content_type: application/zip
+
