@@ -38,7 +38,7 @@ jobs:
           --rm \
           --volume '${{ github.workspace }}:/build' \
           $IMAGE_NAME \
-          python3 setup.py test
+          python3 setup.py unit
 
     - name: Run fute tests
       shell: bash

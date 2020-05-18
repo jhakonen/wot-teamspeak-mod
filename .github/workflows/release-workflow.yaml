@@ -29,7 +29,7 @@ jobs:
           --rm \
           --volume '${{ github.workspace }}:/build' \
           $IMAGE_NAME \
-          python3 setup.py test
+          python3 setup.py unit
 
     - name: Run fute tests
       shell: bash
@@ -50,6 +50,14 @@ jobs:
           $IMAGE_NAME \
           python3 setup.py clean package
 
+    - name: Parse version string
+      id: version
+      uses: frabert/replace-string-action@v1.1
+      with:
+        pattern: v([.0-9]+)
+        string: ${{ github.ref }}
+        replace-with: $1
+
     - name: Create release
       id: create_release
       uses: actions/create-release@v1
@@ -57,10 +65,10 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: ${{ github.ref }}
-        release_name: TessuMod version ${{ github.ref }}
+        release_name: TessuMod version ${{ steps.version.outputs.replaced }}
         draft: true
         body: |
-          Public release ${{ github.ref }} of TessuMod.
+          Public release ${{ steps.version.outputs.replaced }} of TessuMod.
 
           # Changes:
 
