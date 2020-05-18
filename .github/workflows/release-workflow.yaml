@@ -54,7 +54,7 @@ jobs:
       id: version
       uses: frabert/replace-string-action@v1.1
       with:
-        pattern: v([.0-9]+)
+        pattern: .*v([.0-9]+)
         string: ${{ github.ref }}
         replace-with: $1
 
@@ -75,7 +75,7 @@ jobs:
           # Known Issues:
 
           # Downloads
-          ${{ steps.package.outputs.release-package }}: Mod installation archive, extract to mods\<version> folder.
+          ${{ steps.package.outputs.release-package }}: Mod installation archive, extract to mods\\<version> folder.
 
     - name: Upload mod release package asset
       uses: actions/upload-release-asset@v1
@@ -86,4 +86,3 @@ jobs:
         asset_path: ${{ steps.package.outputs.release-package }}
         asset_name: ${{ steps.package.outputs.release-package }}
         asset_content_type: application/zip
-
