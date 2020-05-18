@@ -3,9 +3,6 @@ name: Test and build the mod package
 on:
   push:
     branches: ['**']
-    # Do not run on release creation
-    tags-ignore:
-    - 'v[0-9]+.[0-9]+.[0-9]+'
     paths-ignore:
     - 'docker/**'
     - '.github/workflows/docker-image-workflow.yml'
