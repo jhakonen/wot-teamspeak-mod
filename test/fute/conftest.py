@@ -414,7 +414,7 @@ class HTTPServerFixture:
 
 	async def start(self):
 		await self._runner.setup()
-		site = web.TCPSite(self._runner, "localhost", 0)
+		site = web.TCPSite(self._runner, "127.0.0.1", 0)
 		await site.start()
 		mod_tessumod.PLUGIN_INFO_URL = "http://%s:%d/" % self._runner.addresses[0]
 

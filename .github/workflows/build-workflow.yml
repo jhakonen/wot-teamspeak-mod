@@ -1,0 +1,63 @@
+name: Test and build the mod package
+
+on:
+  push:
+    branches: ['**']
+    paths-ignore:
+    - 'docker/**'
+    - '.github/workflows/docker-image-workflow.yml'
+  pull_request:
+    paths-ignore:
+    - 'docker/**'
+    - '.github/workflows/docker-image-workflow.yml'
+
+env:
+  IMAGE_NAME: jhakonen/tessumod:mod-builder-latest
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    # NOTE: Using old version of 'checkout' as v2 does not pull tags and those
+    # are needed by setuptools_scm to determine mod's version
+    - uses: actions/checkout@v1.2.0
+
+    - name: Pull docker image from Docker Hub
+      shell: bash
+      run: |
+        echo "Pull docker image: $IMAGE_NAME"
+        docker pull $IMAGE_NAME
+
+    - name: Run unit tests
+      shell: bash
+      run: |
+        docker run \
+          --rm \
+          --volume '${{ github.workspace }}:/build' \
+          $IMAGE_NAME \
+          python3 setup.py unit
+
+    - name: Run fute tests
+      shell: bash
+      run: |
+        docker run \
+          --rm \
+          --volume '${{ github.workspace }}:/build' \
+          $IMAGE_NAME \
+          python3 setup.py fute
+
+    - name: Build release package
+      id: package
+      shell: bash
+      run: |
+        docker run \
+          --rm \
+          --volume '${{ github.workspace }}:/build' \
+          $IMAGE_NAME \
+          python3 setup.py clean package
+
+    - name: Upload mod release package artifact
+      uses: actions/upload-artifact@v1
+      with:
+        name: release-package
+        path: ${{ steps.package.outputs.release-package }}

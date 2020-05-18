@@ -1,0 +1,35 @@
+name: Build Docker image
+
+on:
+  push:
+    branches: ['**']
+    paths:
+    - 'docker/**'
+    - '.github/workflows/docker-image-workflow.yml'
+
+env:
+  IMAGE_NAME: jhakonen/tessumod:mod-builder-latest
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Build docker image
+      shell: bash
+      run: |
+        echo "Build docker image: $IMAGE_NAME"
+        docker build -t $IMAGE_NAME docker
+        docker history $IMAGE_NAME
+
+    - name: Push docker image to Docker Hub
+      shell: bash
+      run: |
+        echo "Login to Docker Hub"
+        echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+
+        echo "Push docker image: $IMAGE_NAME"
+        docker push $IMAGE_NAME

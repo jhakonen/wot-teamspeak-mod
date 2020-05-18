@@ -1,0 +1,88 @@
+name: Test, build and draft release the mod package
+
+on:
+  push:
+    tags:
+    - 'v[0-9]+.[0-9]+.[0-9]+'
+
+env:
+  IMAGE_NAME: jhakonen/tessumod:mod-builder-latest
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    # NOTE: Using old version of 'checkout' as v2 does not pull tags and those
+    # are needed by setuptools_scm to determine mod's version
+    - uses: actions/checkout@v1.2.0
+
+    - name: Pull docker image from Docker Hub
+      shell: bash
+      run: |
+        echo "Pull docker image: $IMAGE_NAME"
+        docker pull $IMAGE_NAME
+
+    - name: Run unit tests
+      shell: bash
+      run: |
+        docker run \
+          --rm \
+          --volume '${{ github.workspace }}:/build' \
+          $IMAGE_NAME \
+          python3 setup.py unit
+
+    - name: Run fute tests
+      shell: bash
+      run: |
+        docker run \
+          --rm \
+          --volume '${{ github.workspace }}:/build' \
+          $IMAGE_NAME \
+          python3 setup.py fute
+
+    - name: Build release package
+      id: package
+      shell: bash
+      run: |
+        docker run \
+          --rm \
+          --volume '${{ github.workspace }}:/build' \
+          $IMAGE_NAME \
+          python3 setup.py clean package
+
+    - name: Parse version string
+      id: version
+      uses: frabert/replace-string-action@v1.1
+      with:
+        pattern: .*v([.0-9]+)
+        string: ${{ github.ref }}
+        replace-with: $1
+
+    - name: Create release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: TessuMod version ${{ steps.version.outputs.replaced }}
+        draft: true
+        body: |
+          Public release ${{ steps.version.outputs.replaced }} of TessuMod.
+
+          # Changes:
+
+          # Known Issues:
+
+          # Downloads
+          ${{ steps.package.outputs.release-package }}: Mod installation archive, extract to mods\\<version> folder.
+
+    - name: Upload mod release package asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ${{ steps.package.outputs.release-package }}
+        asset_name: ${{ steps.package.outputs.release-package }}
+        asset_content_type: application/zip
