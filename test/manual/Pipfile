@@ -8,6 +8,7 @@ verify_ssl = true
 [packages]
 click = "==7.1.2"
 ts3 = "==2.0.0b3"
+tenacity = "*"
 
 [requires]
 python_version = "3.8"

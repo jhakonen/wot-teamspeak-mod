@@ -15,12 +15,17 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
+from contextlib import contextmanager
 import sys
+import time
 
 import click
+from tenacity import retry, wait_fixed
 
 import docker_compose
 import server_query
+
+MUSIC_BOT_NAME = 'TS3AudioBot'
 
 @click.group()
 def cli():
@@ -34,9 +39,19 @@ def up():
 		print('ServerAdmin privilege key:',
 			docker_compose.search_logs(r'token=(\S+)')[1]
 		)
+		music_bot_info = get_music_bot_info()
+		print('Music bot:')
+		print('  Name:      ', music_bot_info['client_nickname'])
+		print('  Client ID: ', music_bot_info['clid'])
+		print('  Unique ID: ', music_bot_info['client_unique_identifier'])
+		print('  Channel ID:', music_bot_info['cid'])
 	except FileNotFoundError as error:
 		print(error)
 		sys.exit(1)
+
+@retry(wait=wait_fixed(1))
+def get_music_bot_info():
+	return server_query.find_client(MUSIC_BOT_NAME)
 
 @cli.command()
 def down():

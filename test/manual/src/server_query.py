@@ -22,16 +22,22 @@ SERVER_URL = 'telnet://serveradmin:password123@127.0.0.1:10011'
 
 def send_text_message(msg):
 	with server_query() as ts3conn:
-		ts3conn.exec_("sendtextmessage",
+		ts3conn.exec_('sendtextmessage',
 			targetmode=2,
 			target=1,
 			msg='!play /testaudio/Bennett__Bravo__Mehrl__Olivera__Taveira__Italiano_-_16_-_chalchihuitl.mp3'
 		)
 
+def find_client(name):
+	with server_query() as ts3conn:
+		result = ts3conn.exec_('clientfind', pattern=name)
+		clid = result.parsed[0]['clid']
+		result = ts3conn.exec_('clientinfo', clid=clid)
+		return dict(result.parsed[0], clid=clid)
+
 @contextmanager
 def server_query():
-	# TODO: keep retrying if error is: EOFError: telnet connection closed
 	with ts3.query.TS3ServerConnection(SERVER_URL) as ts3conn:
-		ts3conn.exec_("use", sid=1)
+		ts3conn.exec_('use', sid=1)
 		yield ts3conn
 
