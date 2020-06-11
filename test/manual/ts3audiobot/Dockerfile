@@ -1,20 +1,23 @@
 FROM ubuntu:bionic
 RUN apt-get update \
-    && apt-get install -y \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y \
         ca-certificates \
         curl \
         ffmpeg \
         gnupg \
         libarchive-tools \
         libopus-dev \
-    && apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF \
-    && echo "deb https://download.mono-project.com/repo/ubuntu stable-bionic main" | tee /etc/apt/sources.list.d/mono-official-stable.list \
+        wget \
+    && wget \
+        https://packages.microsoft.com/config/ubuntu/18.04/packages-microsoft-prod.deb \
+        -O packages-microsoft-prod.deb \
+    && dpkg -i packages-microsoft-prod.deb \
     && apt-get update \
-    && apt-get install -y mono-devel \
+    && apt-get install -y dotnet-runtime-2.2 \
     && rm -rf /var/lib/apt/lists/*
 # Download the bot
 RUN mkdir /opt/bot/ \
-    && curl https://splamy.de/api/nightly/ts3ab/develop/download | bsdtar -xvf- -C /opt/bot
+    && curl https://splamy.de/api/nightly/ts3ab/master_dotnet_core/download | bsdtar -xvf- -C /opt/bot
 # Configure it
 RUN mkdir /app
 COPY rights.toml /app/rights.toml
@@ -22,4 +25,4 @@ COPY ts3audiobot.toml /app/ts3audiobot.toml
 COPY bots /app/bots
 WORKDIR /app/
 VOLUME /app/
-CMD ["mono", "/opt/bot/TS3AudioBot.exe", "--non-interactive"]
+CMD ["dotnet", "/opt/bot/TS3AudioBot.dll", "--non-interactive"]

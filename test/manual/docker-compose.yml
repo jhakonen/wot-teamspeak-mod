@@ -27,12 +27,15 @@ services:
       TS3SERVER_DB_PASSWORD: expensive-dropbox-crust-making-headsman-saggy
       TS3SERVER_DB_NAME: teamspeak
       TS3SERVER_LICENSE: accept
+    command: ts3server serveradmin_password=password123
     networks:
       default:
         aliases:
           # Use this as musicbot's host address to avoid it trying to resolve
           # the host as a nickname (and getting it wrong)
           - ts.server
+    volumes:
+      - ./tsserver/logs:/var/ts3server/logs:rw
 
   db:
     image: mariadb
