@@ -26,7 +26,7 @@ import server_query
 def cli():
 	pass
 
-@cli.command('up')
+@cli.command()
 def up():
 	try:
 		docker_compose.up()
@@ -38,7 +38,7 @@ def up():
 		print(error)
 		sys.exit(1)
 
-@cli.command('down')
+@cli.command()
 def down():
 	try:
 		docker_compose.down()
@@ -46,13 +46,21 @@ def down():
 		print(error)
 		sys.exit(1)
 
-@cli.command('play')
+@cli.command()
+def build():
+	try:
+		docker_compose.build()
+	except FileNotFoundError as error:
+		print(error)
+		sys.exit(1)
+
+@cli.command()
 def play():
 	server_query.send_text_message(
 		'!play /testaudio/Bennett__Bravo__Mehrl__Olivera__Taveira__Italiano_-_16_-_chalchihuitl.mp3'
 	)
 
-@cli.command('stop')
+@cli.command()
 def stop():
 	server_query.send_text_message('!stop')
 

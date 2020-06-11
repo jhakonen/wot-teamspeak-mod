@@ -25,6 +25,9 @@ def up():
 def down():
 	subprocess.run(['docker-compose', 'down'])
 
+def build():
+	subprocess.run(['docker-compose', 'build'])
+
 def search_logs(pattern):
 	match = None
 	while match == None:
