@@ -13,14 +13,14 @@ First, you will need to have following:
 
 Then install tool's python dependencies with command:
 ```bash
-pipenv install
+$ pipenv install
 ```
 
 With dependencies installed you can startup the enviroment with:
 ```bash
-./test-environment env-up
+$ ./test-environment env-up
 ```
-Follow the instructions the command gives.
+You can then use your TeamSpeak client to connect `localhost` to join the test server.
 
 ## Testing
 
@@ -30,10 +30,10 @@ TBD
 
 You can bring down the environment with command:
 ```bash
-./test-environment env-stop
+$ ./test-environment env-stop
 ```
 
 Or if you want to both bring it down and remove all resources use command:
 ```bash
-./test-environment env-down
+$ ./test-environment env-down
 ```
