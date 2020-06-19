@@ -5,6 +5,7 @@ This tool provides a manual test environment where Tessumod can be tested agains
 
 First, you will need to have following:
 * bash
+* python 3.8
 * pipenv
 * docker
 * docker-compose
