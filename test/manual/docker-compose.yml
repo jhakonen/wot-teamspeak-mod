@@ -7,8 +7,6 @@ services:
       - 58913:58913
     volumes:
       - musicbot:/app
-      - ${PWD}/testaudio:/testaudio:ro
-      #- ${PWD}/NLog.config:/opt/bot/NLog.config
     depends_on:
       - tsserver
 
@@ -36,6 +34,7 @@ services:
           - ts.server
     volumes:
       - ./tsserver/logs:/var/ts3server/logs:rw
+      - ./tsserver/query_ip_whitelist.txt:/var/ts3server/query_ip_whitelist.txt
 
   db:
     image: mariadb

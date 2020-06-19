@@ -20,24 +20,42 @@ import ts3
 
 SERVER_URL = 'telnet://serveradmin:password123@127.0.0.1:10011'
 
-def send_text_message(msg):
-	with server_query() as ts3conn:
-		ts3conn.exec_('sendtextmessage',
-			targetmode=2,
-			target=1,
-			msg='!play /testaudio/Bennett__Bravo__Mehrl__Olivera__Taveira__Italiano_-_16_-_chalchihuitl.mp3'
-		)
-
-def find_client(name):
-	with server_query() as ts3conn:
-		result = ts3conn.exec_('clientfind', pattern=name)
-		clid = result.parsed[0]['clid']
-		result = ts3conn.exec_('clientinfo', clid=clid)
-		return dict(result.parsed[0], clid=clid)
-
 @contextmanager
-def server_query():
-	with ts3.query.TS3ServerConnection(SERVER_URL) as ts3conn:
-		ts3conn.exec_('use', sid=1)
-		yield ts3conn
+def connect():
+	with ts3.query.TS3ServerConnection(SERVER_URL) as conn:
+		conn.exec_('use', sid=1)
+		yield conn
 
+def send_text_message(conn, msg):
+	conn.exec_('sendtextmessage',
+		targetmode=2,
+		target=1,
+		msg=msg
+	)
+
+def add_client_to_group(conn, client_name, group_name):
+	client = find_client(conn, client_name)
+	group = find_group(conn, group_name)
+	try:
+		conn.exec_('servergroupaddclient',
+			sgid=group['sgid'],
+			cldbid=client['client_database_id']
+		)
+	except ts3.query.TS3QueryError as error:
+		if error.resp.error['id'] != '2561': # Duplicate entry
+			raise
+
+def find_client(conn, name):
+	result = conn.exec_('clientfind', pattern=name)
+	clid = result.parsed[0]['clid']
+	result = conn.exec_('clientinfo', clid=clid)
+	return dict(result.parsed[0], clid=clid)
+
+def find_group(conn, name):
+	result = conn.exec_('servergrouplist')
+	for group in result.parsed:
+		if group['name'] == name and group['type'] == '1':
+			return group
+
+def change_server_property(conn, prop, value):
+	conn.exec_('serveredit', **{ prop.lower(): value })

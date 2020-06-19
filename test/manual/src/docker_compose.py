@@ -19,20 +19,25 @@ import re
 import subprocess
 import time
 
+COMPOSE_CMD = ['docker-compose', '-p', 'tessumod_manual']
+
 def up():
-	subprocess.run(['docker-compose', 'up', '-d'])
+	subprocess.run(COMPOSE_CMD + ['up', '-d', '--build'])
 
 def down():
-	subprocess.run(['docker-compose', 'down'])
+	subprocess.run(COMPOSE_CMD + ['down'])
 
-def build():
-	subprocess.run(['docker-compose', 'build'])
+def stop():
+	subprocess.run(COMPOSE_CMD + ['stop'])
+
+def logs():
+	subprocess.run(COMPOSE_CMD + ['logs', '-f'])
 
 def search_logs(pattern):
 	match = None
 	while match == None:
 		result = subprocess.run(
-			['docker-compose', 'logs'],
+			COMPOSE_CMD + ['logs'],
 			encoding='utf8',
 			capture_output=True
 		)

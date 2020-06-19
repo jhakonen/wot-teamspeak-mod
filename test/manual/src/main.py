@@ -16,6 +16,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 from contextlib import contextmanager
+import logging
 import sys
 import time
 
@@ -27,57 +28,81 @@ import server_query
 
 MUSIC_BOT_NAME = 'TS3AudioBot'
 
-@click.group()
-def cli():
+# Enable to debug server_query
+# logging.basicConfig(level=logging.DEBUG)
+
+@click.group(help='''
+	Creates manual test environment which includes TeamSpeak server, database
+	for it, and a music bot. The bot will automatically connect to the server
+	on environment start up. This tool provides also basic commands for
+	controlling the bot.
+	''')
+def main():
 	pass
 
-@cli.command()
-def up():
+@main.command(help='Starts manual test environment')
+def env_up():
 	try:
 		docker_compose.up()
 		print('')
-		print('ServerAdmin privilege key:',
-			docker_compose.search_logs(r'token=(\S+)')[1]
-		)
+		print('TeamSpeak server is listening at \'localhost\', use your TeamSpeak client to connect to the server.')
+		print('ServerAdmin privilege key for gaining admin rights:')
+		print(' ', docker_compose.search_logs(r'token=(\S+)')[1])
 		music_bot_info = get_music_bot_info()
 		print('Music bot:')
 		print('  Name:      ', music_bot_info['client_nickname'])
 		print('  Client ID: ', music_bot_info['clid'])
 		print('  Unique ID: ', music_bot_info['client_unique_identifier'])
 		print('  Channel ID:', music_bot_info['cid'])
+
+		with server_query.connect() as conn:
+			server_query.change_server_property(conn,
+				'VIRTUALSERVER_NAME',
+				'Tessumod manual test server'
+			)
+			server_query.add_client_to_group(conn, MUSIC_BOT_NAME, 'Server Admin')
+			server_query.send_text_message(conn, '!repeat all')
+
 	except FileNotFoundError as error:
 		print(error)
 		sys.exit(1)
 
 @retry(wait=wait_fixed(1))
 def get_music_bot_info():
-	return server_query.find_client(MUSIC_BOT_NAME)
+	with server_query.connect() as conn:
+		return server_query.find_client(conn, MUSIC_BOT_NAME)
 
-@cli.command()
-def down():
+@main.command(help='Shows log output from TS server, DB and music bot')
+def env_logs():
+	docker_compose.logs()
+
+@main.command(help='Brings down the manual test environment and destroys it, '
+	+ 'removing all settings')
+def env_down():
 	try:
 		docker_compose.down()
 	except FileNotFoundError as error:
 		print(error)
 		sys.exit(1)
 
-@cli.command()
-def build():
+@main.command(help='Brings down the manual test environment')
+def env_stop():
 	try:
-		docker_compose.build()
+		docker_compose.stop()
 	except FileNotFoundError as error:
 		print(error)
 		sys.exit(1)
 
-@cli.command()
-def play():
-	server_query.send_text_message(
-		'!play /testaudio/Bennett__Bravo__Mehrl__Olivera__Taveira__Italiano_-_16_-_chalchihuitl.mp3'
-	)
+@main.command(help='Starts playback of audio stream')
+@click.argument('url')
+def play(url):
+	with server_query.connect() as conn:
+		server_query.send_text_message(conn, f'!play {url}')
 
-@cli.command()
-def stop():
-	server_query.send_text_message('!stop')
+@main.command(help='Pause or unpause current playback')
+def pause():
+	with server_query.connect() as conn:
+		server_query.send_text_message(conn, '!pause')
 
 if __name__ == '__main__':
-	cli()
+	main()
