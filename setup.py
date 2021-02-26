@@ -34,7 +34,7 @@ setup(
         'setuptools-wotmod@git+https://github.com/jhakonen/setuptools-wotmod.git@master',
     ],
     tests_require = [
-        'aiohttp==3.6.2',
+        'aiohttp==3.7.4',
         'pydash==4.7.6',
         'pytest==5.4.2',
         'pytest-asyncio==0.12.0',
